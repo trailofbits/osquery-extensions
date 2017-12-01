@@ -101,6 +101,24 @@ bool getRegistryPropertyAsString(std::string& property_value,
 }
 } // namespace
 
+std::string getSha256Hash(const std::uint8_t* buffer, std::size_t length) {
+  SHA256_CTX context;
+  SHA256_Init(&context);
+
+  SHA256_Update(&context, buffer, length);
+
+  std::uint8_t digest[SHA256_DIGEST_LENGTH];
+  SHA256_Final(digest, &context);
+
+  std::stringstream string_digest;
+  for (std::size_t i = 0U; i < SHA256_DIGEST_LENGTH; i++) {
+    string_digest << std::setw(2) << std::setfill('0') << std::hex
+                  << static_cast<int>(digest[i]);
+  }
+
+  return string_digest.str();
+}
+
 void getEFIVersion(std::string& version) {
   io_registry_entry_t registry = MACH_PORT_NULL;
 

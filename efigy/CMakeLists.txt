@@ -37,6 +37,11 @@ function (main)
   find_package(curl REQUIRED)
   target_link_libraries("${PROJECT_NAME}" ${CURL_LIBRARIES})
   target_include_directories("${PROJECT_NAME}" PRIVATE ${CURL_INCLUDE_DIR})
+
+  set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+  find_package(openssl REQUIRED)
+  target_link_libraries("${PROJECT_NAME}" ${OPENSSL_LIBRARIES})
+  target_include_directories("${PROJECT_NAME}" PRIVATE ${OPENSSL_INCLUDE_DIR})
 endfunction ()
 
 main()

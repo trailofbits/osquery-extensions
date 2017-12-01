@@ -40,15 +40,11 @@ osquery::Status getPostRequestData(std::string& json,
   system_info_object.put("smc_ver", system_info.smc_ver);
 
   {
-    // std::string buffer = system_info.mac_addr + system_info.sys_uuid;
+    std::string buffer = system_info.mac_addr + system_info.sys_uuid;
+    std::string digest = getSha256Hash(
+        reinterpret_cast<const std::uint8_t*>(buffer.data()), buffer.size());
 
-    // osquery::Hash hasher(osquery::HASH_TYPE_SHA256);
-    // hasher.update(buffer.data(), buffer.size());
-
-    // system_info_object.put("hashed_uuid", hasher.digest());
-    system_info_object.put(
-        "hashed_uuid",
-        "96ca672ac966502030b692ed3708e8671b5a0ff84dedea6ad1882ee75e6b4be3");
+    system_info_object.put("hashed_uuid", digest);
   }
 
   system_info_object.put("build_num", system_info.build_num);
