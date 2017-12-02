@@ -16,10 +16,14 @@
 
 #include "efigy.h"
 
+#include <curl/curl.h>
+
 #include <iomanip>
 #include <iostream>
 
 int runAsStandalone() {
+  curl_global_init(CURL_GLOBAL_ALL);
+
   std::cout << "Running as standalone...\n";
 
   SystemInformation system_info;
@@ -71,11 +75,16 @@ int runAsStandalone() {
                     : "Outdated")
             << "\n";
 
+  curl_global_cleanup();
   return 0;
 }
 
 int runAsExtension() {
+  curl_global_init(CURL_GLOBAL_ALL);
+
   std::cout << "Running as extension...\n";
+
+  curl_global_cleanup();
   return 0;
 }
 

@@ -16,6 +16,8 @@
 
 #include "utils.h"
 
+#include <curl/curl.h>
+
 #import <Foundation/Foundation.h>
 #import <Foundation/NSProcessInfo.h>
 
@@ -99,7 +101,76 @@ bool getRegistryPropertyAsString(std::string& property_value,
 
   return true;
 }
+
+std::size_t curlWriteCallback(const char* data,
+                              std::size_t chunk_size,
+                              std::size_t chunk_count,
+                              std::string* read_buffer) {
+  auto total_size = chunk_count * chunk_size;
+
+  read_buffer->append(data, total_size);
+  return total_size;
+};
+
+std::size_t curlReadCallback(char* buffer,
+                             std::size_t chunk_size,
+                             std::size_t chunk_count,
+                             const std::uint8_t** input_buffer) {
+  auto total_size = chunk_count * chunk_size;
+
+  auto input_buffer_ptr = *input_buffer;
+  std::memcpy(buffer, input_buffer_ptr, total_size);
+
+  input_buffer_ptr += total_size;
+  *input_buffer = input_buffer_ptr;
+
+  return total_size;
+}
 } // namespace
+#include <iostream>
+std::string httpPostRequest(const std::string& url,
+                            const std::string& post_data) {
+  CURL* curl = curl_easy_init();
+  if (curl == nullptr) {
+    throw std::runtime_error("Failed to initialize the curl handle");
+  }
+
+  curl_easy_setopt(curl, CURLOPT_URL, url.data());
+
+  auto data_ptr = post_data.data();
+  curl_easy_setopt(curl, CURLOPT_READFUNCTION, curlReadCallback);
+  curl_easy_setopt(curl, CURLOPT_READDATA, &data_ptr);
+  curl_easy_setopt(curl,
+                   CURLOPT_INFILESIZE_LARGE,
+                   static_cast<curl_off_t>(post_data.size()));
+
+  std::string read_buffer;
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &read_buffer);
+
+  curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/cert.pem");
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 2L);
+
+  auto error = curl_easy_perform(curl);
+  if (error != CURLE_OK) {
+    curl_easy_cleanup(curl);
+    throw std::runtime_error(curl_easy_strerror(error));
+  }
+
+  long http_code;
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+  curl_easy_cleanup(curl);
+  std::cout << "ANSWER: " << read_buffer << std::endl;
+  if (http_code != 200) {
+    std::stringstream error_message;
+    error_message << "The server has returned the following HTTP status code: "
+                  << http_code;
+
+    throw std::runtime_error(error_message.str());
+  }
+
+  return read_buffer;
+}
 
 std::string getSha256Hash(const std::uint8_t* buffer, std::size_t length) {
   SHA256_CTX context;

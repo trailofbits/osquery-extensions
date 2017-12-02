@@ -18,12 +18,16 @@
 #include "efigy.h"
 
 osquery::TableColumns EFIgyTablePlugin::columns() const {
+  // clang-format off
   return {
       std::make_tuple("latest_efi_version",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "efi_version", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+
+      std::make_tuple("efi_version",
+                      osquery::TEXT_TYPE,
+                      osquery::ColumnOptions::DEFAULT),
+
       std::make_tuple("efi_version_status",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
@@ -31,11 +35,16 @@ osquery::TableColumns EFIgyTablePlugin::columns() const {
       std::make_tuple("latest_os_version",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "os_version", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+
+      std::make_tuple("os_version",
+                      osquery::TEXT_TYPE,
+                      osquery::ColumnOptions::DEFAULT),
+
       std::make_tuple("build_number_status",
                       osquery::TEXT_TYPE,
-                      osquery::ColumnOptions::DEFAULT)};
+                      osquery::ColumnOptions::DEFAULT)
+  };
+  // clang-format on
 }
 
 osquery::QueryData EFIgyTablePlugin::generate(osquery::QueryContext& request) {
