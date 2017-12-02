@@ -34,7 +34,10 @@ struct SystemInformation final {
   std::string mac_addr;
 };
 
+std::string httpPostRequest(const std::string& url,
+                            const std::string& post_data);
 std::string getSha256Hash(const std::uint8_t* buffer, std::size_t length);
+
 void getEFIVersion(std::string& version);
 void getSMCVersion(std::string& version);
 void getOSVersion(std::string& version, std::string& build);

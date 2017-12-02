@@ -16,11 +16,9 @@
 
 #pragma once
 
-#include <string>
-
-#include <osquery/sdk.h>
-
 #include "utils.h"
+
+#include <string>
 
 struct ServerResponse final {
   std::string latest_efi_version;
@@ -28,5 +26,4 @@ struct ServerResponse final {
   std::string latest_build_number;
 };
 
-osquery::Status queryEFIgy(ServerResponse& response,
-                           const SystemInformation& system_info);
+void queryEFIgy(ServerResponse& response, const SystemInformation& system_info);
