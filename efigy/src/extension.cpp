@@ -17,6 +17,8 @@
 #include "extension.h"
 #include "efigy.h"
 
+REGISTER_EXTERNAL(EFIgyTablePlugin, "table", "efigy");
+
 osquery::TableColumns EFIgyTablePlugin::columns() const {
   // clang-format off
   return {
