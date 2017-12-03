@@ -24,8 +24,6 @@
 int runAsStandalone() {
   curl_global_init(CURL_GLOBAL_ALL);
 
-  std::cout << "Running as standalone...\n";
-
   SystemInformation system_info;
   ServerResponse response;
 
