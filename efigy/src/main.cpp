@@ -15,6 +15,7 @@
  */
 
 #include "efigy.h"
+#include "extension.h"
 
 #include <curl/curl.h>
 
@@ -77,12 +78,21 @@ int runAsStandalone() {
   return 0;
 }
 
-int runAsExtension() {
+int runAsExtension(int argc, char* argv[]) {
+  std::cout << "Connecting to the running osquery instance...\n";
+
   curl_global_init(CURL_GLOBAL_ALL);
+  osquery::Initializer runner(argc, argv, osquery::ToolType::EXTENSION);
 
-  std::cout << "Running as extension...\n";
+  auto status = osquery::startExtension("efigy", "1.0.0");
+  if (!status.ok()) {
+    LOG(ERROR) << status.getMessage();
+    runner.requestShutdown(status.getCode());
+  }
 
+  runner.waitForShutdown();
   curl_global_cleanup();
+
   return 0;
 }
 
@@ -97,25 +107,14 @@ void showUsage(char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-  if (argc == 2) {
-    if (std::strcmp(argv[1], "--standalone") == 0) {
-      return runAsStandalone();
-    }
+  if (argc == 2 && std::strcmp(argv[1], "--standalone") == 0) {
+    return runAsStandalone();
 
-    int exit_status = 0;
-    if (std::strcmp(argv[1], "--help") != 0) {
-      std::cerr << "Error: Unrecognized argument\n\n";
-      exit_status = 1;
-    }
-
+  } else if (argc == 2 && std::strcmp(argv[1], "--help") == 0) {
     showUsage(argv);
-    return exit_status;
+    return 0;
 
-  } else if (argc != 1) {
-    std::cerr << "Error: Invalid argument count\n\n";
-    showUsage(argv);
-    return 1;
+  } else {
+    return runAsExtension(argc, argv);
   }
-
-  return runAsExtension();
 }
