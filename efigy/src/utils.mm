@@ -27,6 +27,7 @@
 #include <IOKit/network/IONetworkInterface.h>
 
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 #include <vector>
 
@@ -188,19 +189,26 @@ std::string getSha256Hash(const std::uint8_t* buffer, std::size_t length) {
 void getEFIVersion(std::string& version) {
   io_registry_entry_t registry = MACH_PORT_NULL;
 
+  std::stringstream version_stream;
+
   try {
     registry =
         IORegistryEntryFromPath(kIOMasterPortDefault, "IODeviceTree:/rom");
+
     if (registry == MACH_PORT_NULL) {
       throw std::runtime_error("Failed to open the rom registry entry");
     }
 
-    if (!getRegistryPropertyAsString(version, registry, "version")) {
+    std::string temp;
+    auto success = getRegistryPropertyAsString(temp, registry, "version");
+    IOObjectRelease(registry);
+    registry = MACH_PORT_NULL;
+
+    if (!success) {
       throw std::runtime_error("Failed to acquire the logic board id");
     }
 
-    IOObjectRelease(registry);
-
+    version_stream << temp;
   } catch (const std::exception& e) {
     if (registry != MACH_PORT_NULL) {
       IOObjectRelease(registry);
@@ -208,6 +216,21 @@ void getEFIVersion(std::string& version) {
 
     throw;
   }
+
+  std::vector<std::string> version_parts;
+  while (true) {
+    std::string temp;
+    if (!std::getline(version_stream, temp, '.'))
+      break;
+
+    version_parts.push_back(temp);
+  }
+
+  if (version_parts.size() != 5U) {
+    throw std::runtime_error("Invalid EFI version string");
+  }
+
+  version = version_parts[0] + "." + version_parts[2] + "." + version_parts[3];
 }
 
 void getSMCVersion(std::string& version) {
