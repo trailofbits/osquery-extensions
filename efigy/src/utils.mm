@@ -89,10 +89,10 @@ bool getRegistryPropertyAsString(std::string& property_value,
     std::vector<UniChar> characters;
     characters.resize(string_length);
 
-    CFStringGetCharacters(string_ref,
-                          CFRangeMake(0U, string_length), characters.data());
+    CFStringGetCharacters(
+        string_ref, CFRangeMake(0U, string_length), characters.data());
 
-    for (const auto &unicode_char : characters) {
+    for (const auto& unicode_char : characters) {
       property_value.push_back(static_cast<char>(unicode_char));
     }
 
@@ -116,29 +116,6 @@ std::size_t curlWriteCallback(const char* data,
   read_buffer->append(data, total_size);
   return total_size;
 };
-
-struct CurlReadCallbackData final {
-  std::size_t size;
-  std::size_t offset;
-  const char *buffer;
-};
-
-std::size_t curlReadCallback(char* buffer,
-                             std::size_t chunk_size,
-                             std::size_t chunk_count,
-                             CurlReadCallbackData *input_buffer) {
-  auto max_size = chunk_count * chunk_size;
-  auto remaining = input_buffer->size - input_buffer->offset;
-
-  auto bytes_to_read = std::min(max_size, remaining);
-
-  if (bytes_to_read > 0) {
-    std::memcpy(buffer, &input_buffer->buffer[input_buffer->offset], bytes_to_read);
-    input_buffer->offset += bytes_to_read;
-  }
-
-  return bytes_to_read;
-}
 } // namespace
 
 std::string httpPostRequest(const std::string& url,
@@ -150,17 +127,14 @@ std::string httpPostRequest(const std::string& url,
 
   curl_easy_setopt(curl, CURLOPT_URL, url.data());
 
-  struct curl_slist *http_headers = nullptr;
-  http_headers = curl_slist_append(http_headers, "Content-Type: application/json");
+  struct curl_slist* http_headers = nullptr;
+  http_headers =
+      curl_slist_append(http_headers, "Content-Type: application/json");
+  http_headers = curl_slist_append(http_headers, "Expect:");
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, http_headers);
 
-  CurlReadCallbackData read_data;
-  read_data.buffer = post_data.data();
-  read_data.offset = 0U;
-  read_data.size = post_data.size();
-
-  curl_easy_setopt(curl, CURLOPT_READFUNCTION, curlReadCallback);
-  curl_easy_setopt(curl, CURLOPT_READDATA, &read_data);
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_data.data());
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, post_data.size());
 
   std::string read_buffer;
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteCallback);
@@ -168,7 +142,6 @@ std::string httpPostRequest(const std::string& url,
 
   curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/cert.pem");
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-  curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
   auto error = curl_easy_perform(curl);
   if (error != CURLE_OK) {
