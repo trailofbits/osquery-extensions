@@ -1,11 +1,11 @@
 # Trail of Bits osquery Extensions
 
-This is a repository includes [osquery](https://osquery.io/) [extensions](https://osquery.readthedocs.io/en/stable/development/osquery-sdk/) developed and maintained by Trail of Bits.
+This repository includes [osquery](https://osquery.io/) [extensions](https://osquery.readthedocs.io/en/stable/development/osquery-sdk/) developed and maintained by [Trail of Bits](https://www.trailofbits.com/).
 
 ## Building
 
 1. Clone the osquery repository
-2. Symlink the extensions you intend to build into the external osquery directory. Use the following link name: "extension_\<name\>".
+2. Symlink the extensions you want to build into the external osquery directory. Use the following link name: "extension_\<name\>".
 3. Build osquery
 4. Run 'make externals'
 
