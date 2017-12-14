@@ -1,15 +1,42 @@
-# osquery-extensions
-This is the central repository for the osquery extensions developed at Trail of Bits.
+# Trail of Bits osquery Extensions
 
-## License
-The code within this repository is licensed under the [Apache 2.0 license](LICENSE).
+This is a repository includes [osquery](https://osquery.io/) [extensions](https://osquery.readthedocs.io/en/stable/development/osquery-sdk/) developed and maintained by Trail of Bits.
 
 ## Building
-To build an extension, you will need to clone the osquery source tree, and create a symlink in the **osquery/external** folder. The full Build instructions can be found in [docs/BUILDING.md](docs/BUILDING.md)
+
+1. Clone the osquery repository
+2. Symlink the extensions you intend to build into the external osquery directory. Use the following link name: "extension_\<name\>".
+3. Build osquery
+4. Run 'make externals'
+
+### Example
+```
+cd /src
+git clone https://github.com/facebook/osquery.git
+
+cd /src/osquery-extensions
+ln -s efigy /src/osquery/external/extension_efigy
+
+cd /src/osquery
+make sysprep
+make deps
+
+make -j `nproc`
+make externals
+```
 
 ## Usage
-Once you have built your extension, you can run it manually and have it connect automatically to the running shell or daemon instance. You can also start it manually by passing the following command directly to the osqueryi or osqueryd executable: **--extension /path/to/extension**
 
-The full documentation can be found here: https://osquery.readthedocs.io/en/stable/deployment/extensions
+To quickly test the extension, you can either start it from the osqueryi shell, or launch it manually and wait for it to connect to the running osquery instance.
+
+> osqueryi --extension /path/to/extension
+
+See the [osquery documentation on extensions](https://osquery.readthedocs.io/en/stable/deployment/extensions) for further information.
+
 ## Contributing
-We welcome both issue reports and feature requests! Also, feel free to send us a pull request if you wish to contribute new extensions or bug fixes.
+
+Do you have an idea for an osquery extension? Please [file an issue](https://github.com/trailofbits/osquery-extensions/issues/new) for it. We welcome contributions of bug fixes, feature requests, and extensions.
+
+## License
+
+The code within this repository is licensed under the [Apache 2.0 license](LICENSE).
