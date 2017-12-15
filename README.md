@@ -22,7 +22,7 @@ cd /src/osquery
 make sysprep
 make deps
 
-make -j `nproc` # If using OSX, replace `nproc` with `sysctl -n hw.ncpu`
+make -j `nproc` # If using macOS, replace `nproc` with `sysctl -n hw.ncpu`
 make externals
 
 # Run make again to ensure osquery recognizes the extension to build
@@ -35,7 +35,7 @@ At this point, you may see the following warning:
 
 This message can be ignored.
 
-Once the second make command completes successfully, the extension should be in a subfolder of /src/osquery/build. A simple `find . -name "efigy.ext"` can help you locate it quickly.
+Once the second make command completes successfully, the extension should be in a subfolder of `/src/osquery/build`. A simple `find . -name "efigy.ext"` can help you locate it quickly.
 
 
 ## Usage
@@ -66,7 +66,7 @@ Do you have an idea for an osquery extension? Please [file an issue](https://git
 
 ## Troubleshooting
 
-When troubleshooting, ensure you are running osqueryd/osqueryi with the `--verbose` flag
+When troubleshooting, ensure you are running osqueryd/osqueryi with the `--verbose` flag.
 
 * If you encounter the following error, you need change the owner of efigy.ext to be root or run osquery with the `--allow_unsafe` flag: `watcher.cpp:535] [Ref #1382] Extension binary has unsafe permissions:1`
 
