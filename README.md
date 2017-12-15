@@ -30,9 +30,7 @@ make externals
 make -j `nproc`
 ```
 
-If you see the following warning, it can be ignored:
-
-> `-- Cannot find Doxygen executable in path`
+If you see the following warning, it can be ignored: `-- Cannot find Doxygen executable in path`
 
 The extension should be in a subfolder of `/src/osquery/build` once the second make command completes successfully. Using `find . -name "efigy.ext"` can help you locate it quickly.
 
