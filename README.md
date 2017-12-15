@@ -10,6 +10,7 @@ This repository includes [osquery](https://osquery.io/) [extensions](https://osq
 4. Run 'make externals'
 
 ### Example
+
 ```
 cd /src
 git clone https://github.com/facebook/osquery.git
@@ -29,18 +30,15 @@ make externals
 make -j `nproc`
 ```
 
-At this point, you may see the following warning:
+If you see the following warning, it can be ignored:
 
-`-- Cannot find Doxygen executable in path`
+> `-- Cannot find Doxygen executable in path`
 
-This message can be ignored.
-
-Once the second make command completes successfully, the extension should be in a subfolder of `/src/osquery/build`. A simple `find . -name "efigy.ext"` can help you locate it quickly.
-
+The extension should be in a subfolder of `/src/osquery/build` once the second make command completes successfully. Using `find . -name "efigy.ext"` can help you locate it quickly.
 
 ## Usage
 
-To quickly test the extension, you can either start it from the osqueryi shell, or launch it manually and wait for it to connect to the running osquery instance.
+To quickly test an extension, you can either start it from the osqueryi shell, or launch it manually and wait for it to connect to the running osquery instance.
 
 Consider either changing the ownership of `efigy.ext` to root or running osquery with the `--allow_unsafe` flag.
 
