@@ -1,6 +1,6 @@
 # Trail of Bits osquery Extensions
 
-This repository includes [osquery](https://osquery.io/) [extensions](https://osquery.readthedocs.io/en/stable/development/osquery-sdk/) developed and maintained by [Trail of Bits](https://www.trailofbits.com/).
+This repository includes [osquery](https://osquery.io/) [extensions](https://osquery.readthedocs.io/en/stable/development/osquery-sdk/) developed and maintained by [Trail of Bits](https://www.trailofbits.com/). If you would like to sponsor the development of an extension, [please contact us](https://www.trailofbits.com/contact/).
 
 ## Building
 
@@ -68,4 +68,4 @@ When troubleshooting, ensure you are running osqueryd/osqueryi with the `--verbo
 
 ## License
 
-The code within this repository is licensed under the [Apache 2.0 license](LICENSE).
+The code in this repository is licensed under the [Apache 2.0 license](LICENSE).
