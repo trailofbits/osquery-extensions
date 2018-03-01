@@ -43,13 +43,6 @@ class PortBlacklistTable : public osquery::TablePlugin {
                             const osquery::PluginRequest& request);
 
  private:
-  using RowID = std::uint64_t;
-  struct PrivateData;
-
-  std::unique_ptr<PrivateData> d;
-
-  RowID generateRowId();
-
   static osquery::Status GetRowData(osquery::Row& row,
                                     const std::string& json_value_array);
 

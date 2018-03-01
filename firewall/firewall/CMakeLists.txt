@@ -33,6 +33,7 @@ function(main)
 
   add_library("${PROJECT_NAME}" STATIC ${PROJECT_SOURCEFILES})
   target_include_directories("${PROJECT_NAME}" PUBLIC "${PROJECT_PUBLICINCLUDEFOLDER}")
+  target_link_libraries("${PROJECT_NAME}" PUBLIC extutils)
 endfunction()
 
 main()

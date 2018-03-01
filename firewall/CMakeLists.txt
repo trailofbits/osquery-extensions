@@ -41,6 +41,9 @@ function(main)
 
   target_compile_definitions("${PROJECT_NAME}" PRIVATE "${configuration_root}")
 
+  # TODO: Use a variable here
+  add_subdirectory("/Users/alessandro/Projects/TrailOfBits/osquery-extensions/extutils" libextutils)
+
   add_subdirectory(firewall)
   target_link_libraries("${PROJECT_NAME}" firewall)
 endfunction()
