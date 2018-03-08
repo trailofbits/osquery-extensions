@@ -17,7 +17,7 @@
 #include "extension.h"
 #include "santa.h"
 
-REGISTER_EXTERNAL(SantaTablePlugin, "table", "santa");
+REGISTER_EXTERNAL(SantaTablePlugin, "table", "santa_events");
 
 osquery::TableColumns SantaTablePlugin::columns() const {
   // clang-format off
@@ -26,7 +26,7 @@ osquery::TableColumns SantaTablePlugin::columns() const {
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
 
-      std::make_tuple("application",
+      std::make_tuple("path",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
 
@@ -59,7 +59,7 @@ osquery::QueryData SantaTablePlugin::generate(osquery::QueryContext& request) {
   {
     osquery::Row r;
     r["timestamp"] = iter->timestamp;
-    r["application"] = iter->application;
+    r["path"] = iter->application;
     r["reason"] = iter->reason;
     result.push_back(r);
   }
