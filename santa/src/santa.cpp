@@ -126,8 +126,11 @@ static int rulesCallback(void* context,
                          char** azColName) {
   RuleEntries* rules = static_cast<RuleEntries*>(context);
   if (argc == 3) {
-    rules->push_back(
-        {std::string(argv[0]), std::string(argv[1]), std::string(argv[2])});
+    // shasum, state, type
+    // shasum, white/blacklist, binary/cert
+    rules->push_back({std::string(argv[0]),
+                      argv[1][0] == '1' ? "whitelist" : "blacklist",
+                      argv[2][0] == '1' ? "binary" : "certificate"});
   }
   return 0;
 }

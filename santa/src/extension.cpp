@@ -75,11 +75,11 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
 
-      std::make_tuple("type",
+      std::make_tuple("state",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
 
-      std::make_tuple("status",
+      std::make_tuple("type",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT)
 
@@ -98,7 +98,7 @@ osquery::QueryData SantaRulesTablePlugin::generate(
     VLOG(1) << e.what();
 
     osquery::Row r;
-    r["shasum"] = r["type"] = r["status"] = "error";
+    r["shasum"] = r["type"] = r["state"] = "error";
 
     return {r};
   }
@@ -108,8 +108,8 @@ osquery::QueryData SantaRulesTablePlugin::generate(
        ++iter) {
     osquery::Row r;
     r["shasum"] = iter->shasum;
+    r["state"] = iter->state;
     r["type"] = iter->type;
-    r["status"] = iter->status;
     result.push_back(r);
   }
 

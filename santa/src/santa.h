@@ -27,8 +27,8 @@ struct LogEntry {
 
 struct RuleEntry {
   std::string shasum;
+  std::string state;
   std::string type;
-  std::string status;
 };
 
 typedef std::list<LogEntry> LogEntries;
