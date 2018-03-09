@@ -26,7 +26,6 @@ class IFirewall : private boost::noncopyable {
 
   enum class TrafficDirection { Inbound, Outbound };
   enum class Protocol { TCP, UDP };
-  enum class State { Active, Pending, Error };
 
   virtual ~IFirewall() = default;
 
@@ -42,13 +41,15 @@ class IFirewall : private boost::noncopyable {
       bool (*callback)(std::uint16_t port,
                        TrafficDirection direction,
                        Protocol protocol,
-                       State state,
                        void* user_defined),
       void* user_defined) = 0;
 
-  virtual Status addHostToBlacklist() = 0;
-  virtual Status removeHostFromBlacklist() = 0;
-  virtual Status enumerateBlacklistedHosts() const = 0;
+  virtual Status addHostToBlacklist(const std::string& host) = 0;
+  virtual Status removeHostFromBlacklist(const std::string& host) = 0;
+
+  virtual Status enumerateBlacklistedHosts(
+      bool (*callback)(const std::string& host, void* user_defined),
+      void* user_defined) = 0;
 };
 
 IFirewall::Status CreateFirewallObject(std::unique_ptr<IFirewall>& obj);

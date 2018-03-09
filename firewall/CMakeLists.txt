@@ -20,6 +20,7 @@ set(CMAKE_VERBOSE_MAKEFILE TRUE)
 function(main)
   set(PROJECT_SOURCEFILES
     src/main.cpp
+    src/types.h
 
     src/globals.h
     src/globals.cpp

@@ -19,12 +19,6 @@ const std::string blocked_hosts_table = "blocked_hosts";
 struct Firewall::PrivateData final {
   std::string pf_token;
   std::mutex mutex;
-
-  std::vector<PortRule> saved_port_rules;
-  std::vector<std::string> saved_host_table;
-
-  std::vector<PortRule> active_port_rules;
-  std::vector<std::string> active_host_table;
 };
 
 Firewall::Status Firewall::create(std::unique_ptr<IFirewall>& obj) {
@@ -53,29 +47,39 @@ Firewall::Status Firewall::addPortToBlacklist(
     Firewall::TrafficDirection direction,
     Firewall::Protocol protocol) {
   std::lock_guard<std::mutex> lock(d->mutex);
-  PortRule new_rule = {port, direction, protocol};
+
+  std::vector<PortRule> port_rules;
+  std::set<std::string> host_rules;
+
+  auto status = readFirewallState(port_rules, host_rules);
+  if (!status.success()) {
+    return status;
+  }
+
+  PortRule new_port_rule = {port, direction, protocol};
 
   // clang-format off
-  auto it = std::find_if(
-    d->saved_port_rules.begin(),
-    d->saved_port_rules.end(),
+  auto port_rule_it = std::find_if(
+    port_rules.begin(),
+    port_rules.end(),
 
-    [new_rule](const PortRule &existing_rule) {
+    [&new_port_rule](const PortRule& existing_port_rule) -> bool {
       return (
-        new_rule.port == existing_rule.port &&
-        new_rule.direction == existing_rule.direction &&
-        new_rule.protocol == existing_rule.protocol
+        new_port_rule.port == existing_port_rule.port &&
+        new_port_rule.direction == existing_port_rule.direction &&
+        new_port_rule.protocol == existing_port_rule.protocol
       );
     }
   );
-  // clang-format on
+  // clang-format off
 
-  if (it != d->saved_port_rules.end()) {
+  if (port_rule_it != port_rules.end()) {
     return Status(false, Detail::AlreadyExists);
   }
 
-  d->saved_port_rules.push_back(new_rule);
-  return applyFirewallRules();
+  port_rules.push_back(new_port_rule);
+
+  return applyNewFirewallRules(port_rules, host_rules);
 }
 
 Firewall::Status Firewall::removePortFromBlacklist(
@@ -83,74 +87,62 @@ Firewall::Status Firewall::removePortFromBlacklist(
     Firewall::TrafficDirection direction,
     Firewall::Protocol protocol) {
   std::lock_guard<std::mutex> lock(d->mutex);
-  PortRule new_rule = {port, direction, protocol};
+
+  std::vector<PortRule> port_rules;
+  std::set<std::string> host_rules;
+
+  auto status = readFirewallState(port_rules, host_rules);
+  if (!status.success()) {
+    return status;
+  }
+
+  PortRule new_port_rule = {port, direction, protocol};
 
   // clang-format off
-  auto it = std::find_if(
-    d->saved_port_rules.begin(),
-    d->saved_port_rules.end(),
+  auto port_rule_it = std::find_if(
+    port_rules.begin(),
+    port_rules.end(),
 
-    [new_rule](const PortRule &existing_rule) {
+    [&new_port_rule](const PortRule& existing_port_rule) -> bool {
       return (
-        new_rule.port == existing_rule.port &&
-        new_rule.direction == existing_rule.direction &&
-        new_rule.protocol == existing_rule.protocol
+        existing_port_rule.port == existing_port_rule.port &&
+        existing_port_rule.direction == existing_port_rule.direction &&
+        existing_port_rule.protocol == existing_port_rule.protocol
       );
     }
   );
-  // clang-format on
+  // clang-format off
 
-  if (it == d->saved_port_rules.end()) {
+  if (port_rule_it == port_rules.end()) {
     return Status(false, Detail::NotFound);
   }
 
-  d->saved_port_rules.erase(it);
-  return applyFirewallRules();
+  port_rules.erase(port_rule_it);
+  return applyNewFirewallRules(port_rules, host_rules);
 }
 
 Firewall::Status Firewall::enumerateBlacklistedPorts(
     bool (*callback)(std::uint16_t port,
                      Firewall::TrafficDirection direction,
                      Firewall::Protocol protocol,
-                     Firewall::State state,
                      void* user_defined),
     void* user_defined) {
-  auto status = readFirewallState();
-  if (!status.success()) {
-    return status;
-  }
-
-  std::vector<PortRule> saved_rules;
-  std::vector<PortRule> active_rules;
+  std::vector<PortRule> port_rules;
+  std::set<std::string> host_rules;
 
   {
     std::lock_guard<std::mutex> lock(d->mutex);
-    saved_rules = d->saved_port_rules;
-    active_rules = d->active_port_rules;
+
+    auto status = readFirewallState(port_rules, host_rules);
+    if (!status.success()) {
+      return status;
+    }
   }
 
-  for (const auto& saved_rule : saved_rules) {
-    // clang-format off
-    auto rule_it = std::find_if(
-      active_rules.begin(),
-      active_rules.end(),
-
-      [saved_rule](const PortRule &active_rule) {
-        return (
-          saved_rule.port == active_rule.port &&
-          saved_rule.direction == active_rule.direction &&
-          saved_rule.protocol == active_rule.protocol
-        );
-      }
-    );
-    // clang-format on
-
-    State rule_state =
-        (rule_it == active_rules.end() ? State::Pending : State::Active);
-    if (!callback(saved_rule.port,
-                  saved_rule.direction,
-                  saved_rule.protocol,
-                  rule_state,
+  for (const auto& port_rule : port_rules) {
+    if (!callback(port_rule.port,
+                  port_rule.direction,
+                  port_rule.protocol,
                   user_defined)) {
       break;
     }
@@ -159,15 +151,67 @@ Firewall::Status Firewall::enumerateBlacklistedPorts(
   return Status(true);
 }
 
-Firewall::Status Firewall::addHostToBlacklist() {
-  return Status(true);
+Firewall::Status Firewall::addHostToBlacklist(const std::string &host) {
+  std::lock_guard<std::mutex> lock(d->mutex);
+
+  std::vector<PortRule> port_rules;
+  std::set<std::string> host_rules;
+
+  auto status = readFirewallState(port_rules, host_rules);
+  if (!status.success()) {
+    return status;
+  }
+
+  if (host_rules.find(host) != host_rules.end()) {
+    return Status(false, Detail::AlreadyExists);
+  }
+
+  host_rules.insert(host);
+  return applyNewFirewallRules(port_rules, host_rules);
 }
 
-Firewall::Status Firewall::removeHostFromBlacklist() {
-  return Status(true);
+Firewall::Status Firewall::removeHostFromBlacklist(const std::string &host) {
+  std::lock_guard<std::mutex> lock(d->mutex);
+
+  std::vector<PortRule> port_rules;
+  std::set<std::string> host_rules;
+
+  auto status = readFirewallState(port_rules, host_rules);
+  if (!status.success()) {
+    return status;
+  }
+
+  auto host_rule_it = host_rules.find(host);
+  if (host_rule_it == host_rules.end()) {
+    return Status(false, Detail::NotFound);
+  }
+
+  host_rules.erase(host_rule_it);
+
+  return applyNewFirewallRules(port_rules, host_rules);
 }
 
-Firewall::Status Firewall::enumerateBlacklistedHosts() const {
+Firewall::Status Firewall::enumerateBlacklistedHosts(
+      bool (*callback)(const std::string& host, void* user_defined),
+      void* user_defined) {
+  std::vector<PortRule> port_rules;
+  std::set<std::string> host_rules;
+
+  {
+    std::lock_guard<std::mutex> lock(d->mutex);
+
+    auto status = readFirewallState(port_rules, host_rules);
+    if (!status.success()) {
+      return status;
+    }
+  }
+
+  for (const auto& host : host_rules) {
+    if (!callback(host, user_defined)) {
+      break;
+    }
+  }
+
   return Status(true);
 }
 
@@ -177,14 +221,13 @@ Firewall::Firewall() : d(new PrivateData) {
     throw status;
   }
 
-  status = applyFirewallRules();
+  status = applyNewFirewallRules({}, {});
   if (!status.success()) {
     throw status;
   }
 }
 
-Firewall::Status Firewall::readFirewallState() {
-  // Read the current settings
+Firewall::Status Firewall::readFirewallState(std::vector<PortRule> &port_rules, std::set<std::string> &host_rules) {
   std::string anchor_rules;
   auto status = ReadAnchor(anchor_rules, primary_anchor);
   if (!status.success()) {
@@ -195,41 +238,27 @@ Firewall::Status Firewall::readFirewallState() {
     return Status(true);
   }
 
-  std::string blacklist_table_contents;
-  status =
-      ReadTable(blacklist_table_contents, primary_anchor, blocked_hosts_table);
+  status = ParsePortRulesFromAnchor(anchor_rules, port_rules);
   if (!status.success()) {
     return status;
   }
 
-  // Parse the output of pfctl
-  if (!IsHostBlacklistTableActive(anchor_rules, blocked_hosts_table)) {
-    return Status(false, Detail::QueryError);
-  }
+  if (IsHostBlacklistTableActive(anchor_rules, blocked_hosts_table)) {
+    std::string blacklist_table_contents;
+    status =
+        ReadTable(blacklist_table_contents, primary_anchor, blocked_hosts_table);
 
-  std::vector<PortRule> applied_port_rules;
-  status = ParsePortRulesFromAnchor(anchor_rules, applied_port_rules);
-  if (!status.success()) {
-    return status;
-  }
+    if (!status.success()) {
+      return status;
+    }
 
-  std::vector<std::string> host_list;
-  ParseTable(blacklist_table_contents, host_list);
-
-  {
-    std::lock_guard<std::mutex> lock(d->mutex);
-
-    d->active_port_rules = std::move(applied_port_rules);
-    d->active_host_table = std::move(host_list);
+    ParseTable(blacklist_table_contents, host_rules);
   }
 
   return Status(true);
 }
 
-Firewall::Status Firewall::applyFirewallRules() {
-  auto new_rules = GenerateRules(
-      blocked_hosts_table, d->saved_host_table, d->saved_port_rules);
-
+Firewall::Status Firewall::applyNewFirewallRules(const std::vector<PortRule> &port_rules, const std::set<std::string> &host_rules) {
   // Copy the ruleset of the primary anchor to the secondary one; this
   // way, we don't end up running without rules while we make our changes
   ProcessOutput proc_output;
@@ -257,6 +286,9 @@ Firewall::Status Firewall::applyFirewallRules() {
   }
 
   // Apply the new ruleset to the primary anchor
+  auto new_rules = GenerateRules(
+      blocked_hosts_table, host_rules, port_rules);
+
   if (!ExecuteProcess(
           proc_output, pfctl, {"-a", primary_anchor, "-f", "-"}, new_rules)) {
     return Status(false, Detail::ExecError);
@@ -497,9 +529,8 @@ bool Firewall::IsHostBlacklistTableActive(const std::string& contents,
   return true;
 }
 
-std::string Firewall::GenerateTable(
-    const std::string& table_name,
-    const std::vector<std::string> blocked_hosts) {
+std::string Firewall::GenerateTable(const std::string& table_name,
+                                    const std::set<std::string> blocked_hosts) {
   std::stringstream str_helper;
   str_helper << "table <" << table_name << "> persist { ";
 
@@ -516,8 +547,7 @@ std::string Firewall::GenerateTable(
 }
 
 std::string Firewall::GenerateHostRules(
-    const std::string& table_name,
-    const std::vector<std::string> blocked_hosts) {
+    const std::string& table_name, const std::set<std::string> blocked_hosts) {
   std::stringstream str_helper;
   str_helper << GenerateTable(table_name, blocked_hosts);
 
@@ -541,10 +571,9 @@ std::string Firewall::GeneratePortRules(const std::vector<PortRule>& rules) {
   return str_helper.str();
 }
 
-std::string Firewall::GenerateRules(
-    const std::string& blocked_hosts_table_name,
-    const std::vector<std::string> blocked_hosts,
-    const std::vector<PortRule>& port_rules) {
+std::string Firewall::GenerateRules(const std::string& blocked_hosts_table_name,
+                                    const std::set<std::string> blocked_hosts,
+                                    const std::vector<PortRule>& port_rules) {
   std::stringstream str_helper;
   str_helper << GenerateHostRules(blocked_hosts_table_name, blocked_hosts);
   str_helper << GeneratePortRules(port_rules);
@@ -553,8 +582,13 @@ std::string Firewall::GenerateRules(
 }
 
 void Firewall::ParseTable(const std::string& contents,
-                          std::vector<std::string>& table) {
-  table = SplitString(contents, '\n');
+                          std::set<std::string>& table) {
+  table.clear();
+
+  auto host_list = SplitString(contents, '\n');
+  for (const auto& host : host_list) {
+    table.insert(host);
+  }
 }
 
 Firewall::Status CreateFirewallObject(std::unique_ptr<IFirewall>& obj) {

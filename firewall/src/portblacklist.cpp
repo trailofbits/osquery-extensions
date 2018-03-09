@@ -29,82 +29,16 @@
 #include <unordered_map>
 
 namespace trailofbits {
-namespace {
-struct PortRule final {
-  std::uint16_t port;
-  IFirewall::TrafficDirection direction;
-  IFirewall::Protocol protocol;
-  IFirewall::State state;
+struct PortBlacklistTable::PrivateData final {
+  std::mutex mutex;
+
+  PortRuleMap data;
+  RowIdToPrimaryKeyMap row_id_to_pkey;
 };
 
-using FirewallState = std::vector<PortRule>;
+PortBlacklistTable::PortBlacklistTable() : d(new PrivateData) {}
 
-const std::uint64_t InboundTrafficFlag = 0x10000ULL;
-const std::uint64_t OutboundTrafficFlag = 0x20000ULL;
-
-const std::uint64_t TCPProtocolFlag = 0x40000ULL;
-const std::uint64_t UDPProtocolFlag = 0x80000ULL;
-
-std::uint64_t RuleToRowId(const PortRule& rule) {
-  auto row_id = static_cast<std::uint64_t>(rule.port);
-
-  if (rule.direction == IFirewall::TrafficDirection::Inbound) {
-    row_id |= InboundTrafficFlag;
-  } else {
-    row_id |= OutboundTrafficFlag;
-  }
-
-  if (rule.protocol == IFirewall::Protocol::TCP) {
-    row_id |= TCPProtocolFlag;
-  } else {
-    row_id |= UDPProtocolFlag;
-  }
-
-  return row_id;
-}
-
-void RowIdToRule(PortRule& rule, std::uint64_t row_id) {
-  rule.port = (row_id & 0xFFFFULL);
-
-  if ((row_id & InboundTrafficFlag) != 0) {
-    rule.direction = IFirewall::TrafficDirection::Inbound;
-  } else {
-    rule.direction = IFirewall::TrafficDirection::Outbound;
-  }
-
-  if ((row_id & TCPProtocolFlag) != 0) {
-    rule.protocol = IFirewall::Protocol::TCP;
-  } else {
-    rule.protocol = IFirewall::Protocol::UDP;
-  }
-}
-
-bool GetFirewallState(FirewallState& firewall_state) {
-  auto L_enumCallback = [](std::uint16_t port,
-                           IFirewall::TrafficDirection direction,
-                           IFirewall::Protocol protocol,
-                           IFirewall::State state,
-                           void* user_defined) -> bool {
-
-    auto& firewall_state = *static_cast<FirewallState*>(user_defined);
-    firewall_state.push_back({port, direction, protocol, state});
-
-    return true;
-  };
-
-  auto status =
-      firewall->enumerateBlacklistedPorts(L_enumCallback, &firewall_state);
-
-  if (!status.success()) {
-    std::cerr << __LINE__ << ": Failed to enumerate the firewall rules";
-
-    firewall_state.clear();
-    return false;
-  }
-
-  return true;
-}
-} // namespace
+PortBlacklistTable::~PortBlacklistTable() {}
 
 osquery::TableColumns PortBlacklistTable::columns() const {
   // clang-format off
@@ -119,48 +53,86 @@ osquery::TableColumns PortBlacklistTable::columns() const {
 
 osquery::QueryData PortBlacklistTable::generate(
     osquery::QueryContext& context) {
-  osquery::QueryData results;
+  PortRuleMap table_data;
+  RowIdToPrimaryKeyMap table_row_id_to_pkey;
 
-  FirewallState firewall_state;
-  if (!GetFirewallState(firewall_state)) {
-    return results;
+  PortRuleMap firewall_data;
+
+  {
+    std::lock_guard<std::mutex> lock(d->mutex);
+
+    table_data = d->data;
+    table_row_id_to_pkey = d->row_id_to_pkey;
+
+    // clang-format off
+    auto fw_status = firewall->enumerateBlacklistedPorts(
+      [](std::uint16_t port, IFirewall::TrafficDirection direction,
+         IFirewall::Protocol protocol, void* user_defined) -> bool {
+
+        auto &firewall_data = *static_cast<PortRuleMap*>(user_defined);
+
+        PortRule rule = {port, direction, protocol};
+        auto pkey = GeneratePrimaryKey(rule);
+
+        firewall_data.insert({pkey, rule});
+        return true;
+      },
+
+      &firewall_data
+    );
+    // clang-format on
+
+    static_cast<void>(fw_status);
   }
 
-  for (const auto& port_rule : firewall_state) {
-    std::uint64_t row_id = RuleToRowId(port_rule);
+  osquery::QueryData results;
+
+  for (const auto& pair : table_row_id_to_pkey) {
+    const auto& row_id = pair.first;
+    const auto& pkey = pair.second;
+
+    const auto& rule = table_data.at(pkey);
 
     osquery::Row row;
     row["rowid"] = std::to_string(row_id);
-    row["port"] = std::to_string(port_rule.port);
-    row["direction"] =
-        (port_rule.direction == IFirewall::TrafficDirection::Inbound)
-            ? "INBOUND"
-            : "OUTBOUND";
+    row["port"] = std::to_string(rule.port);
+
+    row["direction"] = (rule.direction == IFirewall::TrafficDirection::Inbound)
+                           ? "INBOUND"
+                           : "OUTBOUND";
 
     row["protocol"] =
-        (port_rule.protocol == IFirewall::Protocol::TCP ? "TCP" : "UDP");
+        (rule.protocol == IFirewall::Protocol::TCP ? "TCP" : "UDP");
 
-    switch (port_rule.state) {
-    case IFirewall::State::Active: {
-      row["status"] = "ACTIVE";
-      break;
-    }
-
-    case IFirewall::State::Pending: {
-      row["status"] = "PENDING";
-      break;
+    if (firewall_data.count(pkey) != 0) {
+      row["status"] = "ENABLED";
+    } else {
+      row["status"] = "DISABLED";
     }
 
-    case IFirewall::State::Error: {
-      row["status"] = "ERROR";
-      break;
+    results.push_back(row);
+  }
+
+  RowID temp_row_id = 0x8000000000000000ULL;
+  for (const auto& pair : firewall_data) {
+    const auto& pkey = pair.first;
+    const auto& rule = pair.second;
+
+    if (table_data.count(pkey) != 0) {
+      continue;
     }
 
-    default: {
-      row["status"] = "UNKNOWN";
-      break;
-    }
-    }
+    osquery::Row row;
+    row["rowid"] = std::to_string(temp_row_id++);
+    row["port"] = std::to_string(rule.port);
+    row["status"] = "UNMANAGED";
+
+    row["direction"] = (rule.direction == IFirewall::TrafficDirection::Inbound)
+                           ? "INBOUND"
+                           : "OUTBOUND";
+
+    row["protocol"] =
+        (rule.protocol == IFirewall::Protocol::TCP ? "TCP" : "UDP");
 
     results.push_back(row);
   }
@@ -198,17 +170,43 @@ osquery::QueryData PortBlacklistTable::insert(
   PortRule rule;
   ParseInsertData(rule.port, rule.direction, rule.protocol, row);
 
-  // Ignore constraint errors
+  auto primary_key = GeneratePrimaryKey(rule);
+
+  std::lock_guard<std::mutex> lock(d->mutex);
+
+  // Make sure we never generate constraint errors
+  if (d->data.find(primary_key) != d->data.end()) {
+    // clang-format off
+    auto row_id_to_pkey_it = std::find_if(
+      d->row_id_to_pkey.begin(),
+      d->row_id_to_pkey.end(),
+
+      [primary_key](const std::pair<RowID, std::string> &pair) -> bool {
+        return (primary_key == std::get<1>(pair));
+      }
+    );
+    // clang-format on
+
+    osquery::Row result;
+    result["id"] = std::to_string(row_id_to_pkey_it->first);
+
+    result["status"] = "success";
+    return {result};
+  }
+
+  auto row_id = GenerateRowID();
+
+  d->data.insert({primary_key, rule});
+  d->row_id_to_pkey.insert({row_id, primary_key});
+
   auto fw_status =
       firewall->addPortToBlacklist(rule.port, rule.direction, rule.protocol);
-  if (!fw_status.success() &&
-      fw_status.detail() != IFirewall::Detail::AlreadyExists) {
-    return {{std::make_pair("status", "failure")}};
+  if (!fw_status.success()) {
+    std::cerr << "Failed to enable the port rule\n";
   }
 
   osquery::Row result;
-  result["id"] = std::to_string(RuleToRowId(rule));
-
+  result["id"] = std::to_string(row_id);
   result["status"] = "success";
   return {result};
 }
@@ -217,18 +215,36 @@ osquery::QueryData PortBlacklistTable::delete_(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   unsigned long long row_id;
   auto status = osquery::safeStrtoull(request.at("id"), 10, row_id);
-  if (!status.ok() || row_id == 0) {
+  if (!status.ok()) {
     return {{std::make_pair("status", "failure")}};
   }
 
-  PortRule rule;
-  RowIdToRule(rule, row_id);
+  if ((row_id & 0x8000000000000000ULL) != 0) {
+    return {{std::make_pair("status", "failure")}};
+  }
+
+  std::lock_guard<std::mutex> lock(d->mutex);
+
+  auto row_id_to_pkey_it = d->row_id_to_pkey.find(row_id);
+  if (row_id_to_pkey_it == d->row_id_to_pkey.end()) {
+    return {{std::make_pair("status", "failure")}};
+  }
+
+  auto primary_key = row_id_to_pkey_it->second;
+  d->row_id_to_pkey.erase(row_id_to_pkey_it);
+
+  auto rule_it = d->data.find(primary_key);
+  if (rule_it == d->data.end()) {
+    return {{std::make_pair("status", "failure")}};
+  }
+
+  auto rule = rule_it->second;
+  d->data.erase(rule_it);
 
   auto fw_status = firewall->removePortFromBlacklist(
       rule.port, rule.direction, rule.protocol);
-  if (!fw_status.success() &&
-      fw_status.detail() != IFirewall::Detail::NotFound) {
-    return {{std::make_pair("status", "failure")}};
+  if (!fw_status.success()) {
+    std::cerr << "Failed to remove the port rule\n";
   }
 
   return {{std::make_pair("status", "success")}};
@@ -236,13 +252,18 @@ osquery::QueryData PortBlacklistTable::delete_(
 
 osquery::QueryData PortBlacklistTable::update(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
-  if (request.find("new_id") != request.end()) {
-    std::cerr << "Unsupported statement with new_id set\n";
+  unsigned long long row_id;
+  auto status = osquery::safeStrtoull(request.at("id"), 10, row_id);
+  if (!status.ok() || row_id == 0) {
+    return {{std::make_pair("status", "failure")}};
+  }
+
+  if ((row_id & 0x8000000000000000ULL) != 0) {
     return {{std::make_pair("status", "failure")}};
   }
 
   osquery::Row row;
-  auto status = GetRowData(row, request.at("json_value_array"));
+  status = GetRowData(row, request.at("json_value_array"));
   if (!status.ok()) {
     std::cerr << status.getMessage() << std::endl;
     return {{std::make_pair("status", "failure")}};
@@ -264,30 +285,65 @@ osquery::QueryData PortBlacklistTable::update(
   PortRule new_rule;
   ParseInsertData(new_rule.port, new_rule.direction, new_rule.protocol, row);
 
-  unsigned long long row_id;
-  status = osquery::safeStrtoull(request.at("id"), 10, row_id);
-  if (!status.ok() || row_id == 0) {
+  auto new_primary_key = GeneratePrimaryKey(new_rule);
+
+  std::lock_guard<std::mutex> lock(d->mutex);
+
+  auto row_id_to_pkey_it = d->row_id_to_pkey.find(row_id);
+  if (row_id_to_pkey_it == d->row_id_to_pkey.end()) {
     return {{std::make_pair("status", "failure")}};
   }
 
-  PortRule old_rule;
-  RowIdToRule(old_rule, row_id);
+  auto original_primary_key = row_id_to_pkey_it->second;
+  if (original_primary_key == new_primary_key) {
+    return {{std::make_pair("status", "success")}};
+  }
+
+  if (d->data.find(new_primary_key) != d->data.end()) {
+    return {{std::make_pair("status", "constraint")}};
+  }
+
+  auto original_rule_it = d->data.find(original_primary_key);
+  if (original_rule_it == d->data.end()) {
+    return {{std::make_pair("status", "failure")}};
+  }
+
+  auto original_rule = original_rule_it->second;
+
+  d->row_id_to_pkey.erase(row_id_to_pkey_it);
+  d->data.erase(original_rule_it);
 
   auto fw_status = firewall->removePortFromBlacklist(
-      old_rule.port, old_rule.direction, old_rule.protocol);
-
-  if (!fw_status.success() &&
-      fw_status.detail() != IFirewall::Detail::NotFound) {
-    return {{std::make_pair("status", "failure")}};
+      original_rule.port, original_rule.direction, original_rule.protocol);
+  if (!fw_status.success()) {
+    std::cerr << "Failed to remove the port rule\n";
   }
 
-  // Ignore constraint errors
+  RowID new_row_id;
+  auto new_row_id_it = request.find("new_id");
+  if (new_row_id_it != request.end()) {
+    // sqlite has generated the new rowid for us, so we'll discard
+    // the one we have
+    unsigned long long int temp;
+    status = osquery::safeStrtoull(new_row_id_it->second, 10, temp);
+    if (!status.ok()) {
+      return {{std::make_pair("status", "failure")}};
+    }
+
+    new_row_id = static_cast<RowID>(temp);
+
+  } else {
+    // Here we are supposed to keep the rowid we already have
+    new_row_id = row_id;
+  }
+
+  d->data.insert({new_primary_key, new_rule});
+  d->row_id_to_pkey.insert({new_row_id, new_primary_key});
+
   fw_status = firewall->addPortToBlacklist(
       new_rule.port, new_rule.direction, new_rule.protocol);
-
-  if (!fw_status.success() &&
-      fw_status.detail() != IFirewall::Detail::AlreadyExists) {
-    return {{std::make_pair("status", "failure")}};
+  if (!fw_status.success()) {
+    std::cerr << "Failed to add the port rule\n";
   }
 
   return {{std::make_pair("status", "success")}};
@@ -416,5 +472,30 @@ void PortBlacklistTable::ParseInsertData(std::uint16_t& port,
   } else {
     protocol = IFirewall::Protocol::UDP;
   }
+}
+
+std::string PortBlacklistTable::GeneratePrimaryKey(const PortRule& rule) {
+  std::stringstream primary_key;
+
+  primary_key << rule.port;
+
+  if (rule.direction == IFirewall::TrafficDirection::Inbound) {
+    primary_key << "_in_";
+  } else {
+    primary_key << "_out_";
+  }
+
+  if (rule.protocol == IFirewall::Protocol::TCP) {
+    primary_key << "tcp";
+  } else {
+    primary_key << "udp";
+  }
+
+  return primary_key.str();
+}
+
+RowID PortBlacklistTable::GenerateRowID() {
+  static std::atomic_uint64_t generator(0ULL);
+  return generator++;
 }
 } // namespace trailofbits

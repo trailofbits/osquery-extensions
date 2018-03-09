@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "types.h"
+
 #include <trailofbits/ifirewall.h>
 
 #include <osquery/sdk.h>
@@ -24,10 +26,18 @@
 #include <memory>
 
 namespace trailofbits {
+struct PortRule final {
+  std::uint16_t port;
+  IFirewall::TrafficDirection direction;
+  IFirewall::Protocol protocol;
+};
+
+using PortRuleMap = std::unordered_map<PrimaryKey, PortRule>;
+
 class PortBlacklistTable : public osquery::TablePlugin {
  public:
-  PortBlacklistTable() = default;
-  virtual ~PortBlacklistTable() = default;
+  PortBlacklistTable();
+  virtual ~PortBlacklistTable();
 
   osquery::TableColumns columns() const;
 
@@ -43,6 +53,9 @@ class PortBlacklistTable : public osquery::TablePlugin {
                             const osquery::PluginRequest& request);
 
  private:
+  struct PrivateData;
+  std::unique_ptr<PrivateData> d;
+
   static osquery::Status GetRowData(osquery::Row& row,
                                     const std::string& json_value_array);
 
@@ -54,5 +67,8 @@ class PortBlacklistTable : public osquery::TablePlugin {
                               IFirewall::TrafficDirection& direction,
                               IFirewall::Protocol& protocol,
                               const osquery::Row& valid_row);
+
+  static std::string GeneratePrimaryKey(const PortRule& rule);
+  static RowID GenerateRowID();
 };
 } // namespace trailofbits
