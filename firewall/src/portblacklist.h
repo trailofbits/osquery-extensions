@@ -26,8 +26,8 @@
 namespace trailofbits {
 class PortBlacklistTable : public osquery::TablePlugin {
  public:
-  PortBlacklistTable();
-  virtual ~PortBlacklistTable();
+  PortBlacklistTable() = default;
+  virtual ~PortBlacklistTable() = default;
 
   osquery::TableColumns columns() const;
 
@@ -49,6 +49,7 @@ class PortBlacklistTable : public osquery::TablePlugin {
   static void PreprocessInsertData(osquery::Row& row);
   static bool IsInsertDataValid(const osquery::Row& row);
   static void SetDefaultValuesInInsertData(osquery::Row& valid_row);
+
   static void ParseInsertData(std::uint16_t& port,
                               IFirewall::TrafficDirection& direction,
                               IFirewall::Protocol& protocol,

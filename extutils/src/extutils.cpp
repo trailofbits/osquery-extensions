@@ -98,4 +98,4 @@ std::vector<std::string> SplitString(const std::string& buffer,
 
   return output;
 }
-}
+} // namespace trailofbits

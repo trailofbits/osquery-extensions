@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace trailofbits {
 struct ProcessOutput final {
@@ -19,6 +19,5 @@ bool ExecuteProcess(ProcessOutput& output,
                     const std::vector<std::string>& args,
                     const std::string& input);
 
-std::vector<std::string> SplitString(const std::string& buffer,
-                                     char delimiter);
-}
+std::vector<std::string> SplitString(const std::string& buffer, char delimiter);
+} // namespace trailofbits
