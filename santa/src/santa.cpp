@@ -23,10 +23,15 @@
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 
+#include <sqlite3.h>
+
 #include "santa.h"
 
 const std::string LOG_PATH = "/var/db/santa/santa.log";
 const std::string PREFACE = "santad: ";
+
+const std::string RULES_PATH = "/var/db/santa/rules.db";
+const std::string TEMP_RULES_PATH = "/tmp/rules.db";
 
 void extractValues(std::string line, std::map<std::string, std::string>& values)
 {
@@ -114,4 +119,47 @@ void scrapeSantaLog(LogEntries& response)
       break;
     }
   }
+}
+
+static int rulesCallback(void *context, int argc, char **argv, char **azColName) {
+  RuleEntries *rules = static_cast<RuleEntries*>(context);
+  if (argc == 3) {
+    rules->push_back({std::string(argv[0]), std::string(argv[1]), std::string(argv[2])});
+  }
+  return 0;
+}
+
+void collectSantaRules(RuleEntries& response) {
+  //make a copy of the rules db (santa keeps the db locked)
+  std::ifstream src(RULES_PATH, std::ios_base::binary);
+  if (!src.is_open()) {
+    response.push_back({"error", "failed to open rules.db", ""});
+    return;
+  }
+  std::ofstream dst(TEMP_RULES_PATH, std::ios_base::binary | std::ios_base::trunc);
+  if (!dst.is_open()) {
+    response.push_back({"error", "failed to open /tmp/rules.db", ""});
+    return;
+  }
+
+  dst << src.rdbuf();
+  src.close();
+  dst.close();
+
+  sqlite3 *db;
+  int rc = sqlite3_open(TEMP_RULES_PATH.c_str(), &db);
+  if (0 != rc) {
+    //failed to open the database
+    response.push_back({"error", "failed to open database", ""});
+    return;
+  }
+
+  char *zErrorMessage = 0;
+  rc = sqlite3_exec(db, "SELECT shasum, state, type FROM rules;", rulesCallback, &response, &zErrorMessage);
+  if (rc != SQLITE_OK) {
+    sqlite3_free(zErrorMessage);
+    response.push_back({"error", "failed to execute query", ""});
+  }
+
+  sqlite3_close(db);
 }

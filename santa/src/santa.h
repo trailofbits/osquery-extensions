@@ -25,6 +25,14 @@ struct LogEntry {
   std::string reason;
 };
 
+struct RuleEntry {
+  std::string shasum;
+  std::string type;
+  std::string status;
+};
+
 typedef std::list<LogEntry> LogEntries;
+typedef std::list<RuleEntry> RuleEntries;
 
 void scrapeSantaLog(LogEntries& response);
+void collectSantaRules(RuleEntries& response);

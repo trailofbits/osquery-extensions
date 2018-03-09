@@ -18,7 +18,13 @@
 
 #include <osquery/sdk.h>
 
-class SantaTablePlugin final : public osquery::TablePlugin {
+class SantaEventsTablePlugin final : public osquery::TablePlugin {
+ private:
+  osquery::TableColumns columns() const override;
+  osquery::QueryData generate(osquery::QueryContext& request) override;
+};
+
+class SantaRulesTablePlugin final : public osquery::TablePlugin {
  private:
   osquery::TableColumns columns() const override;
   osquery::QueryData generate(osquery::QueryContext& request) override;

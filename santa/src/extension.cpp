@@ -17,9 +17,10 @@
 #include "extension.h"
 #include "santa.h"
 
-REGISTER_EXTERNAL(SantaTablePlugin, "table", "santa_events");
+REGISTER_EXTERNAL(SantaEventsTablePlugin, "table", "santa_events");
+REGISTER_EXTERNAL(SantaRulesTablePlugin, "table", "santa_rules");
 
-osquery::TableColumns SantaTablePlugin::columns() const {
+osquery::TableColumns SantaEventsTablePlugin::columns() const {
   // clang-format off
   return {
       std::make_tuple("timestamp",
@@ -38,7 +39,7 @@ osquery::TableColumns SantaTablePlugin::columns() const {
   // clang-format on
 }
 
-osquery::QueryData SantaTablePlugin::generate(osquery::QueryContext& request) {
+osquery::QueryData SantaEventsTablePlugin::generate(osquery::QueryContext& request) {
   LogEntries response;
 
   try {
@@ -61,6 +62,54 @@ osquery::QueryData SantaTablePlugin::generate(osquery::QueryContext& request) {
     r["timestamp"] = iter->timestamp;
     r["path"] = iter->application;
     r["reason"] = iter->reason;
+    result.push_back(r);
+  }
+
+  return result;
+}
+
+osquery::TableColumns SantaRulesTablePlugin::columns() const {
+  // clang-format off
+  return {
+      std::make_tuple("shasum",
+                      osquery::TEXT_TYPE,
+                      osquery::ColumnOptions::DEFAULT),
+
+      std::make_tuple("type",
+                      osquery::TEXT_TYPE,
+                      osquery::ColumnOptions::DEFAULT),
+
+      std::make_tuple("status",
+                      osquery::TEXT_TYPE,
+                      osquery::ColumnOptions::DEFAULT)
+
+  };
+  // clang-format on
+}
+
+osquery::QueryData SantaRulesTablePlugin::generate(osquery::QueryContext& request) {
+  RuleEntries response;
+
+  try {
+    collectSantaRules(response);
+
+  } catch (const std::exception& e) {
+    VLOG(1) << e.what();
+
+    osquery::Row r;
+    r["shasum"] = r["type"] =
+        r["status"] = "error";
+
+    return {r};
+  }
+
+  osquery::QueryData result;
+  for (RuleEntries::iterator iter = response.begin(); iter != response.end(); ++iter)
+  {
+    osquery::Row r;
+    r["shasum"] = iter->shasum;
+    r["type"] = iter->type;
+    r["status"] = iter->status;
     result.push_back(r);
   }
 
