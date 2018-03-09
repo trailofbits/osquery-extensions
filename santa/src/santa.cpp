@@ -17,6 +17,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <map>
 
 #include <boost/iostreams/filtering_streambuf.hpp>
@@ -85,11 +86,11 @@ void scrapeCurrentLog(LogEntries& response) {
   log_file.close();
 }
 
-void scrapeCompressedSantaLog(std::string file_path, LogEntries& response)
+bool scrapeCompressedSantaLog(std::string file_path, LogEntries& response)
 {
   std::ifstream log_file(file_path, std::ios_base::in | std::ios_base::binary);
   if (!log_file.is_open()) {
-    return;
+    return false;
   }
   boost::iostreams::filtering_streambuf<boost::iostreams::input> in;
   in.push(boost::iostreams::gzip_decompressor());
@@ -99,10 +100,18 @@ void scrapeCompressedSantaLog(std::string file_path, LogEntries& response)
   scrapeStream(incoming, response);
 
   log_file.close();
+  return true;
 }
 
 void scrapeSantaLog(LogEntries& response)
 {
   scrapeCurrentLog(response);
-  scrapeCompressedSantaLog(std::string("/var/db/santa/santa.log.0.gz"), response);
+
+  for (unsigned int i = 0; ; ++i) {
+    std::stringstream strstr;
+    strstr << LOG_PATH << "." << i << ".gz";
+    if (!scrapeCompressedSantaLog(strstr.str(), response)) {
+      break;
+    }
+  }
 }
