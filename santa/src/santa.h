@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <string>
 #include <list>
+#include <string>
 
 struct LogEntry {
   std::string timestamp;

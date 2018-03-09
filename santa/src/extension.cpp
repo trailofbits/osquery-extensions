@@ -39,7 +39,8 @@ osquery::TableColumns SantaEventsTablePlugin::columns() const {
   // clang-format on
 }
 
-osquery::QueryData SantaEventsTablePlugin::generate(osquery::QueryContext& request) {
+osquery::QueryData SantaEventsTablePlugin::generate(
+    osquery::QueryContext& request) {
   LogEntries response;
 
   try {
@@ -49,15 +50,14 @@ osquery::QueryData SantaEventsTablePlugin::generate(osquery::QueryContext& reque
     VLOG(1) << e.what();
 
     osquery::Row r;
-    r["timestamp"] = r["application"] =
-        r["reason"] = "error";
+    r["timestamp"] = r["application"] = r["reason"] = "error";
 
     return {r};
   }
 
   osquery::QueryData result;
-  for (LogEntries::iterator iter = response.begin(); iter != response.end(); ++iter)
-  {
+  for (LogEntries::iterator iter = response.begin(); iter != response.end();
+       ++iter) {
     osquery::Row r;
     r["timestamp"] = iter->timestamp;
     r["path"] = iter->application;
@@ -87,7 +87,8 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
   // clang-format on
 }
 
-osquery::QueryData SantaRulesTablePlugin::generate(osquery::QueryContext& request) {
+osquery::QueryData SantaRulesTablePlugin::generate(
+    osquery::QueryContext& request) {
   RuleEntries response;
 
   try {
@@ -97,15 +98,14 @@ osquery::QueryData SantaRulesTablePlugin::generate(osquery::QueryContext& reques
     VLOG(1) << e.what();
 
     osquery::Row r;
-    r["shasum"] = r["type"] =
-        r["status"] = "error";
+    r["shasum"] = r["type"] = r["status"] = "error";
 
     return {r};
   }
 
   osquery::QueryData result;
-  for (RuleEntries::iterator iter = response.begin(); iter != response.end(); ++iter)
-  {
+  for (RuleEntries::iterator iter = response.begin(); iter != response.end();
+       ++iter) {
     osquery::Row r;
     r["shasum"] = iter->shasum;
     r["type"] = iter->type;

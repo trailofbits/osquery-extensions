@@ -16,14 +16,13 @@
 
 #include <iostream>
 
-#include "santa.h"
 #include "extension.h"
+#include "santa.h"
 
 int runAsStandalone() {
   LogEntries response;
 
   try {
-
     scrapeSantaLog(response);
 
   } catch (const std::exception& e) {
@@ -32,8 +31,11 @@ int runAsStandalone() {
   }
 
   std::cout << "timestamp\t\tapplication\t\treason" << std::endl;
-  for (LogEntries::const_iterator iter = response.begin(); iter != response.end(); ++iter) {
-    std::cout << iter->timestamp << "\t\t" << iter->application << "\t\t" << iter->reason << std::endl;
+  for (LogEntries::const_iterator iter = response.begin();
+       iter != response.end();
+       ++iter) {
+    std::cout << iter->timestamp << "\t\t" << iter->application << "\t\t"
+              << iter->reason << std::endl;
   }
   return 0;
 }
