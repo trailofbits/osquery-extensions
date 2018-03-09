@@ -28,8 +28,15 @@ function (main)
     src/main.cpp
   )
 
+  set(Boost_USE_STATIC_LIBS ON)
+  set(Boost_USE_MULTITHREADED ON)
+  set(Boost_USE_STATIC_RUNTIME ON)
+  find_package(Boost REQUIRED COMPONENTS iostreams)
+
+  include_directories(${Boost_INCLUDE_DIRS})
+
   ADD_OSQUERY_EXTENSION("${PROJECT_NAME}" ${PROJECT_SOURCEFILES})
-  target_link_libraries("${PROJECT_NAME}" "-framework CoreFoundation" "-framework IOKit")
+  target_link_libraries("${PROJECT_NAME}" ${Boost_LIBRARIES})
 
 endfunction ()
 

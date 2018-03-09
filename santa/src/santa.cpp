@@ -19,6 +19,9 @@
 #include <string>
 #include <map>
 
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+
 #include "santa.h"
 
 const std::string LOG_PATH = "/var/db/santa/santa.log";
@@ -54,15 +57,9 @@ void extractValues(std::string line, std::map<std::string, std::string>& values)
   }
 }
 
-void scrapeSantaLog(std::list<LogEntry>& response) {
-  std::ifstream log_file;
-  log_file.open(LOG_PATH);
-  if (!log_file.is_open()) {
-    return;
-  }
-
+void scrapeStream(std::istream &incoming, LogEntries &response) {
   std::string line;
-  while (std::getline(log_file, line))
+  while (std::getline(incoming, line))
   {
     //explicitly filter to only include DENY events
     if (line.find("decision=DENY") == std::string::npos) {
@@ -73,5 +70,39 @@ void scrapeSantaLog(std::list<LogEntry>& response) {
     extractValues(line, values);
     response.push_back({values["timestamp"], values["path"], values["reason"]});
   }
+}
+
+
+void scrapeCurrentLog(LogEntries& response) {
+  std::ifstream log_file;
+  log_file.open(LOG_PATH);
+  if (!log_file.is_open()) {
+    return;
+  }
+
+  scrapeStream(log_file, response);
+
   log_file.close();
+}
+
+void scrapeCompressedSantaLog(std::string file_path, LogEntries& response)
+{
+  std::ifstream log_file(file_path, std::ios_base::in | std::ios_base::binary);
+  if (!log_file.is_open()) {
+    return;
+  }
+  boost::iostreams::filtering_streambuf<boost::iostreams::input> in;
+  in.push(boost::iostreams::gzip_decompressor());
+  in.push(log_file);
+  std::istream incoming(&in);
+
+  scrapeStream(incoming, response);
+
+  log_file.close();
+}
+
+void scrapeSantaLog(LogEntries& response)
+{
+  scrapeCurrentLog(response);
+  scrapeCompressedSantaLog(std::string("/var/db/santa/santa.log.0.gz"), response);
 }
