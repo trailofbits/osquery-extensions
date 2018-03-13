@@ -16,13 +16,10 @@
 
 #pragma once
 
-#include "types.h"
+#include "basetable.h"
 
 #include <trailofbits/ifirewall.h>
 
-#include <osquery/sdk.h>
-
-#include <cstdint>
 #include <memory>
 
 namespace trailofbits {
@@ -34,7 +31,7 @@ struct PortRule final {
 
 using PortRuleMap = std::unordered_map<PrimaryKey, PortRule>;
 
-class PortBlacklistTable : public osquery::TablePlugin {
+class PortBlacklistTable final : public BaseTable {
  public:
   PortBlacklistTable();
   virtual ~PortBlacklistTable();
@@ -69,6 +66,5 @@ class PortBlacklistTable : public osquery::TablePlugin {
                               const osquery::Row& valid_row);
 
   static std::string GeneratePrimaryKey(const PortRule& rule);
-  static RowID GenerateRowID();
 };
 } // namespace trailofbits

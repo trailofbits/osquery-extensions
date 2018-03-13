@@ -354,9 +354,9 @@ osquery::Status PortBlacklistTable::GetRowData(
   row.clear();
 
   rapidjson::Document document;
-  document.Parse(json_value_array);
-  if (document.HasParseError() || !document.IsArray()) {
-    return osquery::Status(1, "Invalid format");
+  auto status = ParseRowData(document, json_value_array);
+  if (!status.ok()) {
+    return status;
   }
 
   // We are going to ignore the fourth column, but make sure it's present
@@ -494,10 +494,4 @@ std::string PortBlacklistTable::GeneratePrimaryKey(const PortRule& rule) {
   return primary_key.str();
 }
 
-RowID PortBlacklistTable::GenerateRowID() {
-  std::uint64_t generator = 0ULL;
-
-  generator = (generator + 1) & 0x7FFFFFFFFFFFFFFFULL;
-  return generator;
-}
 } // namespace trailofbits
