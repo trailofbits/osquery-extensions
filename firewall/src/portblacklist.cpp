@@ -495,7 +495,9 @@ std::string PortBlacklistTable::GeneratePrimaryKey(const PortRule& rule) {
 }
 
 RowID PortBlacklistTable::GenerateRowID() {
-  static std::atomic_uint64_t generator(0ULL);
-  return generator++;
+  std::uint64_t generator = 0ULL;
+
+  generator = (generator + 1) & 0x7FFFFFFFFFFFFFFFULL;
+  return generator;
 }
 } // namespace trailofbits
