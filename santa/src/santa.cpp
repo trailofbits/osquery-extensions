@@ -33,7 +33,10 @@ const std::string PREFACE = "santad: ";
 const std::string RULES_PATH = "/var/db/santa/rules.db";
 const std::string TEMP_RULES_PATH = "/tmp/rules.db";
 
-void extractValues(std::string line,
+std::list<std::string> archived_lines;
+unsigned int next_oldest_archive = 0;
+
+void extractValues(const std::string& line,
                    std::map<std::string, std::string>& values) {
   // extract timestamp
   size_t timestamp_start = line.find("[");
@@ -66,7 +69,9 @@ void extractValues(std::string line,
   }
 }
 
-void scrapeStream(std::istream& incoming, LogEntries& response) {
+void scrapeStream(std::istream& incoming,
+                  LogEntries& response,
+                  bool save_to_archive = false) {
   std::string line;
   while (std::getline(incoming, line)) {
     // explicitly filter to only include DENY events
@@ -77,6 +82,10 @@ void scrapeStream(std::istream& incoming, LogEntries& response) {
     std::map<std::string, std::string> values;
     extractValues(line, values);
     response.push_back({values["timestamp"], values["path"], values["reason"]});
+
+    if (save_to_archive) {
+      archived_lines.push_back(line);
+    }
   }
 }
 
@@ -102,16 +111,42 @@ bool scrapeCompressedSantaLog(std::string file_path, LogEntries& response) {
   in.push(log_file);
   std::istream incoming(&in);
 
-  scrapeStream(incoming, response);
+  scrapeStream(incoming, response, true);
 
   log_file.close();
   return true;
 }
 
+bool new_archive_file_exists() {
+  std::stringstream strstr;
+  strstr << LOG_PATH << "." << next_oldest_archive << ".gz";
+  std::ifstream file(strstr.str(), std::ios_base::in | std::ios_base::binary);
+  return file.is_open();
+}
+
+void process_archived_lines(LogEntries& response) {
+  for (std::list<std::string>::const_iterator iter = archived_lines.begin();
+       iter != archived_lines.end();
+       ++iter) {
+    std::map<std::string, std::string> values;
+    extractValues(*iter, values);
+    response.push_back({values["timestamp"], values["path"], values["reason"]});
+  }
+}
+
 void scrapeSantaLog(LogEntries& response) {
   scrapeCurrentLog(response);
 
+  // if there are no new archived files, just process our stash
+  if (!new_archive_file_exists()) {
+    process_archived_lines(response);
+    return;
+  }
+
+  // rolling archive files--clear the stored archive and reprocess them all
+  archived_lines.clear();
   for (unsigned int i = 0;; ++i) {
+    next_oldest_archive = i;
     std::stringstream strstr;
     strstr << LOG_PATH << "." << i << ".gz";
     if (!scrapeCompressedSantaLog(strstr.str(), response)) {
