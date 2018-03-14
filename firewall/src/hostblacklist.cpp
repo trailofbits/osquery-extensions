@@ -17,6 +17,8 @@
 #include "hostblacklist.h"
 #include "globals.h"
 
+#include <trailofbits/ihostsfile.h>
+
 #include <osquery/core/conversions.h>
 #include <osquery/system.h>
 
@@ -32,11 +34,23 @@ namespace trailofbits {
 struct HostBlacklistTable::PrivateData final {
   std::mutex mutex;
 
+  std::unique_ptr<IHostsFile> hosts_file;
+
   HostRuleMap data;
   RowIdToPrimaryKeyMap row_id_to_pkey;
 };
 
-HostBlacklistTable::HostBlacklistTable() : d(new PrivateData) {}
+HostBlacklistTable::HostBlacklistTable() : d(new PrivateData) {
+  try {
+    auto status = CreateHostsFileObject(d->hosts_file);
+    if (!status.success()) {
+      throw std::runtime_error("Initialization error");
+    }
+
+  } catch (const std::bad_alloc&) {
+    throw std::runtime_error("Memory allocation error");
+  }
+}
 
 HostBlacklistTable::~HostBlacklistTable() {}
 
@@ -60,6 +74,7 @@ osquery::QueryData HostBlacklistTable::generate(
   RowIdToPrimaryKeyMap table_row_id_to_pkey;
 
   std::set<std::string> firewall_blacklist;
+  std::unordered_map<std::string, std::string> hosts_file;
 
   {
     std::lock_guard<std::mutex> lock(d->mutex);
@@ -71,7 +86,9 @@ osquery::QueryData HostBlacklistTable::generate(
     auto fw_status = firewall->enumerateBlacklistedHosts(
       [](const std::string &host, void* user_defined) -> bool {
 
-        auto &firewall_blacklist = *static_cast<std::set<std::string>*>(user_defined);
+        auto &firewall_blacklist =
+          *static_cast<std::set<std::string>*>(user_defined);
+
         firewall_blacklist.insert(host);
 
         return true;
@@ -82,6 +99,23 @@ osquery::QueryData HostBlacklistTable::generate(
     // clang-format on
 
     static_cast<void>(fw_status);
+
+    // clang-format off
+    auto hosts_status = d->hosts_file->enumerateHosts(
+      [](const std::string &domain, const std::string &address, void *user_defined) -> bool {
+
+        auto &hosts_file =
+          *static_cast<std::unordered_map<std::string, std::string>*>(user_defined);
+
+        hosts_file.insert({domain, address});
+        return true;
+      },
+
+      &hosts_file
+    );
+    // clang-format on
+
+    static_cast<void>(hosts_status);
   }
 
   osquery::QueryData results;
@@ -95,8 +129,10 @@ osquery::QueryData HostBlacklistTable::generate(
 
     osquery::Row row;
     row["rowid"] = std::to_string(row_id);
-    row["address_type"] =
-        ""; // This is only used when inserting data; set as null
+
+    // This is only used when inserting data; set as null
+    row["address_type"] = "";
+
     row["address"] = rule.address;
     row["domain"] = rule.domain;
     row["sinkhole"] = rule.sinkhole;
@@ -109,7 +145,16 @@ osquery::QueryData HostBlacklistTable::generate(
       row["firewall_block"] = "DISABLED";
     }
 
-    row["dns_block"] = "DISABLED";
+    auto hosts_file_entry_it = hosts_file.find(rule.domain);
+    if (hosts_file_entry_it == hosts_file.end()) {
+      row["dns_block"] = "DISABLED";
+    } else if (hosts_file_entry_it->second != rule.sinkhole) {
+      hosts_file.erase(hosts_file_entry_it);
+      row["dns_block"] = "ALTERED";
+    } else {
+      hosts_file.erase(hosts_file_entry_it);
+      row["dns_block"] = "ENABLED";
+    }
 
     results.push_back(row);
   }
@@ -125,12 +170,29 @@ osquery::QueryData HostBlacklistTable::generate(
     row["domain"] = "";
     row["sinkhole"] = "";
     row["firewall_block"] = "UNMANAGED";
-    row["dns_block"] = "DISABLED";
+    row["dns_block"] = "";
 
     results.push_back(row);
   }
 
-  /// \todo Add unmanaged host rules
+  // Add unmanaged host entries
+  for (const auto& pair : hosts_file) {
+    const auto& domain = pair.first;
+    const auto& address = pair.second;
+
+    osquery::Row row;
+    row["rowid"] = std::to_string(temp_row_id);
+    row["address_type"] =
+        ""; // This is only used when inserting data; set as null
+    row["address"] = "";
+    row["domain"] = domain;
+    row["sinkhole"] = address;
+    row["firewall_block"] = "";
+    row["dns_block"] = "UNMANAGED";
+
+    results.push_back(row);
+  }
+
   return results;
 }
 
@@ -148,6 +210,8 @@ osquery::QueryData HostBlacklistTable::insert(
     return {{std::make_pair("status", "failure")}};
   }
 
+  bool domain_resolution =
+      row.at("address").empty() && !row.at("domain").empty();
   status = PrepareInsertData(row);
   if (!status.ok()) {
     std::cerr << status.getMessage() << std::endl;
@@ -193,6 +257,46 @@ osquery::QueryData HostBlacklistTable::insert(
     return {result};
   }
 
+  // Fail INSERTs that involve name resolution for domains that are present
+  // into our /etc/hosts files; we don't want to block our sinkhole hosts
+  // by mistake!
+  if (domain_resolution) {
+    struct CallbackData final {
+      std::string domain;
+      bool hosts_file_present;
+    };
+
+    CallbackData callback_data = {row.at("domain"), false};
+
+    // clang-format off
+    auto hosts_status = d->hosts_file->enumerateHosts(
+      [](const std::string &domain, const std::string &address, void *user_defined) -> bool {
+        auto &callback_data = *static_cast<CallbackData *>(user_defined);
+
+        if (callback_data.domain == domain) {
+          callback_data.hosts_file_present = true;
+          return false;
+        }
+
+        return true;
+      },
+
+      &callback_data
+    );
+    // clang-format on
+
+    if (!hosts_status.success()) {
+      return {{std::make_pair("status", "failure")}};
+    }
+
+    if (callback_data.hosts_file_present) {
+      std::cerr << "The following domain is present in the /etc/hosts file and "
+                   "will not be accepted without an explicit address: "
+                << row["domain"] << "\n";
+      return {{std::make_pair("status", "failure")}};
+    }
+  }
+
   auto row_id = GenerateRowID();
 
   d->data.insert({primary_key, rule});
@@ -201,8 +305,14 @@ osquery::QueryData HostBlacklistTable::insert(
   // Multiple domains may point to the same address
   auto fw_status = firewall->addHostToBlacklist(rule.address);
   if (!fw_status.success() &&
-      fw_status.detail() == IFirewall::Detail::AlreadyExists) {
+      fw_status.detail() != IFirewall::Detail::AlreadyExists) {
     std::cerr << "Failed to enable the firewall host rule\n";
+  }
+
+  auto hosts_status = d->hosts_file->addHost(rule.domain, rule.sinkhole);
+  if (!hosts_status.success() &&
+      hosts_status.detail() != IHostsFile::Detail::AlreadyExists) {
+    std::cerr << "Failed to enable the hosts file rule\n";
   }
 
   osquery::Row result;
@@ -242,8 +352,15 @@ osquery::QueryData HostBlacklistTable::delete_(
   d->data.erase(rule_it);
 
   auto fw_status = firewall->removeHostFromBlacklist(rule.address);
-  if (!fw_status.success()) {
+  if (!fw_status.success() &&
+      fw_status.detail() != IFirewall::Detail::NotFound) {
     std::cerr << "Failed to remove the firewall host rule\n";
+  }
+
+  auto hosts_status = d->hosts_file->removeHost(rule.domain);
+  if (!hosts_status.success() &&
+      hosts_status.detail() != IHostsFile::Detail::NotFound) {
+    std::cerr << "Failed to remove the hosts file rule\n";
   }
 
   return {{std::make_pair("status", "success")}};
@@ -322,6 +439,12 @@ osquery::QueryData HostBlacklistTable::update(
     std::cerr << "Failed to remove the firewall host rule\n";
   }
 
+  auto hosts_status = d->hosts_file->removeHost(original_rule.domain);
+  if (!hosts_status.success() &&
+      hosts_status.detail() != IHostsFile::Detail::NotFound) {
+    std::cerr << "Failed to remove the hosts file rule\n";
+  }
+
   RowID new_row_id;
   auto new_row_id_it = request.find("new_id");
   if (new_row_id_it != request.end()) {
@@ -348,6 +471,12 @@ osquery::QueryData HostBlacklistTable::update(
     std::cerr << "Failed to add the firewall host rule\n";
   }
 
+  hosts_status = d->hosts_file->addHost(new_rule.domain, new_rule.sinkhole);
+  if (!hosts_status.success() &&
+      hosts_status.detail() != IHostsFile::Detail::AlreadyExists) {
+    std::cerr << "Failed to enable the hosts file rule\n";
+  }
+
   return {{std::make_pair("status", "success")}};
 }
 
@@ -369,6 +498,7 @@ osquery::Status HostBlacklistTable::GetRowData(
 
   row["address"] = document[0].IsNull() ? "" : document[0].GetString();
   row["domain"] = document[1].IsNull() ? "" : document[1].GetString();
+
   row["sinkhole"] =
       document[2].IsNull() ? "127.0.0.1" : document[2].GetString();
 

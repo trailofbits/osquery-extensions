@@ -1,23 +1,23 @@
 cmake_minimum_required(VERSION 3.10.0)
-project(firewall)
+project(hostsfile)
 
 function(main)
   if(DEFINED APPLE)
     set(PROJECT_SOURCEFILES
-      macos/firewall.h
-      macos/firewall.cpp
+      macos/hostsfile.h
+      macos/hostsfile.cpp
     )
 
   elseif(DEFINED UNIX)
     set(PROJECT_SOURCEFILES
-      linux/firewall.h
-      linux/firewall.cpp
+      linux/hostsfile.h
+      linux/hostsfile.cpp
     )
 
   elseif(DEFINED WIN32)
     set(PROJECT_SOURCEFILES
-      windows/firewall.h
-      windows/firewall.cpp
+      windows/hostsfile.h
+      windows/hostsfile.cpp
     )
 
   else()
@@ -27,7 +27,7 @@ function(main)
   set(PROJECT_PUBLICINCLUDEFOLDER "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
   list(APPEND PROJECT_SOURCEFILES
-    "${PROJECT_PUBLICINCLUDEFOLDER}/trailofbits/ifirewall.h"
+    "${PROJECT_PUBLICINCLUDEFOLDER}/trailofbits/ihostsfile.h"
   )
 
   add_library("${PROJECT_NAME}" STATIC ${PROJECT_SOURCEFILES})

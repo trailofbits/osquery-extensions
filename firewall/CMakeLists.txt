@@ -45,8 +45,11 @@ function(main)
 
   add_subdirectory(extutils)
   add_subdirectory(firewall)
+  add_subdirectory(hostsfile)
 
-  target_link_libraries("${PROJECT_NAME}" firewall)
+  # The ADD_OSQUERY_EXTENSION has already used an old style target_link_libraries call, so
+  # we can't use the PRIVATE/PUBLIC/INTERFACE dependency keywords
+  target_link_libraries("${PROJECT_NAME}" firewall hostsfile)
 endfunction()
 
 main()
