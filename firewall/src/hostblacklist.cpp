@@ -458,7 +458,12 @@ osquery::Status HostBlacklistTable::DomainToAddress(std::string& address,
     b_asio::io_service io_service;
     b_ip::tcp::resolver resolver(io_service);
 
-    b_ip::tcp::resolver::query query(domain, "");
+    // clang-format off
+    b_ip::tcp::resolver::query query(
+      use_ipv4 ? b_ip::tcp::v4() : b_ip::tcp::v6(),
+      domain, ""
+    );
+    // clang-format on
 
     b_ip::tcp::resolver::iterator end_it;
     for (auto resolver_it = resolver.resolve(query); resolver_it != end_it;
@@ -466,6 +471,7 @@ osquery::Status HostBlacklistTable::DomainToAddress(std::string& address,
       auto endpoint = resolver_it->endpoint();
 
       const auto& address_obj = endpoint.address();
+
       if (address_obj.is_v4() == use_ipv4) {
         address = address_obj.to_string();
         break;
