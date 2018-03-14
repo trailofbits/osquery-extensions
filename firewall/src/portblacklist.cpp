@@ -18,15 +18,11 @@
 #include "globals.h"
 
 #include <osquery/core/conversions.h>
-#include <osquery/sdk.h>
 #include <osquery/system.h>
-
-#include <rapidjson/document.h>
 
 #include <algorithm>
 #include <iostream>
 #include <mutex>
-#include <unordered_map>
 
 namespace trailofbits {
 struct PortBlacklistTable::PrivateData final {
@@ -87,6 +83,7 @@ osquery::QueryData PortBlacklistTable::generate(
 
   osquery::QueryData results;
 
+  // Add managed firewall rules
   for (const auto& pair : table_row_id_to_pkey) {
     const auto& row_id = pair.first;
     const auto& pkey = pair.second;
@@ -113,6 +110,7 @@ osquery::QueryData PortBlacklistTable::generate(
     results.push_back(row);
   }
 
+  // Add unmanaged firewall rules
   RowID temp_row_id = 0x8000000000000000ULL;
   for (const auto& pair : firewall_data) {
     const auto& pkey = pair.first;
@@ -494,4 +492,10 @@ std::string PortBlacklistTable::GeneratePrimaryKey(const PortRule& rule) {
   return primary_key.str();
 }
 
+RowID PortBlacklistTable::GenerateRowID() {
+  static std::uint64_t generator = 0ULL;
+
+  generator = (generator + 1) & 0x7FFFFFFFFFFFFFFFULL;
+  return generator;
+}
 } // namespace trailofbits

@@ -16,19 +16,56 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include "basetable.h"
+
+#include <trailofbits/ifirewall.h>
+
+#include <memory>
 
 namespace trailofbits {
-class HostBlacklistTable : public osquery::TablePlugin {
+struct HostRule final {
+  std::string address;
+  std::string domain;
+  std::string sinkhole;
+};
+
+using HostRuleMap = std::unordered_map<PrimaryKey, HostRule>;
+
+class HostBlacklistTable final : public BaseTable {
  public:
+  HostBlacklistTable();
+  virtual ~HostBlacklistTable();
+
   osquery::TableColumns columns() const;
+
   osquery::QueryData generate(osquery::QueryContext& context);
 
   osquery::QueryData insert(osquery::QueryContext& context,
                             const osquery::PluginRequest& request);
+
   osquery::QueryData delete_(osquery::QueryContext& context,
                              const osquery::PluginRequest& request);
+
   osquery::QueryData update(osquery::QueryContext& context,
                             const osquery::PluginRequest& request);
+
+ private:
+  struct PrivateData;
+  std::unique_ptr<PrivateData> d;
+
+  static osquery::Status GetRowData(osquery::Row& row,
+                                    const std::string& json_value_array);
+
+  static osquery::Status PrepareInsertData(osquery::Row& row);
+  static bool IsInsertDataValid(const osquery::Row& row);
+
+  static std::string GeneratePrimaryKey(const HostRule& rule);
+  static RowID GenerateRowID();
+
+  static osquery::Status DomainToAddress(std::string& address,
+                                         const std::string& domain,
+                                         bool use_ipv4);
+  static osquery::Status AddressToDomain(std::string& domain,
+                                         const std::string& address);
 };
 } // namespace trailofbits

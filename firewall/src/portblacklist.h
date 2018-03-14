@@ -66,5 +66,6 @@ class PortBlacklistTable final : public BaseTable {
                               const osquery::Row& valid_row);
 
   static std::string GeneratePrimaryKey(const PortRule& rule);
+  static RowID GenerateRowID();
 };
 } // namespace trailofbits

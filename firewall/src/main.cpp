@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-//#include "hostblacklist.h"
 #include "globals.h"
+#include "hostblacklist.h"
 #include "portblacklist.h"
 
 #include <iomanip>
@@ -32,7 +32,7 @@ namespace boostsys = boost::system;
 using namespace osquery;
 using namespace trailofbits;
 
-// REGISTER_EXTERNAL(HostBlacklistTable, "table", "HostBlacklistTable");
+REGISTER_EXTERNAL(HostBlacklistTable, "table", "HostBlacklist");
 REGISTER_EXTERNAL(PortBlacklistTable, "table", "PortBlacklist");
 
 bool Initialize() {

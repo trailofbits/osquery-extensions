@@ -386,7 +386,7 @@ Firewall::Status Firewall::ReadTable(std::string& contents,
   // Dump the blocked hosts table; the command will return -1 and print an error
   // if the table is not found
   ProcessOutput proc_output;
-  if (!ExecuteProcess(proc_output, pfctl, {"-a", anchor, "-t", table})) {
+  if (!ExecuteProcess(proc_output, pfctl, {"-a", anchor, "-t", table, "-T", "show"})) {
     return Status(false, Detail::ExecError);
   }
 

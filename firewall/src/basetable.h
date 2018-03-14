@@ -19,9 +19,7 @@
 #include <cstdint>
 #include <unordered_map>
 
-#include <osquery/core/conversions.h>
 #include <osquery/sdk.h>
-#include <osquery/system.h>
 
 #include <rapidjson/document.h>
 
@@ -45,13 +43,6 @@ class BaseTable : public osquery::TablePlugin {
     }
 
     return osquery::Status(0, "OK");
-  }
-
-  static RowID GenerateRowID() {
-    std::uint64_t generator = 0ULL;
-
-    generator = (generator + 1) & 0x7FFFFFFFFFFFFFFFULL;
-    return generator;
   }
 };
 } // namespace trailofbits
