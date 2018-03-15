@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2018 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,10 @@ osquery::TableColumns SantaEventsTablePlugin::columns() const {
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
 
+      std::make_tuple("shasum",
+                      osquery::TEXT_TYPE,
+                      osquery::ColumnOptions::DEFAULT),
+
       std::make_tuple("reason",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT)
@@ -50,7 +54,7 @@ osquery::QueryData SantaEventsTablePlugin::generate(
     VLOG(1) << e.what();
 
     osquery::Row r;
-    r["timestamp"] = r["application"] = r["reason"] = "error";
+    r["timestamp"] = r["application"] = r["reason"] = r["shasum"] = "error";
 
     return {r};
   }
@@ -61,6 +65,7 @@ osquery::QueryData SantaEventsTablePlugin::generate(
     osquery::Row r;
     r["timestamp"] = iter->timestamp;
     r["path"] = iter->application;
+    r["shasum"] = iter->sha256;
     r["reason"] = iter->reason;
     result.push_back(r);
   }

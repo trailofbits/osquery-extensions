@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2018 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,12 +30,28 @@ int runAsStandalone() {
     return 1;
   }
 
-  std::cout << "timestamp\t\tapplication\t\treason" << std::endl;
+  std::cout << "timestamp\t\tapplication\t\tshasum\t\treason" << std::endl;
   for (LogEntries::const_iterator iter = response.begin();
        iter != response.end();
        ++iter) {
     std::cout << iter->timestamp << "\t\t" << iter->application << "\t\t"
-              << iter->reason << std::endl;
+              << iter->sha256 << "\t\t" << iter->reason << std::endl;
+  }
+
+  RuleEntries rules;
+  try {
+    collectSantaRules(rules);
+  } catch (const std::exception& e) {
+    std::cerr << "An error has occured: " << e.what();
+    return 1;
+  }
+
+  std::cout << "shasum\t\tstate\t\ttype" << std::endl;
+  for (RuleEntries::const_iterator iter = rules.begin();
+       iter != rules.end();
+       ++iter) {
+    std::cout << iter->shasum << "\t\t" << iter->state << "\t\t"
+              << iter->type << std::endl;
   }
   return 0;
 }

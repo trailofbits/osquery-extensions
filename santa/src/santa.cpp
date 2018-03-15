@@ -81,7 +81,7 @@ void scrapeStream(std::istream& incoming,
 
     std::map<std::string, std::string> values;
     extractValues(line, values);
-    response.push_back({values["timestamp"], values["path"], values["reason"]});
+    response.push_back({values["timestamp"], values["path"], values["reason"], values["sha256"]});
 
     if (save_to_archive) {
       archived_lines.push_back(line);
@@ -130,7 +130,7 @@ void process_archived_lines(LogEntries& response) {
        ++iter) {
     std::map<std::string, std::string> values;
     extractValues(*iter, values);
-    response.push_back({values["timestamp"], values["path"], values["reason"]});
+    response.push_back({values["timestamp"], values["path"], values["reason"], values["sha256"]});
   }
 }
 
