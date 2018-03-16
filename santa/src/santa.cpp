@@ -117,14 +117,14 @@ bool scrapeCompressedSantaLog(std::string file_path, LogEntries& response) {
   return true;
 }
 
-bool new_archive_file_exists() {
+bool newArchiveFileExists() {
   std::stringstream strstr;
   strstr << LOG_PATH << "." << next_oldest_archive << ".gz";
   std::ifstream file(strstr.str(), std::ios_base::in | std::ios_base::binary);
   return file.is_open();
 }
 
-void process_archived_lines(LogEntries& response) {
+void processArchivedLines(LogEntries& response) {
   for (std::list<std::string>::const_iterator iter = archived_lines.begin();
        iter != archived_lines.end();
        ++iter) {
@@ -138,8 +138,8 @@ void scrapeSantaLog(LogEntries& response) {
   scrapeCurrentLog(response);
 
   // if there are no new archived files, just process our stash
-  if (!new_archive_file_exists()) {
-    process_archived_lines(response);
+  if (!newArchiveFileExists()) {
+    processArchivedLines(response);
     return;
   }
 
