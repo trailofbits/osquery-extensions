@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include "globals.h"
+#include <gtest/gtest.h>
 
-namespace trailofbits {
-std::unique_ptr<IFirewall> firewall;
+GTEST_API_ int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

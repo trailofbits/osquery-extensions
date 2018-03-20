@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2018 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,6 +50,24 @@ function(main)
   # The ADD_OSQUERY_EXTENSION has already used an old style target_link_libraries call, so
   # we can't use the PRIVATE/PUBLIC/INTERFACE dependency keywords
   target_link_libraries("${PROJECT_NAME}" firewall hostsfile)
+endfunction()
+
+set(ROOT_TEST_TARGET "${PROJECT_NAME}_tests")
+add_custom_target("${ROOT_TEST_TARGET}")
+
+function(AddTest test_name out_executable_target_name)
+  set(target_name "fwctlTest_${test_name}")
+  add_executable("${target_name}" EXCLUDE_FROM_ALL ${ARGN})
+
+  # we have the guarantee that googletest is already present, thanks to osquery; link
+  # to it so that we automatically import the include directories
+  target_link_libraries("${target_name}" PRIVATE gtest)
+
+  add_custom_target("${target_name}_runner" COMMAND $<TARGET_FILE:${target_name}>)
+  add_dependencies("${ROOT_TEST_TARGET}" "${target_name}_runner")
+
+  # Return the executable target name to the caller
+  set("${out_executable_target_name}" "${target_name}" PARENT_SCOPE)
 endfunction()
 
 main()

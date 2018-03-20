@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2018 Trail of Bits, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 
 #include <trailofbits/ihostsfile.h>
@@ -33,13 +49,14 @@ class HostsFile final : public IHostsFile {
   static bool MoveFile_(const std::string& source_path,
                         const std::string& dest_path);
 
-  static bool ParseHostsFileLine(std::string& address,
-                                 std::set<std::string>& domain_list,
-                                 const std::string& line);
-
  private:
   struct PrivateData;
   std::unique_ptr<PrivateData> d;
+
+ public:
+  static bool ParseHostsFileLine(std::string& address,
+                                 std::set<std::string>& domain_list,
+                                 const std::string& line);
 };
 
 IHostsFile::Status CreateHostsFileObject(std::unique_ptr<IHostsFile>& obj);
