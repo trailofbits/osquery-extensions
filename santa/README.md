@@ -63,4 +63,4 @@ information.
 
 ## License
 
-The code in this repository is licensed under the [Apache 2.0 license](LICENSE).
+The code in this repository is licensed under the [Apache 2.0 license](../LICENSE).
