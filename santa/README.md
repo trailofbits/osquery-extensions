@@ -50,7 +50,7 @@ Consider either changing the ownership of `santa.ext` to root, or running osquer
 > osqueryi --extension /path/to/santa.ext
 
 ```
-$ sudo osqueryi --extension osquery-facebook/build/darwin10.12/external/extension_efigy/santa.ext
+$ sudo ./build/darwin10.13/osquery/osqueryi --extension ./build/darwin10.13/external/extension_santa/santa.ext
 Using a virtual database. Need help, type '.help'
 osquery> .schema santa_rules
 CREATE TABLE santa_rules(`shasum` TEXT, `state` TEXT, `type` TEXT);
