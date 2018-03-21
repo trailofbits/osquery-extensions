@@ -52,6 +52,14 @@ class Firewall final : public IFirewall {
       void* user_defined) override;
 
  private:
+  struct PrivateData;
+  std::unique_ptr<PrivateData> d;
+
+  Firewall();
+
+  static Status ReadFirewallState(std::string& state);
+
+ public:
   struct PortRule final {
     std::uint16_t port;
     TrafficDirection direction;
@@ -65,16 +73,10 @@ class Firewall final : public IFirewall {
 
   using Rule = boost::variant<PortRule, IPRule>;
 
-  Firewall();
-
- private:
-  struct PrivateData;
-  std::unique_ptr<PrivateData> d;
-
-  static Status ReadFirewallState(std::string& state);
   static void ParseFirewallState(std::vector<PortRule>& port_rules,
                                  std::set<std::string>& blocked_hosts,
                                  const std::string& state);
+
   static bool ParseFirewallStateLine(Rule& rule, const std::string& line);
 };
 

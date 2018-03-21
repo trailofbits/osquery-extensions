@@ -411,7 +411,7 @@ bool Firewall::ParseFirewallStateLine(Rule& rule, const std::string& line) {
 
     } else if (std::strncmp(ptr, "tcp -m tcp --dport ", 19) == 0) {
       ptr += 19;
-      protocol = Protocol::UDP;
+      protocol = Protocol::TCP;
 
     } else {
       return false;

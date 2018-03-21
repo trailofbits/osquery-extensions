@@ -61,9 +61,20 @@ function(AddTest test_name out_executable_target_name)
 
   # we have the guarantee that googletest is already present, thanks to osquery; link
   # to it so that we automatically import the include directories
+  if(NOT TARGET gtest)
+    message(FATAL_ERROR "Tests will not find gtest if you have built using the 'SKIP_TESTS=1' setting!")
+  endif()
+
   target_link_libraries("${target_name}" PRIVATE gtest)
 
-  add_custom_target("${target_name}_runner" COMMAND $<TARGET_FILE:${target_name}>)
+  if(UNIX AND NOT APPLE)
+    set(command_prefix ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=/usr/local/osquery/lib)
+  endif()
+
+  add_custom_target("${target_name}_runner"
+    COMMAND ${command_prefix} $<TARGET_FILE:${target_name}>
+  )
+
   add_dependencies("${ROOT_TEST_TARGET}" "${target_name}_runner")
 
   # Return the executable target name to the caller
