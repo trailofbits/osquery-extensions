@@ -50,6 +50,44 @@ function(main)
   # The ADD_OSQUERY_EXTENSION has already used an old style target_link_libraries call, so
   # we can't use the PRIVATE/PUBLIC/INTERFACE dependency keywords
   target_link_libraries("${PROJECT_NAME}" firewall hostsfile)
+
+  set(
+    PROJECT_TESTFILES
+
+    tests/main.cpp
+    tests/hostblacklist.cpp
+
+    src/globals.h
+    src/globals.cpp
+
+    src/basetable.h
+
+    src/hostblacklist.h
+    src/hostblacklist.cpp
+
+    src/portblacklist.h
+    src/portblacklist.cpp
+  )
+
+  AddTest("tables" test_target_name ${PROJECT_TESTFILES})
+  target_include_directories("${test_target_name}" PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+
+  target_link_libraries("${test_target_name}" PRIVATE
+    glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt boost_context-mt
+    firewall hostsfile
+  )
+
+  if(UNIX)
+    target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
+
+    if(NOT APPLE)
+      target_link_libraries("${test_target_name}" PRIVATE rt)
+    endif()
+  else()
+    target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/osquery.lib")
+  endif()
 endfunction()
 
 set(ROOT_TEST_TARGET "${PROJECT_NAME}_tests")
@@ -59,6 +97,8 @@ function(AddTest test_name out_executable_target_name)
   set(target_name "fwctlTest_${test_name}")
   add_executable("${target_name}" EXCLUDE_FROM_ALL ${ARGN})
 
+  message(STATUS "Generating test: ${target_name}")
+
   # we have the guarantee that googletest is already present, thanks to osquery; link
   # to it so that we automatically import the include directories
   if(NOT TARGET gtest)
@@ -67,12 +107,20 @@ function(AddTest test_name out_executable_target_name)
 
   target_link_libraries("${target_name}" PRIVATE gtest)
 
-  if(UNIX AND NOT APPLE)
-    set(command_prefix ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=/usr/local/osquery/lib)
+  if(UNIX)
+    if(APPLE)
+      target_compile_definitions("${target_name}" PRIVATE APPLE)
+    else()
+      set(command_prefix ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=/usr/local/osquery/lib)
+      target_compile_definitions("${target_name}" PRIVATE LINUX)
+    endif()
+  else()
+    target_compile_definitions("${target_name}" PRIVATE WINDOWS)
   endif()
 
   add_custom_target("${target_name}_runner"
     COMMAND ${command_prefix} $<TARGET_FILE:${target_name}>
+    COMMENT "Running test: ${target_name}"
   )
 
   add_dependencies("${ROOT_TEST_TARGET}" "${target_name}_runner")
