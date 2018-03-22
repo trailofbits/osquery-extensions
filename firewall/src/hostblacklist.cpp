@@ -26,9 +26,31 @@
 #include <iostream>
 #include <mutex>
 
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
 #include <boost/asio.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/serialization/unordered_map.hpp>
+
 namespace b_asio = boost::asio;
 namespace b_ip = boost::asio::ip;
+namespace b_fs = boost::filesystem;
+namespace b_arc = boost::archive;
+
+namespace boost {
+namespace serialization {
+template <class Archive>
+void serialize(Archive& archive,
+               trailofbits::HostRule& rule,
+               const unsigned int version) {
+  static_cast<void>(version);
+
+  archive& rule.address;
+  archive& rule.domain;
+  archive& rule.sinkhole;
+}
+} // namespace serialization
+} // namespace boost
 
 namespace trailofbits {
 struct HostBlacklistTable::PrivateData final {
@@ -38,6 +60,8 @@ struct HostBlacklistTable::PrivateData final {
 
   HostRuleMap data;
   RowIdToPrimaryKeyMap row_id_to_pkey;
+
+  b_fs::path configuration_file_path;
 };
 
 HostBlacklistTable::HostBlacklistTable() : d(new PrivateData) {
@@ -46,6 +70,11 @@ HostBlacklistTable::HostBlacklistTable() : d(new PrivateData) {
     if (!status.success()) {
       throw std::runtime_error("Initialization error");
     }
+
+    d->configuration_file_path = CONFIGURATION_ROOT;
+    d->configuration_file_path += "hostblacklist.cfg";
+
+    loadConfiguration();
 
   } catch (const std::bad_alloc&) {
     throw std::runtime_error("Memory allocation error");
@@ -315,6 +344,8 @@ osquery::QueryData HostBlacklistTable::insert(
     std::cerr << "Failed to enable the hosts file rule\n";
   }
 
+  saveConfiguration();
+
   osquery::Row result;
   result["id"] = std::to_string(row_id);
   result["status"] = "success";
@@ -350,6 +381,7 @@ osquery::QueryData HostBlacklistTable::delete_(
 
   auto rule = rule_it->second;
   d->data.erase(rule_it);
+  saveConfiguration();
 
   auto fw_status = firewall->removeHostFromBlacklist(rule.address);
   if (!fw_status.success() &&
@@ -465,6 +497,7 @@ osquery::QueryData HostBlacklistTable::update(
 
   d->data.insert({new_primary_key, new_rule});
   d->row_id_to_pkey.insert({new_row_id, new_primary_key});
+  saveConfiguration();
 
   fw_status = firewall->addHostToBlacklist(new_rule.address);
   if (!fw_status.success()) {
@@ -577,6 +610,61 @@ RowID HostBlacklistTable::GenerateRowID() {
 
   generator = (generator + 1) & 0x7FFFFFFFFFFFFFFFULL;
   return generator;
+}
+
+void HostBlacklistTable::loadConfiguration() {
+  try {
+    // Load the configuration file
+    if (!b_fs::exists(d->configuration_file_path)) {
+      return;
+    }
+
+    b_fs::ifstream configuration_file(d->configuration_file_path);
+    if (!configuration_file) {
+      return;
+    }
+
+    b_arc::text_iarchive archive(configuration_file);
+
+    archive >> d->data;
+    archive >> d->row_id_to_pkey;
+
+    // Re-apply each loaded rule
+    for (const auto& pair : d->data) {
+      const auto& rule = pair.second;
+
+      auto fw_status = firewall->addHostToBlacklist(rule.address);
+      auto hosts_status = d->hosts_file->addHost(rule.domain, rule.sinkhole);
+
+      if ((!fw_status.success() &&
+           fw_status.detail() != IFirewall::Detail::AlreadyExists) ||
+          (!hosts_status.success() &&
+           hosts_status.detail() != IHostsFile::Detail::AlreadyExists)) {
+        std::cerr << "Failed to restore the following rule: " << rule.address
+                  << "/" << rule.domain << " -> " << rule.sinkhole << "\n";
+      }
+    }
+
+  } catch (...) {
+    std::cerr << "Failed to load the saved configuration\n";
+  }
+}
+
+void HostBlacklistTable::saveConfiguration() {
+  try {
+    b_fs::ofstream configuration_file(d->configuration_file_path);
+    if (!configuration_file) {
+      return;
+    }
+
+    b_arc::text_oarchive archive(configuration_file);
+
+    archive << d->data;
+    archive << d->row_id_to_pkey;
+
+  } catch (...) {
+    std::cerr << "Failed to save the configuration\n";
+  }
 }
 
 osquery::Status HostBlacklistTable::DomainToAddress(std::string& address,

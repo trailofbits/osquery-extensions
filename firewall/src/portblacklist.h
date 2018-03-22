@@ -67,5 +67,8 @@ class PortBlacklistTable final : public BaseTable {
 
   static std::string GeneratePrimaryKey(const PortRule& rule);
   static RowID GenerateRowID();
+
+  void loadConfiguration();
+  void saveConfiguration();
 };
 } // namespace trailofbits

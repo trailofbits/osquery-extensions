@@ -36,9 +36,9 @@ function(main)
   ADD_OSQUERY_EXTENSION("${PROJECT_NAME}" ${PROJECT_SOURCEFILES})
 
   if(DEFINED APPLE OR DEFINED UNIX)
-    set(configuration_root "CONFIGURATION_ROOT=\"/var/osquery/extensions/com/trailofbits/firewall\"")
+    set(configuration_root "CONFIGURATION_ROOT=\"/var/osquery/extensions/com/trailofbits/fwctl\"")
   else()
-    set(configuration_root "CONFIGURATION_ROOT=\"C:\\ProgramData\\osquery\\extensions\\com\\trailofbits\\firewall\"")
+    set(configuration_root "CONFIGURATION_ROOT=\"C:\\ProgramData\\osquery\\extensions\\com\\trailofbits\\fwctl\"")
   endif()
 
   target_compile_definitions("${PROJECT_NAME}" PRIVATE "${configuration_root}")
@@ -50,6 +50,13 @@ function(main)
   # The ADD_OSQUERY_EXTENSION has already used an old style target_link_libraries call, so
   # we can't use the PRIVATE/PUBLIC/INTERFACE dependency keywords
   target_link_libraries("${PROJECT_NAME}" firewall hostsfile)
+
+  set(Boost_USE_STATIC_LIBS ON)
+  set(Boost_USE_MULTITHREADED ON)
+  set(Boost_USE_STATIC_RUNTIME ON)
+  find_package(Boost REQUIRED COMPONENTS serialization REQUIRED)
+  target_include_directories("${PROJECT_NAME}" PRIVATE ${Boost_INCLUDE_DIRS})
+  target_link_libraries("${PROJECT_NAME}" ${Boost_LIBRARIES})
 
   set(
     PROJECT_TESTFILES

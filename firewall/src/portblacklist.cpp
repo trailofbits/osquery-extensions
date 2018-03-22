@@ -20,9 +20,32 @@
 #include <osquery/core/conversions.h>
 #include <osquery/system.h>
 
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/serialization/unordered_map.hpp>
+
 #include <algorithm>
 #include <iostream>
 #include <mutex>
+
+namespace b_fs = boost::filesystem;
+namespace b_arc = boost::archive;
+
+namespace boost {
+namespace serialization {
+template <class Archive>
+void serialize(Archive& archive,
+               trailofbits::PortRule& rule,
+               const unsigned int version) {
+  static_cast<void>(version);
+
+  archive& rule.port;
+  archive& rule.direction;
+  archive& rule.protocol;
+}
+} // namespace serialization
+} // namespace boost
 
 namespace trailofbits {
 struct PortBlacklistTable::PrivateData final {
@@ -30,9 +53,16 @@ struct PortBlacklistTable::PrivateData final {
 
   PortRuleMap data;
   RowIdToPrimaryKeyMap row_id_to_pkey;
+
+  b_fs::path configuration_file_path;
 };
 
-PortBlacklistTable::PortBlacklistTable() : d(new PrivateData) {}
+PortBlacklistTable::PortBlacklistTable() : d(new PrivateData) {
+  d->configuration_file_path = CONFIGURATION_ROOT;
+  d->configuration_file_path += "portblacklist.cfg";
+
+  loadConfiguration();
+}
 
 PortBlacklistTable::~PortBlacklistTable() {}
 
@@ -203,6 +233,8 @@ osquery::QueryData PortBlacklistTable::insert(
     std::cerr << "Failed to enable the port rule\n";
   }
 
+  saveConfiguration();
+
   osquery::Row result;
   result["id"] = std::to_string(row_id);
   result["status"] = "success";
@@ -238,6 +270,7 @@ osquery::QueryData PortBlacklistTable::delete_(
 
   auto rule = rule_it->second;
   d->data.erase(rule_it);
+  saveConfiguration();
 
   auto fw_status = firewall->removePortFromBlacklist(
       rule.port, rule.direction, rule.protocol);
@@ -337,6 +370,7 @@ osquery::QueryData PortBlacklistTable::update(
 
   d->data.insert({new_primary_key, new_rule});
   d->row_id_to_pkey.insert({new_row_id, new_primary_key});
+  saveConfiguration();
 
   fw_status = firewall->addPortToBlacklist(
       new_rule.port, new_rule.direction, new_rule.protocol);
@@ -497,5 +531,70 @@ RowID PortBlacklistTable::GenerateRowID() {
 
   generator = (generator + 1) & 0x7FFFFFFFFFFFFFFFULL;
   return generator;
+}
+
+void PortBlacklistTable::loadConfiguration() {
+  try {
+    // Load the configuration file
+    if (!b_fs::exists(d->configuration_file_path)) {
+      return;
+    }
+
+    b_fs::ifstream configuration_file(d->configuration_file_path);
+    if (!configuration_file) {
+      return;
+    }
+
+    b_arc::text_iarchive archive(configuration_file);
+
+    archive >> d->data;
+    archive >> d->row_id_to_pkey;
+
+    // Re-apply each loaded rule
+    for (const auto& pair : d->data) {
+      const auto& rule = pair.second;
+
+      auto fw_status = firewall->addPortToBlacklist(
+          rule.port, rule.direction, rule.protocol);
+
+      if (!fw_status.success() &&
+          fw_status.detail() != IFirewall::Detail::AlreadyExists) {
+        std::cerr << "Failed to restore the following rule: " << rule.port
+                  << "/";
+
+        if (rule.protocol == IFirewall::Protocol::TCP) {
+          std::cerr << "tcp ";
+        } else {
+          std::cerr << "udp ";
+        }
+
+        if (rule.direction == IFirewall::TrafficDirection::Inbound) {
+          std::cerr << " (inbound)\n";
+        } else {
+          std::cerr << " (outbound)\n";
+        }
+      }
+    }
+
+  } catch (...) {
+    std::cerr << "Failed to load the saved configuration\n";
+  }
+}
+
+void PortBlacklistTable::saveConfiguration() {
+  try {
+    b_fs::ofstream configuration_file(d->configuration_file_path);
+    if (!configuration_file) {
+      return;
+    }
+
+    b_arc::text_oarchive archive(configuration_file);
+
+    archive << d->data;
+    archive << d->row_id_to_pkey;
+
+  } catch (...) {
+    std::cerr << "Failed to save the configuration\n";
+  }
 }
 } // namespace trailofbits

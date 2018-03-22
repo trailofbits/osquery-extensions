@@ -62,6 +62,9 @@ class HostBlacklistTable final : public BaseTable {
   static std::string GeneratePrimaryKey(const HostRule& rule);
   static RowID GenerateRowID();
 
+  void loadConfiguration();
+  void saveConfiguration();
+
  public:
   static osquery::Status DomainToAddress(std::string& address,
                                          const std::string& domain,
