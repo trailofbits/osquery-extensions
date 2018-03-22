@@ -2,6 +2,14 @@
 
 This repository includes [osquery](https://osquery.io/) [extensions](https://osquery.readthedocs.io/en/stable/development/osquery-sdk/) developed and maintained by [Trail of Bits](https://www.trailofbits.com/). If you would like to sponsor the development of an extension, [please contact us](https://www.trailofbits.com/contact/).
 
+[Extensions](https://osquery.readthedocs.io/en/stable/deployment/extensions/) are a type of osquery plugin that can be loaded at runtime to provide new virtual tables, with capabilities that go beyond the limitations of mainline osquery. Trail of Bits has developed extensions to provide tables that can _manage_ service configurations as well as _view_ them (currently pending the merge of [PR4094](https://github.com/facebook/osquery/pull/4094)), or that can cross-check information on the host with external third-party services. The extensions interface is commonly used to address individual organizations' needs, or to implement proprietary detection methods. Here we use it to demonstrate some pioneering use cases of osquery.
+
+| Extension      | Description | Supported Endpoints |
+|    :-:         |    :-:      |         :-:         |
+| efigy          | Integrates osquery with the Duo Labs EFIgy API to determine if the EFI firmware on your Mac fleet is up-to-date. | macOS |
+| santa          | Integrates osquery with the Santa application whiteslisting solution. Check DENY events and manage the whitelist/blacklist rules. | macOS |
+| (more to come) | ...  | ...   |
+
 ## Building
 
 1. Clone the osquery repository
