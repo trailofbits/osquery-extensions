@@ -2,7 +2,10 @@
 
 #include <trailofbits/extutils.h>
 
+#include <cctype>
 #include <mutex>
+#include <sstream>
+#include <string>
 #include <unordered_map>
 
 namespace trailofbits {
@@ -11,21 +14,23 @@ namespace trailofbits {
 
 std::string& trim(std::string& s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
-        return !std::isspace(ch);
-        }));
+            return !std::isspace(ch);
+          }));
 
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
-        return !std::isspace(ch);
-    }).base(), s.end());
-    return s;
+  s.erase(std::find_if(
+              s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); })
+              .base(),
+          s.end());
+  return s;
 }
 
 // parses lines of the format "some key:          some value     "
 // where whitespace between key and value is of uncertain nonzero length
 // and whitespace after value is of uncertain length
-void collectKeyValuePair(const std::string& line, std::map<std::string, std::string>& values) {
+void collectKeyValuePair(const std::string& line,
+                         std::unordered_map<std::string, std::string>& values) {
   size_t key_end = line.find(":");
-  if (key_end == std::ios_base::npos) {
+  if (key_end == std::string::npos) {
     return;
   }
 
@@ -36,14 +41,14 @@ const std::string netsh = "netsh";
 
 struct Firewall::PrivateData final {
   std::mutex mutex;
-}
+};
 
 Firewall::Status Firewall::create(std::unique_ptr<IFirewall>& obj) {
   try {
     auto ptr = new Firewall();
     obj.reset(ptr);
 
-    return Statue(true);
+    return Status(true);
   } catch (const std::bad_alloc&) {
     return Status(false, Detail::MemoryAllocationError);
 
@@ -52,7 +57,7 @@ Firewall::Status Firewall::create(std::unique_ptr<IFirewall>& obj) {
   }
 }
 
-Firewall::~Firewall() { }
+Firewall::~Firewall() {}
 
 Firewall::Status Firewall::addPortToBlacklist(
     std::uint16_t port,
@@ -65,7 +70,7 @@ Firewall::Status Firewall::addPortToBlacklist(
   if (!status.success()) {
     return status;
   }
- 
+
   std::vector<PortRule> port_rules;
   std::set<std::string> blocked_hosts;
   ParseFirewallState(port_rules, blocked_hosts, firewall_state);
@@ -89,14 +94,15 @@ Firewall::Status Firewall::addPortToBlacklist(
     return Status(false, Detail::AlreadyExists);
   }
 
-  const char* dir = 
+  const char* dir =
       (direction == TrafficDirection::Inbound ? "dir=in" : "dir=out");
 
-  const char* protocol = (protocol == PROTOCOL::TCP ? "protocol=TCP" : "protocol=UDP");
+  const char* proto =
+      (protocol == Protocol::TCP ? "protocol=TCP" : "protocol=UDP");
 
   std::stringstream rulename;
-  rulename << "name=\"BlockPort" << port << (direction == TrafficDirection::Inbound ? "in" : "out");
-
+  rulename << "name=\"BlockPort" << port
+           << (direction == TrafficDirection::Inbound ? "in" : "out");
 
   ProcessOutput proc_output;
   if (!ExecuteProcess(proc_output,
@@ -106,11 +112,11 @@ Firewall::Status Firewall::addPortToBlacklist(
                        "add",
                        "rule",
                        rulename.str(),
-                       protocol,
+                       proto,
                        dir,
                        std::to_string(port),
-                       "action=block"}) || 
-      proc_output.exitcode != 0) {
+                       "action=block"}) ||
+      proc_output.exit_code != 0) {
     return Status(false, Detail::ExecError);
   }
 
@@ -154,9 +160,9 @@ Firewall::Status Firewall::removePortFromBlacklist(
 
   std::stringstream rule_port, rule_direction, rule_protocol;
   rule_port << "localport=" << port;
-  rule_direction << "dir=" << (direction == TrafficDirection::Inbound ? "in" : "out");
-  rule_protocol << "protocol=" << (protocol == TrafficProtocol::TCP ? "tcp" : "udp");
-
+  rule_direction << "dir="
+                 << (direction == TrafficDirection::Inbound ? "in" : "out");
+  rule_protocol << "protocol=" << (protocol == Protocol::TCP ? "tcp" : "udp");
 
   ProcessOutput proc_output;
   if (!ExecuteProcess(proc_output,
@@ -169,14 +175,76 @@ Firewall::Status Firewall::removePortFromBlacklist(
                        "action=block",
                        rule_port.str(),
                        rule_protocol.str(),
-                       rule_direction.str()}) || 
+                       rule_direction.str()}) ||
       proc_output.exit_code != 0) {
     return Status(false, Detail::ExecError);
   }
   return Status(true);
 }
 
- 
+Firewall::Status Firewall::removeHostFromBlacklist(const std::string& host) {
+  std::lock_guard<std::mutex> lock(d->mutex);
+
+  std::string firewall_state;
+  auto status = ReadFirewallState(firewall_state);
+  if (!status.success()) {
+    return status;
+  }
+
+  std::vector<PortRule> port_rules;
+  std::set<std::string> blocked_hosts;
+  ParseFirewallState(port_rules, blocked_hosts, firewall_state);
+
+  if (blocked_hosts.find(host) == blocked_hosts.end()) {
+    return Status(false, Detail::NotFound);
+  }
+
+  std::stringstream remotehost;
+  remotehost << "remoteip=" << host;
+
+  // Attempt to apply the iptables rule
+  ProcessOutput proc_output;
+  if (!ExecuteProcess(proc_output,
+                      netsh,
+                      {"advfirewall",
+                       "firewall",
+                       "delete",
+                       "rule",
+                       "name=any",
+                       remotehost.str(),
+                       "action=block"}) ||
+      proc_output.exit_code != 0) {
+    return Status(false, Detail::ExecError);
+  }
+
+  return Status(true);
+}
+
+Firewall::Status Firewall::enumerateBlacklistedHosts(
+    bool (*callback)(const std::string& host, void* user_defined),
+    void* user_defined) {
+  std::vector<PortRule> port_rules;
+  std::set<std::string> blocked_hosts;
+  {
+    std::lock_guard<std::mutex> lock(d->mutex);
+
+    std::string firewall_state;
+    auto status = ReadFirewallState(firewall_state);
+    if (!status.success()) {
+      return status;
+    }
+
+    ParseFirewallState(port_rules, blocked_hosts, firewall_state);
+  }
+
+  for (const auto& host : blocked_hosts) {
+    if (!callback(host, user_defined)) {
+      break;
+    }
+  }
+  return Status(true);
+}
+
 Firewall::Firewall() : d(new PrivateData) {}
 
 Firewall::Status Firewall::ReadFirewallState(std::string& state) {
@@ -214,8 +282,8 @@ Firewall::Status Firewall::ReadFirewallState(std::string& state) {
  */
 
 void Firewall::ParseFirewallState(std::vector<PortRule>& port_rules,
-                             std::set<std::string>& blocked_hosts,
-                             const std::string& state) {
+                                  std::set<std::string>& blocked_hosts,
+                                  const std::string& state) {
   port_rules.clear();
   blocked_hosts.clear();
 
@@ -230,17 +298,16 @@ void Firewall::ParseFirewallState(std::vector<PortRule>& port_rules,
     }
     std::string line;
     std::getline(stream, line);
-    if (line.find("Rule Name:") == std::ios_base::npos) {
+    if (line.find("Rule Name:") == std::string::npos) {
       continue;
     }
 
-    std::string ruleName = trim(line.substr(line.find_first_of(":")+1));
+    std::string ruleName = trim(line.substr(line.find_first_of(":") + 1));
 
     std::getline(stream, line); // discard, all hyphens
     Rule rule_var;
     if (ParseFirewallRuleBlock(stream, ruleName, rule_var)) {
-
-      if (0 == rule.which()) {
+      if (0 == rule_var.which()) {
         auto rule = boost::get<PortRule>(rule_var);
         port_rules.push_back(rule);
       } else {
@@ -312,11 +379,11 @@ Firewall::Status Firewall::addHostToBlacklist(const std::string& host) {
   if (blocked_hosts.find(host) != blocked_hosts.end()) {
     return Status(false, Detail::AlreadyExists);
   }
-  
+
   std::stringstream in_name, out_name, remotehost;
   in_name << "name=\"Block" << host << "In\"";
   out_name << "name=\"Block" << host << "Out\"";
-  remotehost << "remoteip=" << remotehost;
+  remotehost << "remoteip=" << host;
 
   ProcessOutput proc_output;
   if (!ExecuteProcess(proc_output,
@@ -350,15 +417,14 @@ Firewall::Status Firewall::addHostToBlacklist(const std::string& host) {
   return Status(true);
 }
 
- 
-bool Firewall::ParseFirewallRuleBlock(std::stringstream& stream, std::stringstring& ruleName, Rule& rule)
-{
-  std::map<std::string, std::string> values;
+bool Firewall::ParseFirewallRuleBlock(std::stringstream& stream,
+                                      const std::string& rule_name,
+                                      Rule& rule) {
+  std::unordered_map<std::string, std::string> values;
 
   std::string line;
   std::getline(stream, line);
-  while (line.find(":") != std::ios_base::npos)
-  {
+  while (line.find(":") != std::string::npos) {
     collectKeyValuePair(line, values);
     std::getline(stream, line);
   }
@@ -376,8 +442,8 @@ bool Firewall::ParseFirewallRuleBlock(std::stringstream& stream, std::stringstri
     return false;
   }
 
-  if (values["LocalPort"].length() != 0 && values["LocalPort"].compare("Any") != 0)
-  {
+  if (values["LocalPort"].length() != 0 &&
+      values["LocalPort"].compare("Any") != 0) {
     // blocking a port
     Protocol protocol;
     if (values["Protocol"].compare("TCP") == 0) {
@@ -388,24 +454,25 @@ bool Firewall::ParseFirewallRuleBlock(std::stringstream& stream, std::stringstri
       return false;
     }
 
-    auto port = static_cast<std::uint16_t>(std::strtoull(values["LocalPort"], NULL, 10));
+    auto port = static_cast<std::uint16_t>(
+        std::strtoull(values["LocalPort"].c_str(), NULL, 10));
     if (port == 0 || port > 65535) {
       return false;
     }
 
-    PortRule port_rule = {port, direction, protocol, ruleName};
+    PortRule port_rule = {port, direction, protocol, rule_name};
     rule = port_rule;
     return true;
 
-  } else if (values["RemoteIP"].length() != 0 && values["RemoteIP"].compare("Any") != 0) {
+  } else if (values["RemoteIP"].length() != 0 &&
+             values["RemoteIP"].compare("Any") != 0) {
     // blocking an address
-    AddressRule address_rule = {direction, values["RemoteIP"]};
+    IPRule ip_rule = {direction, values["RemoteIP"]};
     rule = ip_rule;
     return true;
   }
 
   return false;
-
 }
 
 Firewall::Status CreateFirewallObject(std::unique_ptr<IFirewall>& obj) {
