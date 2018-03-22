@@ -10,6 +10,8 @@
 
 namespace trailofbits {
 
+const std::string netsh = "C:\\Windows\\System32\\netsh.exe";
+
 // utility functions for string parsing
 
 std::string& trim(std::string& s) {
@@ -36,8 +38,6 @@ void collectKeyValuePair(const std::string& line,
 
   values.emplace(line.substr(0, key_end), trim(line.substr(key_end + 1)));
 }
-
-const std::string netsh = "netsh";
 
 struct Firewall::PrivateData final {
   std::mutex mutex;
