@@ -38,7 +38,7 @@ function(main)
   if(DEFINED APPLE OR DEFINED UNIX)
     set(configuration_root "CONFIGURATION_ROOT=\"/var/osquery/extensions/com/trailofbits/fwctl\"")
   else()
-    set(configuration_root "CONFIGURATION_ROOT=\"C:\\ProgramData\\osquery\\extensions\\com\\trailofbits\\fwctl\"")
+    set(configuration_root "CONFIGURATION_ROOT=\"C:\\\\ProgramData\\\\osquery\\\\extensions\\\\com\\\\trailofbits\\\\fwctl\"")
   endif()
 
   target_compile_definitions("${PROJECT_NAME}" PRIVATE "${configuration_root}")

@@ -21,10 +21,17 @@
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#include <cctype>
 
 namespace trailofbits {
-const std::string hosts_file_path = "/etc/hosts";
-const std::string temporary_hosts_file_path = "/etc/hosts.osquery-fwctl.tmp";
+
+#if defined(__linux__) || defined(_APPLE_)
+  const std::string hosts_file_path = "/etc/hosts";
+  const std::string temporary_hosts_file_path = "/etc/hosts.osquery-fwctl.tmp";
+#elif defined(_WIN32)
+  const std::string hosts_file_path = "c:\\Windows\\System32\\Drivers\\etc\\hosts";
+  const std::string temporary_hosts_file_path = "C:\\Windows\\System32\\Drivers\\etc\\hosts.osquery-fwctl.tmp";
+#endif
 
 struct HostsFile::PrivateData final {
   std::mutex mutex;
