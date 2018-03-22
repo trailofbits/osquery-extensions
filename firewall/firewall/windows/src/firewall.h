@@ -36,6 +36,15 @@ namespace trailofbits {
         void* user_defined) override;
 
  private:
+
+  struct PrivateData;
+  std::unique_ptr<PrivateData> d;
+
+  Firewall(); 
+
+  static Statuc ReadFirewallState(std::string& state);
+
+ public:
   struct PortRule final {
     std::uint16_t port;
     TrafficDirection direction;
@@ -50,41 +59,6 @@ namespace trailofbits {
 
   using Rule = boost::variant<PortRule, IPRule>;
 
-  Firewall();
-
- private:
-  struct PrivateData;
-  std::unique_ptr<PrivateData> d;
-
-  static Status ReadFirewallState(std::string& state);
-  static void ParseFirewallState(std::vector<PortRule>& port_rules,
-                                 std::set<std::string>& blocked_hosts,
-                                 const std::string& state);
-  static bool ParseFirewallStateLine(Rule& rule, const std::string& line);
-};
-
-Firewall::Status CreateFirewallObject(std::unique_ptr<IFirewall>& obj);
-} // namespace trailofbits private:
-  struct PortRule final {
-    std::uint16_t port;
-    TrafficDirection direction;
-    Protocol protocol;
-  };
-
-  struct IPRule final {
-    TrafficDirection direction;
-    std::string address;
-  };
-
-  using Rule = boost::variant<PortRule, IPRule>;
-
-  Firewall();
-
- private:
-  struct PrivateData;
-  std::unique_ptr<PrivateData> d;
-
-  static Status ReadFirewallState(std::string& state);
   static void ParseFirewallState(std::vector<PortRule>& port_rules,
                                  std::set<std::string>& blocked_hosts,
                                  const std::string& state);
