@@ -102,7 +102,8 @@ Firewall::Status Firewall::addPortToBlacklist(
 
   std::stringstream rulename;
   rulename << "name=\"BlockPort" << port
-           << (direction == TrafficDirection::Inbound ? "in" : "out");
+           << (direction == TrafficDirection::Inbound ? "in" : "out")
+	   << "\";
 
   ProcessOutput proc_output;
   if (!ExecuteProcess(proc_output,
