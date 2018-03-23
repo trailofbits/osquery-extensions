@@ -90,7 +90,13 @@ function(main)
     "${PROJECT_TESTINCLUDEDIR}"
   )
 
-  target_link_libraries("${test_target_name}" PRIVATE extutils libboost_system-mt-s libboost_filesystem-mt-s)
+  target_link_libraries("${test_target_name}" PRIVATE extutils)
+
+  if(UNIX)
+    target_link_libraries("${test_target_name}" PRIVATE boost_system-mt boost_filesystem-mt)
+  else()
+    target_link_libraries("${test_target_name}" PRIVATE libboost_system-mt-s libboost_filesystem-mt-s)
+  endif()
 endfunction()
 
 main()
