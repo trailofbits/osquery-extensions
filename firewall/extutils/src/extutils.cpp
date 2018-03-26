@@ -49,6 +49,12 @@ bool ExecuteProcess(ProcessOutput& output,
     output.std_error = process_stderr.get();
     output.exit_code = process.exit_code();
 
+#ifdef _WIN32
+    if (output.exit_code == 259) {
+      output.exit_code = 0;
+    }
+#endif
+
     return true;
 
   } catch (...) {

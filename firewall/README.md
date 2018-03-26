@@ -9,6 +9,11 @@ The firewall extension provides osquery with the capability to block ports and b
 4. Build osquery (see the [official building guide](https://osquery.readthedocs.io/en/latest/development/building/))
 5. Run 'make externals'
 
+## Installing Boost
+MacOS: `brew install boost`
+Ubuntu: `apt install boost -y`
+Windows: Open the official [Boost download page](http://www.boost.org/users/download/) and download `boost_1_66_0-msvc-14.0-64.exe` under [Boost - Third party downloads](https://dl.bintray.com/boostorg/release/1.66.0/binaries/).
+
 ## Running the tests
 
 Once osquery has been built with tests enabled (i.e.: *without* the SKIP_TESTS variable), enter the build/<platform_name> folder and run the following command: `make fwctl_tests`.

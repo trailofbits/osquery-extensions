@@ -38,7 +38,7 @@ function(main)
   if(DEFINED APPLE OR DEFINED UNIX)
     set(configuration_root "CONFIGURATION_ROOT=\"/var/osquery/extensions/com/trailofbits/fwctl\"")
   else()
-    set(configuration_root "CONFIGURATION_ROOT=\"C:\\ProgramData\\osquery\\extensions\\com\\trailofbits\\fwctl\"")
+    set(configuration_root "CONFIGURATION_ROOT=\"C:\\\\ProgramData\\\\osquery\\\\extensions\\\\com\\\\trailofbits\\\\fwctl\"")
   endif()
 
   target_compile_definitions("${PROJECT_NAME}" PRIVATE "${configuration_root}")
@@ -51,49 +51,65 @@ function(main)
   # we can't use the PRIVATE/PUBLIC/INTERFACE dependency keywords
   target_link_libraries("${PROJECT_NAME}" firewall hostsfile)
 
-  set(Boost_USE_STATIC_LIBS ON)
-  set(Boost_USE_MULTITHREADED ON)
-  set(Boost_USE_STATIC_RUNTIME ON)
-  find_package(Boost REQUIRED COMPONENTS serialization REQUIRED)
-  target_include_directories("${PROJECT_NAME}" PRIVATE ${Boost_INCLUDE_DIRS})
-  target_link_libraries("${PROJECT_NAME}" ${Boost_LIBRARIES})
+  if(NOT UNIX)
+    # The Boost binary package is not compatible with FindBoost because they have
+    # renamed the library files to include the architecture name
+    set(BOOST_ROOT_FOLDER "C:/local/boost_1_66_0")
+    set(BOOST_LIBRARY_ROOT "${BOOST_ROOT_FOLDER}/lib64-msvc-14.0")
 
-  set(
-    PROJECT_TESTFILES
+    target_include_directories("${PROJECT_NAME}" PRIVATE ${BOOST_ROOT_FOLDER})
 
-    tests/main.cpp
-    tests/hostblacklist.cpp
+    target_link_libraries("${PROJECT_NAME}"
+      "${BOOST_LIBRARY_ROOT}/libboost_system-vc140-mt-s-x64-1_66.lib"
+      "${BOOST_LIBRARY_ROOT}/libboost_serialization-vc140-mt-s-x64-1_66.lib"
+    )
 
-    src/globals.h
-    src/globals.cpp
+  else()
+    set(Boost_USE_STATIC_LIBS ON)
+    set(Boost_USE_MULTITHREADED ON)
+    set(Boost_USE_STATIC_RUNTIME ON)
+    find_package(Boost REQUIRED COMPONENTS serialization REQUIRED)
+    target_include_directories("${PROJECT_NAME}" PRIVATE ${Boost_INCLUDE_DIRS})
+    target_link_libraries("${PROJECT_NAME}" ${Boost_LIBRARIES})
+  endif()
 
-    src/basetable.h
-
-    src/hostblacklist.h
-    src/hostblacklist.cpp
-
-    src/portblacklist.h
-    src/portblacklist.cpp
-  )
-
-  AddTest("tables" test_target_name ${PROJECT_TESTFILES})
-  target_include_directories("${test_target_name}" PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
-  )
-
-  target_link_libraries("${test_target_name}" PRIVATE
-    glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt boost_context-mt
-    firewall hostsfile
-  )
-
+  # Only enable table tests on Linux and OSX
   if(UNIX)
+    set(
+      PROJECT_TESTFILES
+
+      tests/main.cpp
+      tests/hostblacklist.cpp
+
+      src/globals.h
+      src/globals.cpp
+
+      src/basetable.h
+
+      src/hostblacklist.h
+      src/hostblacklist.cpp
+
+      src/portblacklist.h
+      src/portblacklist.cpp
+    )
+
+    AddTest("tables" test_target_name ${PROJECT_TESTFILES})
+    target_include_directories("${test_target_name}" PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+
+    target_compile_definitions("${test_target_name}" PRIVATE "${configuration_root}")
+
+    target_link_libraries("${test_target_name}" PRIVATE
+      glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt boost_context-mt
+      firewall hostsfile
+    )
+
     target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
 
     if(NOT APPLE)
       target_link_libraries("${test_target_name}" PRIVATE rt)
     endif()
-  else()
-    target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/osquery.lib")
   endif()
 endfunction()
 
