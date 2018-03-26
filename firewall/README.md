@@ -43,7 +43,7 @@ touch /etc/pf.anchors/osquery_firewall_sec
 
 ### Windows
 
-`TODO`
+No special requirements needed.
 
 ### Linux
 
