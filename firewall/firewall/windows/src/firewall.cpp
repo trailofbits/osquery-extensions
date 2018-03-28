@@ -100,10 +100,10 @@ Firewall::Status Firewall::addPortToBlacklist(
   const char* proto =
       (protocol == Protocol::TCP ? "protocol=TCP" : "protocol=UDP");
 
-  std::stringstream rulename;
+  std::stringstream rulename, portstr;
   rulename << "name=\"BlockPort" << port
-           << (direction == TrafficDirection::Inbound ? "in" : "out")
-	   << "\"";
+           << (direction == TrafficDirection::Inbound ? "in" : "out") << "\"";
+  portstr << "localport=" << port;
 
   ProcessOutput proc_output;
   if (!ExecuteProcess(proc_output,
@@ -115,7 +115,7 @@ Firewall::Status Firewall::addPortToBlacklist(
                        rulename.str(),
                        proto,
                        dir,
-                       std::to_string(port),
+                       portstr.str(),
                        "action=block"}) ||
       proc_output.exit_code != 0) {
     return Status(false, Detail::ExecError);
@@ -159,28 +159,51 @@ Firewall::Status Firewall::removePortFromBlacklist(
     return Status(false, Detail::NotFound);
   }
 
-  std::stringstream rule_port, rule_direction, rule_protocol;
-  rule_port << "localport=" << port;
-  rule_direction << "dir="
-                 << (direction == TrafficDirection::Inbound ? "in" : "out");
-  rule_protocol << "protocol=" << (protocol == Protocol::TCP ? "tcp" : "udp");
+  std::stringstream rule_name;
+  rule_name << "name=\"" << (*rule_it).name << "\"";
 
   ProcessOutput proc_output;
-  if (!ExecuteProcess(proc_output,
-                      netsh,
-                      {"advfirewall",
-                       "firewall",
-                       "delete",
-                       "rule",
-                       "name=any",
-                       "action=block",
-                       rule_port.str(),
-                       rule_protocol.str(),
-                       rule_direction.str()}) ||
+  if (!ExecuteProcess(
+          proc_output,
+          netsh,
+          {"advfirewall", "firewall", "delete", "rule", rule_name.str()}) ||
       proc_output.exit_code != 0) {
     return Status(false, Detail::ExecError);
   }
   return Status(true);
+}
+
+void Firewall::getHostBlockRuleNames(const std::string& state,
+                                     const std::string& host,
+                                     std::set<std::string>& rule_names) {
+  std::stringstream stream(state);
+
+  while (true) {
+    if (stream.eof()) {
+      break;
+    }
+    std::string line;
+    std::getline(stream, line);
+    if (line.find("Rule Name:") == std::string::npos) {
+      continue;
+    }
+
+    std::string ruleName = trim(line.substr(line.find_first_of(":") + 1));
+
+    std::getline(stream, line); // discard, all hyphens
+    Rule rule_var;
+    if (ParseFirewallRuleBlock(stream, ruleName, rule_var)) {
+      if (0 == rule_var.which()) {
+        continue;
+      } else {
+        auto rule = boost::get<IPRule>(rule_var);
+        if (rule.address.compare(host) != 0) {
+          continue;
+        }
+        rule_names.insert(ruleName);
+      }
+    }
+  }
 }
 
 Firewall::Status Firewall::removeHostFromBlacklist(const std::string& host) {
@@ -200,24 +223,21 @@ Firewall::Status Firewall::removeHostFromBlacklist(const std::string& host) {
     return Status(false, Detail::NotFound);
   }
 
-  std::stringstream remotehost;
-  remotehost << "remoteip=" << host;
+  std::set<std::string> host_block_rule_names;
+  getHostBlockRuleNames(firewall_state, host, host_block_rule_names);
 
-  // Attempt to apply the iptables rule
-  ProcessOutput proc_output;
-  if (!ExecuteProcess(proc_output,
-                      netsh,
-                      {"advfirewall",
-                       "firewall",
-                       "delete",
-                       "rule",
-                       "name=any",
-                       remotehost.str(),
-                       "action=block"}) ||
-      proc_output.exit_code != 0) {
-    return Status(false, Detail::ExecError);
+  for (auto it : host_block_rule_names) {
+    std::stringstream rulename;
+    rulename << "name=\"" << it << "\"";
+    ProcessOutput proc_output;
+    if (!ExecuteProcess(
+            proc_output,
+            netsh,
+            {"advfirewall", "firewall", "delete", "rule", rulename.str()}) ||
+        proc_output.exit_code != 0) {
+      return Status(false, Detail::ExecError);
+    }
   }
-
   return Status(true);
 }
 
@@ -386,31 +406,29 @@ Firewall::Status Firewall::addHostToBlacklist(const std::string& host) {
   out_name << "name=\"Block" << host << "Out\"";
   remotehost << "remoteip=" << host;
 
+  std::vector<std::string> in_args = {"advfirewall",
+                                      "firewall",
+                                      "add",
+                                      "rule",
+                                      in_name.str(),
+                                      "dir=in",
+                                      "action=block",
+                                      remotehost.str()};
   ProcessOutput proc_output;
-  if (!ExecuteProcess(proc_output,
-                      netsh,
-                      {"advfirewall",
-                       "firewall",
-                       "add",
-                       "rule",
-                       in_name.str(),
-                       "dir=in",
-                       "action=block",
-                       remotehost.str()}) ||
+  if (!ExecuteProcess(proc_output, netsh, in_args) ||
       proc_output.exit_code != 0) {
     return Status(false, Detail::ExecError);
   }
 
-  if (!ExecuteProcess(proc_output,
-                      netsh,
-                      {"advfirewall",
-                       "firewall",
-                       "add",
-                       "rule",
-                       out_name.str(),
-                       "dir=out",
-                       "action=block",
-                       remotehost.str()}) ||
+  std::vector<std::string> out_args = {"advfirewall",
+                                       "firewall",
+                                       "add",
+                                       "rule",
+                                       out_name.str(),
+                                       "dir=out",
+                                       "action=block",
+                                       remotehost.str()};
+  if (!ExecuteProcess(proc_output, netsh, out_args) ||
       proc_output.exit_code != 0) {
     return Status(false, Detail::ExecError);
   }
@@ -468,7 +486,15 @@ bool Firewall::ParseFirewallRuleBlock(std::stringstream& stream,
   } else if (values["RemoteIP"].length() != 0 &&
              values["RemoteIP"].compare("Any") != 0) {
     // blocking an address
-    IPRule ip_rule = {direction, values["RemoteIP"]};
+    std::string mask = "/32";
+    if (0 !=
+        values["RemoteIP"].compare(
+            values["RemoteIP"].length() - mask.length(), mask.length(), mask)) {
+      return false;
+    }
+    IPRule ip_rule = {direction,
+                      values["RemoteIP"].substr(
+                          0, values["RemoteIP"].length() - mask.length())};
     rule = ip_rule;
     return true;
   }

@@ -44,6 +44,10 @@ class Firewall final : public IFirewall {
   Firewall();
 
   static Status ReadFirewallState(std::string& state);
+  static void Firewall::getHostBlockRuleNames(
+      const std::string& state,
+      const std::string& host,
+      std::set<std::string>& rule_names);
 
  public:
   struct PortRule final {
