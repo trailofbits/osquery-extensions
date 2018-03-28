@@ -25,7 +25,7 @@
 
 namespace trailofbits {
 
-#if defined(__linux__) || defined(_APPLE_)
+#if defined(__linux__) || defined(__APPLE__)
   const std::string hosts_file_path = "/etc/hosts";
   const std::string temporary_hosts_file_path = "/etc/hosts.osquery-fwctl.tmp";
 #elif defined(_WIN32)
