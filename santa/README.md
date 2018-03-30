@@ -2,14 +2,16 @@
 
 [Santa](https://github.com/google/santa/) is an open-source application whitelist/blacklist enforcement solution for macOS.
 This extension for osquery enables the osquery user to read the log of `DENY` events that Santa generated on the host 
-with a table called `santa_events`, and to remotely view and *create* new rules for Santa (with or without the use of a Santa sync 
-server) with a table called `santa_rules`.
+with a table called `santa_events`, and to remotely view and *create* new rules for Santa (with or without the use of a Santa sync server or Upvote server) with a table called `santa_rules`.
 
-## Building
+## Dependencies
 
 Requirements:
+* macOS
 * Xcode
 * Boost (can be installed with Homebrew: `brew install boost`)
+
+## Building
 
 1. Clone the osquery repository
 2. Symlink this extension into the external osquery directory. Use the following link name: "extension_santa".
@@ -47,7 +49,9 @@ to connect to the running osquery instance.
 
 Consider either changing the ownership of `santa.ext` to root, or running osquery with the `--allow_unsafe` flag.
 
-> osqueryi --extension /path/to/santa.ext
+`osqueryi --extension /path/to/santa.ext`
+
+Example: 
 
 ```
 $ sudo ./build/darwin10.13/osquery/osqueryi --extension ./build/darwin10.13/external/extension_santa/santa.ext
