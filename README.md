@@ -8,7 +8,7 @@ This repository includes [osquery](https://osquery.io/) [extensions](https://osq
 |    :-:         |    :-:      |         :-:         |
 | efigy          | Integrates osquery with the Duo Labs EFIgy API to determine if the EFI firmware on your Mac fleet is up-to-date. | macOS |
 | santa          | Integrates osquery with the Santa application whiteslisting solution. Check DENY events and manage the whitelist/blacklist rules. | macOS |
-| fwctl          | Provides osquery with the capability to block ports and blacklist hosts. | macOS, Linux, Windows |
+| fwctl          | Provides osquery with the ability to view and manage the OS-native firewall rules and `/etc/hosts` file (port and host blocking). | macOS, Linux, Windows |
 | (more to come) | ...  | ...   |
 
 ## Building
