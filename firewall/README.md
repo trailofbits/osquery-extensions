@@ -1,6 +1,7 @@
 # fwctl osquery Extension
 
-The firewall extension provides osquery with the capability to block ports and blacklist hosts. It makes use of the native firewall 
+The fwctl extension provides osquery with the ability to view and _manage_ the OS-native firewall rules and `/etc/hosts` file (port and host blocking). Verify what your endpoints are blocking, and add new blocking rules as needed.
+
 ## Building
 
 1. Install Boost
@@ -10,8 +11,11 @@ The firewall extension provides osquery with the capability to block ports and b
 5. Run 'make externals'
 
 ## Installing Boost
-MacOS: `brew install boost`
+
+macOS: `brew install boost`
+
 Ubuntu: `apt install boost -y`
+
 Windows: Open the official [Boost download page](http://www.boost.org/users/download/) and download `boost_1_66_0-msvc-14.0-64.exe` under [Boost - Third party downloads](https://dl.bintray.com/boostorg/release/1.66.0/binaries/).
 
 ## Running the tests
@@ -23,6 +27,7 @@ Once osquery has been built with tests enabled (i.e.: *without* the SKIP_TESTS v
 ### macOS
 
 Enable the osquery PF anchors, by adding the following lines in your `/etc/pf.conf` file:
+
 ```
 ....
 anchor "com.apple/*" # Keep this entry above your settings
@@ -36,9 +41,9 @@ load anchor osquery_firewall_sec from "/etc/pf.anchors/osquery_firewall_sec"
 
 Create the anchor files:
 
-```
-touch /etc/pf.anchors/osquery_firewall_pri
-touch /etc/pf.anchors/osquery_firewall_sec
+```bash
+$ touch /etc/pf.anchors/osquery_firewall_pri
+$ touch /etc/pf.anchors/osquery_firewall_sec
 ```
 
 ### Windows
@@ -51,7 +56,11 @@ No special requirements needed.
 
 ## Running the extension
 
-Refer to the [official documentation](https://osquery.readthedocs.io/en/latest/deployment/extensions/) for more information on the matter. To perform a quick test, you can use the following command: `osqueryi --disable_extensions=false --extension=/path/to/osquery/build/<platform_name>/extension_path.ext`.
+Refer to the [official documentation](https://osquery.readthedocs.io/en/latest/deployment/extensions/) for more information on the matter. To perform a quick test, you can use the following command: 
+
+```bash
+$ osqueryi --disable_extensions=false --extension=/path/to/osquery/build/<platform_name>/extension_path.ext
+```
 
 ## Schema
 
