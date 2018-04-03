@@ -51,26 +51,17 @@ function(main)
   # we can't use the PRIVATE/PUBLIC/INTERFACE dependency keywords
   target_link_libraries("${PROJECT_NAME}" firewall hostsfile)
 
-  if(NOT UNIX)
-    # The Boost binary package is not compatible with FindBoost because they have
-    # renamed the library files to include the architecture name
-    set(BOOST_ROOT_FOLDER "C:/local/boost_1_66_0")
-    set(BOOST_LIBRARY_ROOT "${BOOST_ROOT_FOLDER}/lib64-msvc-14.0")
-
-    target_include_directories("${PROJECT_NAME}" PRIVATE ${BOOST_ROOT_FOLDER})
-
+  # Link against the built-in boost libraries
+  if(UNIX)
     target_link_libraries("${PROJECT_NAME}"
-      "${BOOST_LIBRARY_ROOT}/libboost_system-vc140-mt-s-x64-1_66.lib"
-      "${BOOST_LIBRARY_ROOT}/libboost_serialization-vc140-mt-s-x64-1_66.lib"
+      boost_system-mt
+      boost_serialization-mt
     )
-
   else()
-    set(Boost_USE_STATIC_LIBS ON)
-    set(Boost_USE_MULTITHREADED ON)
-    set(Boost_USE_STATIC_RUNTIME ON)
-    find_package(Boost REQUIRED COMPONENTS serialization REQUIRED)
-    target_include_directories("${PROJECT_NAME}" PRIVATE ${Boost_INCLUDE_DIRS})
-    target_link_libraries("${PROJECT_NAME}" ${Boost_LIBRARIES})
+    target_link_libraries("${PROJECT_NAME}"
+      boost_system-mt-s
+      boost_serialization-mt-s
+    )
   endif()
 
   # Only enable table tests on Linux and OSX
