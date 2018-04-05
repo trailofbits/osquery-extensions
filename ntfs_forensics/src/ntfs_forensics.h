@@ -21,11 +21,25 @@
 
 #include <tsk/libtsk.h>
 
+typedef struct timestamp_struct {
+	uint64_t btime;
+	uint64_t mtime;
+	uint64_t ctime;
+	uint64_t atime;
+} timestamp_t;
+
 struct FileInfo {
 	std::string name;
 	std::string path;
 	std::string directory;
+	timestamp_t standard_info_times;
+	timestamp_t file_name_times;
+	uint64_t allocated_size;
+	uint64_t real_size;
 	size_t size;
+	uint8_t object_id[16];
+
+	std::string getStringRep() const;
 };
 
 typedef std::list<FileInfo> FileInfoList;
@@ -40,4 +54,4 @@ typedef std::list<PartInfo> PartInfoList;
 
 void getPartInfo(PartInfoList& results);
 
-int getFileInfo(const std::string& device, std::string path, FileInfo& results);
+int getFileInfo(const std::string& device, int partition, std::string path, FileInfo& results);

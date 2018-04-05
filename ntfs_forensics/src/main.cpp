@@ -24,8 +24,10 @@
 int runAsStandalone(const char *path) {
 	FileInfo info;
 	std::string device("\\\\.\\PhysicalDrive0");
-	int rval = getFileInfo(device, std::string(path), info);
+	int partition = 2; // DEBUG, testing purposes only
+	int rval = getFileInfo(device, partition, std::string(path), info);
 	std::cout << "rval from getFileInfo() is " << rval << std::endl;
+	std::cout << "collected info:\n" << info.getStringRep();
 	return rval;
 }
 
