@@ -124,8 +124,12 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   auto partitions = request.constraints["partition"].getAll(osquery::EQUALS);
 
   auto paths = request.constraints["path"].getAll(osquery::EQUALS);
+  auto inodes = request.constraints["inode"].getAll(osquery::EQUALS);
 
-  if (devices.empty() || partitions.size() != 1 || paths.size() != 1) {
+  // need a way to identify an entry:
+  bool descriminator = (paths.size() == 1 || inodes.size() == 1);
+
+  if (devices.empty() || partitions.size() != 1 || !descriminator) {
 	  return {};
   }
 
@@ -133,38 +137,82 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   int partition;
   part_stream << *partitions.begin();
   part_stream >> partition;
-  const std::string path = *paths.begin();
+  
 
   for (const auto& dev : devices) {
-	  FileInfo info;
-	  getFileInfo(dev, partition, path, info);
-	  osquery::Row r;
-	  r["device"] = dev;
-	  r["partition"] = std::to_string(partition);
-	  r["path"] = path;
-
-	  r["filenme"] = info.name;
-
-	  r["btime"] = std::to_string(info.standard_info_times.btime);
-	  r["mtime"] = std::to_string(info.standard_info_times.mtime);
-	  r["ctime"] = std::to_string(info.standard_info_times.ctime);
-	  r["atime"] = std::to_string(info.standard_info_times.atime);
-
-	  r["fn_btime"] = std::to_string(info.file_name_times.btime);
-	  r["fn_mtime"] = std::to_string(info.file_name_times.mtime);
-	  r["fn_ctime"] = std::to_string(info.file_name_times.ctime);
-	  r["fn_atime"] = std::to_string(info.file_name_times.atime);
-
-	  r["allocated"] = std::to_string(info.allocated_size);
-	  r["size"] = std::to_string(info.real_size);
-
-	  std::stringstream oid;
-	  for (int i = 0; i < 16; ++i) {
-		  oid << std::hex << std::setfill('0') << std::setw(2) << static_cast<unsigned>(info.object_id[i]);
+	  Device *d = NULL;
+	  Partition *p = NULL;
+	  try {
+		  d = new Device(dev);
+		  p = new Partition(*d, partition);
 	  }
-	  r["object_id"] = oid.str();
+	  catch (std::runtime_error &)
+	  {
+		  delete p;
+		  delete d;
+		  continue;
+	  }
 
-	  result.push_back(r);
+	  FileInfo info;
+	  int rval = -1;
+
+	  if (paths.size() == 1) {
+		  rval = p->getFileInfo(std::string(*paths.begin()), info);
+	  }
+	  else if (inodes.size() == 1) {
+		  std::stringstream inode_str;
+		  uint64_t inode;
+		  inode_str << *inodes.begin();
+		  inode_str >> inode;
+		  rval = p->getFileInfo(inode, info);
+	  }
+	  if (rval == 0) {
+		  osquery::Row r;
+		  r["device"] = dev;
+		  r["partition"] = std::to_string(partition);
+		  if (paths.size() == 1) {
+			  r["path"] = std::string(*paths.begin());
+		  }
+
+		  r["filename"] = info.name;
+
+		  r["btime"] = std::to_string(info.standard_info_times.btime);
+		  r["mtime"] = std::to_string(info.standard_info_times.mtime);
+		  r["ctime"] = std::to_string(info.standard_info_times.ctime);
+		  r["atime"] = std::to_string(info.standard_info_times.atime);
+
+		  r["fn_btime"] = std::to_string(info.file_name_times.btime);
+		  r["fn_mtime"] = std::to_string(info.file_name_times.mtime);
+		  r["fn_ctime"] = std::to_string(info.file_name_times.ctime);
+		  r["fn_atime"] = std::to_string(info.file_name_times.atime);
+
+		  r["type"] = typeNameFromInt(info.type);
+		  r["active"] = info.active > 0 ? "true" : "false";
+
+		  r["ADS"] = std::string(info.ads == 0 ? "false" : "true");
+
+		  r["inode"] = std::to_string(info.inode);
+
+		  r["allocated"] = std::to_string(info.allocated_size);
+		  r["size"] = std::to_string(info.real_size);
+
+		  r["flags"] = std::to_string(info.flag_val);
+
+		  std::stringstream parent;
+		  parent << info.parent.inode << "," << info.parent.sequence;
+		  r["directory"] = parent.str();
+
+		  std::stringstream oid;
+		  for (int i = 0; i < 16; ++i) {
+			  oid << std::hex << std::setfill('0') << std::setw(2) << static_cast<unsigned>(info.object_id[i]);
+		  }
+		  r["object_id"] = oid.str();
+
+		  result.push_back(r);
+	  }
+
+	  delete p;
+	  delete d;
   }
   return result;
 }

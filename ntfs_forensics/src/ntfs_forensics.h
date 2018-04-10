@@ -21,24 +21,55 @@
 
 #include <tsk/libtsk.h>
 
-typedef struct timestamp_struct {
+typedef struct ntfs_timestamp_struct {
 	uint64_t btime;
 	uint64_t mtime;
 	uint64_t ctime;
 	uint64_t atime;
 } timestamp_t;
 
+typedef struct ntfs_parent_ref {
+	uint64_t inode;
+	uint32_t sequence;
+} ntfs_parent_t;
+
+typedef struct ntfs_flags_struct {
+	bool read_only;
+	bool hidden;
+	bool system;
+	bool archive;
+	bool device;
+	bool normal;
+	bool temporary;
+	bool sparse;
+	bool reparse_point;
+	bool compressed;
+	bool offline;
+	bool unindexed;
+	bool encrypted;
+} flags_t;
+
 struct FileInfo {
 	std::string name;
 	std::string path;
-	std::string directory;
+	ntfs_parent_t parent;
 	timestamp_t standard_info_times;
 	timestamp_t file_name_times;
+	int type;
+	int active;
+	flags_t flags;
+	uint32_t flag_val;
+	uint32_t fn_flag_val;
+	int ads;
 	uint64_t allocated_size;
 	uint64_t real_size;
 	size_t size;
+	uint64_t inode;
 	uint8_t object_id[16];
+	int uid;
+	uint32_t gid;
 
+	FileInfo();
 	std::string getStringRep() const;
 };
 
@@ -52,6 +83,35 @@ struct PartInfo {
 
 typedef std::list<PartInfo> PartInfoList;
 
+std::string typeNameFromInt(int t);
+
 void getPartInfo(PartInfoList& results);
 
+class Partition;
+
+class Device {
+public:
+	explicit Device(const std::string& dev_name);
+private:
+	TskImgInfo imgInfo;
+	friend class Partition;
+};
+
+class Partition {
+public:
+	explicit Partition(Device &device, int partition_index);
+	~Partition();
+
+	int getFileInfo(const std::string& path, FileInfo &results);
+	int getFileInfo(uint64_t inode, FileInfo &results);
+
+private:
+	int getFileInfo(TskFsFile &file, FileInfo &results);
+
+	TskVsInfo volInfo;
+	const TskVsPartInfo* vsPartInfo;
+	TskFsInfo fsInfo;
+};
+
 int getFileInfo(const std::string& device, int partition, std::string path, FileInfo& results);
+int getFileInto(const std::string& device, int partition);
