@@ -16,17 +16,27 @@
 
 #pragma once
 
+#include <map>
 #include <osquery/sdk.h>
+#include <string>
 
 class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {
  private:
   osquery::TableColumns columns() const override;
   osquery::QueryData generate(osquery::QueryContext& request) override;
+
+  typedef std::map<std::string, osquery::QueryData> partition_cache_t;
+  partition_cache_t cache;
 };
 
 class NTFSPartInfoTablePlugin final : public osquery::TablePlugin {
-private:
-	osquery::TableColumns columns() const override;
-	osquery::QueryData generate(osquery::QueryContext& request) override;
+ private:
+  osquery::TableColumns columns() const override;
+  osquery::QueryData generate(osquery::QueryContext& request) override;
 };
 
+class NTFSINDXTablePugin final : public osquery::TablePlugin {
+ private:
+  osquery::TableColumns columns() const override;
+  osquery::QueryData generate(osquery::QueryContext& context) override;
+};

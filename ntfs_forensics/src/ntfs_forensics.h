@@ -16,72 +16,102 @@
 
 #pragma once
 
-#include <string>
 #include <list>
+#include <sstream>
+#include <string>
+#include <unordered_set>
 
 #include <tsk/libtsk.h>
+namespace trailofbits {
 
 typedef struct ntfs_timestamp_struct {
-	uint64_t btime;
-	uint64_t mtime;
-	uint64_t ctime;
-	uint64_t atime;
+  uint64_t btime;
+  uint64_t mtime;
+  uint64_t ctime;
+  uint64_t atime;
 } timestamp_t;
 
-typedef struct ntfs_parent_ref {
-	uint64_t inode;
-	uint32_t sequence;
-} ntfs_parent_t;
+typedef struct ntfs_mft_file_reference {
+  uint64_t inode;
+  uint32_t sequence;
+} ntfs_mft_file_reference_t;
 
 typedef struct ntfs_flags_struct {
-	bool read_only;
-	bool hidden;
-	bool system;
-	bool archive;
-	bool device;
-	bool normal;
-	bool temporary;
-	bool sparse;
-	bool reparse_point;
-	bool compressed;
-	bool offline;
-	bool unindexed;
-	bool encrypted;
+  bool read_only;
+  bool hidden;
+  bool system;
+  bool archive;
+  bool device;
+  bool normal;
+  bool temporary;
+  bool sparse;
+  bool reparse_point;
+  bool compressed;
+  bool offline;
+  bool unindexed;
+  bool encrypted;
 } flags_t;
 
-struct FileInfo {
-	std::string name;
-	std::string path;
-	ntfs_parent_t parent;
-	timestamp_t standard_info_times;
-	timestamp_t file_name_times;
-	int type;
-	int active;
-	flags_t flags;
-	uint32_t flag_val;
-	uint32_t fn_flag_val;
-	int ads;
-	uint64_t allocated_size;
-	uint64_t real_size;
-	size_t size;
-	uint64_t inode;
-	uint8_t object_id[16];
-	int uid;
-	uint32_t gid;
+typedef struct ntfs_filename_attribute_contents {
+  ntfs_mft_file_reference_t parent;
+  timestamp_t file_name_times;
+  uint64_t allocated_size;
+  uint64_t real_size;
+  uint32_t flags;
+  uint8_t name_length;
+  std::string filename;
+} ntfs_filename_attribute_contents_t;
 
-	FileInfo();
-	std::string getStringRep() const;
+struct FileInfo {
+  std::string name;
+  std::string path;
+  std::string parent_path;
+  timestamp_t standard_info_times;
+  ntfs_filename_attribute_contents_t filename;
+  int type;
+  int active;
+  flags_t flags;
+  uint32_t flag_val;
+  int ads;
+  size_t size;
+  uint64_t inode;
+  uint32_t seq;
+  uint8_t object_id[16];
+  int uid;
+  uint32_t gid;
+  uint32_t owner_id;
+  uint32_t secure_id;
+  std::string sid;
+
+  FileInfo();
+  std::string getStringRep() const;
 };
 
 typedef std::list<FileInfo> FileInfoList;
 
 struct PartInfo {
-	std::string device;
-	unsigned int part_address;
-	std::string descriptor;
+  std::string device;
+  unsigned int part_address;
+  std::string descriptor;
 };
 
 typedef std::list<PartInfo> PartInfoList;
+
+typedef struct ntfs_directory_index_entry {
+  ntfs_mft_file_reference_t mft_ref;
+  uint16_t entry_length;
+  uint16_t name_length;
+  uint32_t flags;
+  uint64_t child_vcn;
+
+  ntfs_filename_attribute_contents_t filename;
+  int slack_addr;
+
+  ntfs_directory_index_entry();
+  std::string getStringRep() const;
+} ntfs_directory_index_entry_t;
+
+typedef std::list<trailofbits::ntfs_directory_index_entry_t> DirEntryList;
 
 std::string typeNameFromInt(int t);
 
@@ -90,28 +120,50 @@ void getPartInfo(PartInfoList& results);
 class Partition;
 
 class Device {
-public:
-	explicit Device(const std::string& dev_name);
-private:
-	TskImgInfo imgInfo;
-	friend class Partition;
+ public:
+  explicit Device(const std::string& dev_name);
+  ~Device();
+
+ private:
+  TSK_IMG_INFO* imgInfo;
+  friend class Partition;
 };
 
 class Partition {
-public:
-	explicit Partition(Device &device, int partition_index);
-	~Partition();
+ public:
+  explicit Partition(Device& device, int partition_index);
+  ~Partition();
 
-	int getFileInfo(const std::string& path, FileInfo &results);
-	int getFileInfo(uint64_t inode, FileInfo &results);
+  int getFileInfo(const std::string& path, FileInfo& results);
+  int getFileInfo(uint64_t inode, FileInfo& results);
 
-private:
-	int getFileInfo(TskFsFile &file, FileInfo &results);
+  void walkPartition(void (*callback)(FileInfo&, void*), void* context);
+  void recurseDirectory(void (*callback)(FileInfo&, void*),
+                        void* context,
+                        std::string* path,
+                        TSK_FS_DIR* dir,
+                        uint64_t parent,
+                        int depth,
+                        std::unordered_set<uint64_t>& processed);
 
-	TskVsInfo volInfo;
-	const TskVsPartInfo* vsPartInfo;
-	TskFsInfo fsInfo;
+  void recurseDirectory(void (*callback)(FileInfo&, void*),
+                        void* context,
+                        std::string* path,
+                        int depth);
+
+  void collectINDX(std::string& path, DirEntryList&);
+  void collectINDX(uint64_t inode, DirEntryList&);
+
+  void collectINDX(TSK_FS_FILE* fsFile, DirEntryList&);
+
+ private:
+  int getFileInfo(TSK_FS_FILE* file,
+                  FileInfo& results,
+                  bool collect_parent_path = true);
+  int collectPath(uint64_t inode, std::stringstream& path);
+
+  TSK_VS_INFO* volInfo;
+  const TSK_VS_PART_INFO* vsPartInfo;
+  TSK_FS_INFO* fsInfo;
 };
-
-int getFileInfo(const std::string& device, int partition, std::string path, FileInfo& results);
-int getFileInto(const std::string& device, int partition);
+}
