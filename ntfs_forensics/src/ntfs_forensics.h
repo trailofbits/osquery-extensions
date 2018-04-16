@@ -60,6 +60,8 @@ typedef struct ntfs_filename_attribute_contents {
   uint32_t flags;
   uint8_t name_length;
   std::string filename;
+
+  bool not_insane() const;
 } ntfs_filename_attribute_contents_t;
 
 struct FileInfo {
@@ -105,10 +107,11 @@ typedef struct ntfs_directory_index_entry {
   uint64_t child_vcn;
 
   ntfs_filename_attribute_contents_t filename;
-  int slack_addr;
+  uint32_t slack_addr;
 
   ntfs_directory_index_entry();
   std::string getStringRep() const;
+  bool not_insane() const;
 } ntfs_directory_index_entry_t;
 
 typedef std::list<trailofbits::ntfs_directory_index_entry_t> DirEntryList;

@@ -119,7 +119,16 @@ osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
 
 					  std::make_tuple("gid",
 					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT)
+					  osquery::ColumnOptions::DEFAULT),
+
+					  std::make_tuple("sid",
+					  osquery::TEXT_TYPE,
+					  osquery::ColumnOptions::DEFAULT),
+
+					  std::make_tuple("from_cache",
+					  osquery::TEXT_TYPE,
+					  osquery::ColumnOptions::HIDDEN)
+
 
   };
   // clang-format on
@@ -129,12 +138,14 @@ typedef struct query_context {
   osquery::QueryData& result;
   const std::string& dev;
   int partition;
+  const std::string* from_cache;
 } query_context_t;
 
 void populateRow(osquery::Row& r,
                  trailofbits::FileInfo& info,
                  const std::string& dev,
-                 int partition) {
+                 int partition,
+                 const std::string* from_cache = NULL) {
   r["device"] = dev;
   r["partition"] = std::to_string(partition);
   r["path"] = info.path;
@@ -166,6 +177,7 @@ void populateRow(osquery::Row& r,
   r["directory"] = info.parent_path;
 
   r["uid"] = std::to_string(info.uid);
+  r["sid"] = info.sid;
 
   std::stringstream oid;
   for (int i = 0; i < 16; ++i) {
@@ -173,13 +185,17 @@ void populateRow(osquery::Row& r,
         << static_cast<unsigned>(info.object_id[i]);
   }
   r["object_id"] = oid.str();
+
+  if (from_cache != NULL) {
+    r["from_cache"] = *from_cache;
+  }
 }
 
 void callback(trailofbits::FileInfo& info, void* context) {
   query_context_t* qct = static_cast<query_context_t*>(context);
 
   osquery::Row r;
-  populateRow(r, info, qct->dev, qct->partition);
+  populateRow(r, info, qct->dev, qct->partition, qct->from_cache);
   qct->result.push_back(r);
 }
 
@@ -193,6 +209,19 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   auto paths = request.constraints["path"].getAll(osquery::EQUALS);
   auto inodes = request.constraints["inode"].getAll(osquery::EQUALS);
   auto directories = request.constraints["directory"].getAll(osquery::EQUALS);
+  auto from_cache = request.constraints["from_cache"].getAll(osquery::EQUALS);
+
+  const std::string* from_cache_val = NULL;
+
+  bool clear_cache = false;
+  if (from_cache.size() == 1) {
+    int cache_val = 1;
+    std::stringstream cache_str;
+    cache_str << *from_cache.begin();
+    cache_str >> cache_val;
+    clear_cache = (cache_val == 0);
+    from_cache_val = &*from_cache.begin();
+  }
 
   if (devices.empty() || partitions.size() != 1) {
     return {};
@@ -227,7 +256,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
       inode_str >> inode;
       rval = p->getFileInfo(inode, info);
     } else if (directories.size() == 1) {
-      query_context_t context = {result, dev, partition};
+      query_context_t context = {result, dev, partition, NULL};
       std::string dir(*directories.begin());
       p->recurseDirectory(callback, &context, &dir, 1);
       rval = 1;
@@ -235,12 +264,14 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
       std::stringstream map_key;
       map_key << dev << "," << partition;
       partition_cache_t::iterator it = cache.find(map_key.str());
+      if (clear_cache && it != cache.end()) {
+        cache.erase(it);
+        it = cache.end();
+      }
       if (it != cache.end()) {
-        std::cerr << "using cache\n";
         result = it->second;
       } else {
-        std::cerr << "no cache available\n";
-        query_context_t context = {result, dev, partition};
+        query_context_t context = {result, dev, partition, from_cache_val};
         p->walkPartition(callback, &context);
         rval = 1;
         cache[map_key.str()] = result;

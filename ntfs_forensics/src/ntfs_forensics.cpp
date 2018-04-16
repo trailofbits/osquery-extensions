@@ -94,6 +94,33 @@ std::string ntfs_directory_index_entry::getStringRep() const {
   return output.str();
 }
 
+uint32_t unixtimestamp(uint64_t ntdate) {
+#define NSEC_BTWN_1601_1970 (uint64_t)(116444736000000000ULL)
+
+  ntdate -= (uint64_t)NSEC_BTWN_1601_1970;
+  ntdate /= (uint64_t)10000000;
+
+  return (uint32_t)ntdate;
+}
+bool ntfs_filename_attribute_contents::not_insane() const {
+  uint32_t unix_1990 = 631152000;
+  uint32_t unix_2025 = 1735689600;
+
+  return (unix_2025 > unixtimestamp(file_name_times.atime)) &&
+         (unixtimestamp(file_name_times.atime) > unix_1990) &&
+         (unix_2025 > unixtimestamp(file_name_times.btime)) &&
+         (unixtimestamp(file_name_times.btime) > unix_1990) &&
+         (unix_2025 > unixtimestamp(file_name_times.ctime)) &&
+         (unixtimestamp(file_name_times.ctime) > unix_1990) &&
+         (unix_2025 > unixtimestamp(file_name_times.mtime)) &&
+         (unixtimestamp(file_name_times.mtime) > unix_1990);
+}
+
+bool ntfs_directory_index_entry::not_insane() const {
+  return filename.not_insane() && entry_length >= 0x52 && entry_length < 4096 &&
+         flags < 4 && child_vcn < 4096 && name_length < 4096;
+}
+
 template <typename T>
 void uintFromBuffer(const uint8_t* data, int64_t offset, T& result) {
   result = *(reinterpret_cast<const T*>(&data[offset]));
@@ -137,21 +164,25 @@ void processFileNameBuffer(const uint8_t* data,
   filename.flags = *(reinterpret_cast<const uint32_t*>(&data[56]));
   uintFromBuffer(data, 64, filename.name_length);
 
-  const UTF16* filename_start = (const UTF16*)(data + 66);
-  UTF16* filename_end = (UTF16*)(data + 66 + (filename.name_length * 2));
-  unsigned char* buffer = new unsigned char[size];
-  unsigned char* backup_ptr = buffer;
-  memset(buffer, 0, size);
-  char* buf_ptr = (char*)buffer;
-  if (TSKconversionOK == tsk_UTF16toUTF8(TSK_LIT_ENDIAN,
-                                         &filename_start,
-                                         filename_end,
-                                         &buffer,
-                                         buffer + size,
-                                         TSKlenientConversion)) {
-    filename.filename = std::string(buf_ptr);
+  if (filename.not_insane() && (size >= (66 + (2 * filename.name_length)))) {
+    const UTF16* filename_start = (const UTF16*)(data + 66);
+    UTF16* filename_end = (UTF16*)(data + 66 + (filename.name_length * 2));
+    unsigned char* buffer = new unsigned char[size];
+    unsigned char* backup_ptr = buffer;
+    memset(buffer, 0, size);
+    char* buf_ptr = (char*)buffer;
+    if (TSKconversionOK == tsk_UTF16toUTF8(TSK_LIT_ENDIAN,
+                                           &filename_start,
+                                           filename_end,
+                                           &buffer,
+                                           buffer + size,
+                                           TSKlenientConversion)) {
+      filename.filename = std::string(buf_ptr);
+    } else {
+      filename.filename = std::string("(bad UTF16 conversion)");
+    }
+    delete[] backup_ptr;
   }
-  delete[] backup_ptr;
 }
 
 void processFileNameAttrib(const TSK_FS_ATTR* attrib, FileInfo& results) {
@@ -436,7 +467,6 @@ void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
     FileInfo f;
     int rval = getFileInfo(fsFile, f, false);
     tsk_fs_file_close(fsFile);
-    delete fsFile;
 
     // failed to read, got a weird file, or got the current dir again? skip it.
     if (rval != 0 || f.inode == 0 || current_inode == f.inode ||
@@ -461,7 +491,6 @@ void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
                            processed);
           tsk_fs_dir_close(fsDir);
         }
-        delete fsDir;
       }
     }
   }
@@ -477,12 +506,10 @@ void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
     TSK_FS_FILE* fsFile = tsk_fs_file_open_meta(fsInfo, NULL, dir->addr);
     if (fsFile == NULL) {
       tsk_fs_dir_close(dir);
-      delete dir;
       return;
     }
     getFileInfo(fsFile, f, false);
     tsk_fs_file_close(fsFile);
-    delete (fsFile);
     std::unordered_set<uint64_t> processed;
     recurseDirectory(callback,
                      context,
@@ -493,7 +520,6 @@ void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
                      processed);
     tsk_fs_dir_close(dir);
   }
-  delete dir;
 }
 
 void Partition::walkPartition(void (*callback)(FileInfo&, void*),
@@ -508,7 +534,6 @@ void Partition::walkPartition(void (*callback)(FileInfo&, void*),
   recurseDirectory(
       callback, context, &path, dir, UINT64_MAX, max_depth, processed);
   tsk_fs_dir_close(dir);
-  delete dir;
 }
 
 void Partition::collectINDX(std::string& path,
@@ -535,8 +560,10 @@ void Partition::collectINDX(uint64_t inode,
   tsk_fs_file_close(fsFile);
 }
 
-void processDirectoryIndexEntry(
-    const uint8_t* data, trailofbits::ntfs_directory_index_entry_t& entry) {
+bool processDirectoryIndexEntry(
+    const uint8_t* data,
+    trailofbits::ntfs_directory_index_entry_t& entry,
+    size_t size) {
   //  0 -  7	MFT file reference
   //  8 -  9	length of this entry
   // 10 - 11	length of file_name attribute
@@ -548,6 +575,10 @@ void processDirectoryIndexEntry(
   uintFromBuffer(data, 10, entry.name_length);
   uintFromBuffer(data, 12, entry.flags);
 
+  if (entry.entry_length > size || (entry.name_length + 16) > size) {
+    return false;
+  }
+
   if (entry.name_length != 0) {
     processFileNameBuffer(data + 16, entry.filename, entry.name_length);
   }
@@ -557,6 +588,7 @@ void processDirectoryIndexEntry(
                    entry.entry_length - 8 - ((entry.entry_length - 8) % 8),
                    entry.child_vcn);
   }
+  return true;
 }
 
 void processDirIndexNodesAndEntries(const uint8_t* data,
@@ -577,14 +609,27 @@ void processDirIndexNodesAndEntries(const uint8_t* data,
   uint32_t offset = starting_offset;
   while (offset < used_offset) {
     trailofbits::ntfs_directory_index_entry entry;
-    processDirectoryIndexEntry(data + offset, entry);
+    processDirectoryIndexEntry(data + offset, entry, size - offset);
     if (entry.name_length > 0) {
       entries.push_back(entry);
     }
+    offset += entry.entry_length;
 
     if (entry.flags & 0x2) {
       // last entry in list
       break;
+    }
+  }
+
+  while (offset < size && offset < (size - 0x52)) {
+    trailofbits::ntfs_directory_index_entry entry;
+    bool rval = processDirectoryIndexEntry(data + offset, entry, size - offset);
+    entry.slack_addr = offset;
+    if (rval && entry.not_insane()) {
+      entries.push_back(entry);
+    } else {
+      offset += 1;
+      continue;
     }
     offset += entry.entry_length;
   }
@@ -593,12 +638,19 @@ void processDirIndexNodesAndEntries(const uint8_t* data,
 void processDirectoryIndexAttribute(const TSK_FS_ATTR* attrib,
                                     DirEntryList& entries,
                                     uint32_t& record_size) {
-  // index record header
+  // index record header:
+  // 0 - 3 signature
+  // 4 - 5 offset to fixup array
+  // 6 - 7 number of entries in fixup array
+  // 8 - 15 LSN
+  // 16 - 23 VCN
   // node header
+  // fixup array
   // index entries[]
 
   uint64_t vcn;
   uint32_t offset = 0;
+  uint16_t fixup_offset, fixup_count, fixup_signature, fixup_entry;
 
   char* buffer = new char[record_size];
 
@@ -611,6 +663,20 @@ void processDirectoryIndexAttribute(const TSK_FS_ATTR* attrib,
       return; // abort?
     }
     uint8_t* ptr = (uint8_t*)buffer;
+
+    // apply fixup
+    uintFromBuffer(ptr, 4, fixup_offset);
+    uintFromBuffer(ptr, 6, fixup_count);
+    uintFromBuffer(ptr, fixup_offset, fixup_signature);
+    for (unsigned int i = 1; i < fixup_count && (i * 512) < record_size; ++i) {
+      uint16_t sector_bytes;
+      uintFromBuffer(ptr, fixup_offset + (2 * i), fixup_entry);
+      uintFromBuffer(ptr, (i * 512) - 2, sector_bytes);
+      if (sector_bytes == fixup_signature) {
+        memcpy(ptr + (i * 512) - 2, ptr + fixup_offset + (2 * i), 2);
+      }
+    }
+
     uintFromBuffer(ptr, 16, vcn);
     processDirIndexNodesAndEntries(ptr + 24, record_size - 24, entries);
     offset += record_size;
