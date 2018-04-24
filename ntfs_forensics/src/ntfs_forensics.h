@@ -29,11 +29,14 @@ typedef struct ntfs_timestamp_struct {
   uint64_t mtime;
   uint64_t ctime;
   uint64_t atime;
+
+  ntfs_timestamp_struct() : btime(0), mtime(0), ctime(0), atime(0) {}
 } timestamp_t;
 
 typedef struct ntfs_mft_file_reference {
   uint64_t inode;
   uint32_t sequence;
+  ntfs_mft_file_reference() : inode(0), sequence(0) {}
 } ntfs_mft_file_reference_t;
 
 typedef struct ntfs_flags_struct {
@@ -61,7 +64,8 @@ typedef struct ntfs_filename_attribute_contents {
   uint8_t name_length;
   std::string filename;
 
-  bool not_insane() const;
+  bool valid() const;
+  ntfs_filename_attribute_contents();
 } ntfs_filename_attribute_contents_t;
 
 struct FileInfo {
@@ -111,7 +115,7 @@ typedef struct ntfs_directory_index_entry {
 
   ntfs_directory_index_entry();
   std::string getStringRep() const;
-  bool not_insane() const;
+  bool valid() const;
 } ntfs_directory_index_entry_t;
 
 typedef std::list<trailofbits::ntfs_directory_index_entry_t> DirEntryList;

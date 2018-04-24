@@ -27,8 +27,19 @@ namespace trailofbits {
 
 void processAttrs(TSK_FS_FILE* fsFile, FileInfo& result);
 
-FileInfo::FileInfo() {
-  memset(this, 0, sizeof(FileInfo));
+FileInfo::FileInfo()
+    : type(0),
+      active(0),
+      flag_val(0),
+      ads(0),
+      size(0),
+      inode(0),
+      seq(0),
+      uid(0),
+      gid(0),
+      owner_id(0),
+      secure_id(0) {
+  memset(object_id, 0, sizeof(object_id));
 }
 
 std::string FileInfo::getStringRep() const {
@@ -49,13 +60,14 @@ std::string FileInfo::getStringRep() const {
          << "fn_atime: " << this->filename.file_name_times.atime << "\n"
          << "type: " << typeNameFromInt(this->type) << "\n"
          << "active: " << (this->active > 0 ? "true" : "false") << "\n";
+
   std::stringstream flags, fn_flags;
   flags << "0x" << std::hex << std::setfill('0') << std::setw(8)
-        << this->flag_val << "\n";
+        << this->flag_val;
   fn_flags << "0x" << std::hex << std::setfill('0') << std::setw(8)
-           << this->filename.flags << "\n";
-  output << "flags: " << flags.str() << "fn_flags: " << fn_flags.str()
+           << this->filename.flags;
 
+  output << "flags: " << flags.str() << "\nfn_flags: " << fn_flags.str() << "\n"
          << "ads: " << (this->ads == 0 ? "false" : "true") << "\n"
          << "allocated: " << this->filename.allocated_size << "\n"
          << "size:      " << this->filename.real_size << "\n"
@@ -76,9 +88,11 @@ std::string FileInfo::getStringRep() const {
   return output.str();
 }
 
-ntfs_directory_index_entry::ntfs_directory_index_entry() {
-  memset(this, 0, sizeof(ntfs_directory_index_entry));
-}
+ntfs_filename_attribute_contents::ntfs_filename_attribute_contents()
+    : allocated_size(0), real_size(0), flags(0), name_length(0) {}
+
+ntfs_directory_index_entry::ntfs_directory_index_entry()
+    : entry_length(0), name_length(0), flags(0), child_vcn(0), slack_addr(0) {}
 
 std::string ntfs_directory_index_entry::getStringRep() const {
   std::stringstream output;
@@ -102,7 +116,8 @@ uint32_t unixtimestamp(uint64_t ntdate) {
 
   return (uint32_t)ntdate;
 }
-bool ntfs_filename_attribute_contents::not_insane() const {
+
+bool ntfs_filename_attribute_contents::valid() const {
   uint32_t unix_1990 = 631152000;
   uint32_t unix_2025 = 1735689600;
 
@@ -116,8 +131,8 @@ bool ntfs_filename_attribute_contents::not_insane() const {
          (unixtimestamp(file_name_times.mtime) > unix_1990);
 }
 
-bool ntfs_directory_index_entry::not_insane() const {
-  return filename.not_insane() && entry_length >= 0x52 && entry_length < 4096 &&
+bool ntfs_directory_index_entry::valid() const {
+  return filename.valid() && entry_length >= 0x52 && entry_length < 4096 &&
          flags < 4 && child_vcn < 4096 && name_length < 4096;
 }
 
@@ -164,7 +179,7 @@ void processFileNameBuffer(const uint8_t* data,
   filename.flags = *(reinterpret_cast<const uint32_t*>(&data[56]));
   uintFromBuffer(data, 64, filename.name_length);
 
-  if (filename.not_insane() && (size >= (66 + (2 * filename.name_length)))) {
+  if (filename.valid() && (size >= (66 + (2 * filename.name_length)))) {
     const UTF16* filename_start = (const UTF16*)(data + 66);
     UTF16* filename_end = (UTF16*)(data + 66 + (filename.name_length * 2));
     unsigned char* buffer = new unsigned char[size];
@@ -316,7 +331,7 @@ void getPartInfo(PartInfoList& results) {
     rval = volInfo.open(&imgInfo, 0, TSK_VS_TYPE_DETECT);
     if (rval != 0) {
       continue;
-    } // TODO: add support for drives without volumes
+    }
 
     for (unsigned int partIdx = 0; partIdx < volInfo.getPartCount();
          ++partIdx) {
@@ -625,7 +640,7 @@ void processDirIndexNodesAndEntries(const uint8_t* data,
     trailofbits::ntfs_directory_index_entry entry;
     bool rval = processDirectoryIndexEntry(data + offset, entry, size - offset);
     entry.slack_addr = offset;
-    if (rval && entry.not_insane()) {
+    if (rval && entry.valid()) {
       entries.push_back(entry);
     } else {
       offset += 1;

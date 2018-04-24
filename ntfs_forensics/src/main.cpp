@@ -26,8 +26,11 @@ void print_callback(trailofbits::FileInfo& f, void*) {
 int runAsStandalone(int argc, char* argv[]) {
   int rval = -1;
   trailofbits::FileInfo info;
-  std::string device("\\\\.\\PhysicalDrive0");
-  int partition = 2; // DEBUG, testing purposes only
+  std::string device(argv[argc]);
+  int partition = -1;
+  std::stringstream part_str;
+  part_str << argv[argc + 1];
+  part_str >> partition;
   trailofbits::Device* d = NULL;
   trailofbits::Partition* p = NULL;
   try {
@@ -40,6 +43,7 @@ int runAsStandalone(int argc, char* argv[]) {
     delete d;
     return 1;
   }
+  argc += 2;
   if (0 == std::strcmp(argv[argc], "--path")) {
     rval = p->getFileInfo(std::string(argv[argc + 1]), info);
   } else if (0 == std::strcmp("--inode", argv[argc])) {
@@ -87,7 +91,7 @@ int runAsExtension(int argc, char* argv[]) {
 
   osquery::Initializer runner(argc, argv, osquery::ToolType::EXTENSION);
 
-  auto status = osquery::startExtension("ntfs", "1.0.0");
+  auto status = osquery::startExtension("ntfs_forensics", "1.0.0");
   if (!status.ok()) {
     LOG(ERROR) << status.getMessage();
     runner.requestShutdown(status.getCode());
@@ -100,10 +104,15 @@ int runAsExtension(int argc, char* argv[]) {
 
 void showUsage(char* argv[]) {
   const char* usage =
-      " [--standalone [--path <path> | --inode <inode>] ]\n"
+      " [--standalone <device> <partition> [--path <path> | --inode <inode> | "
+      "--INDX <path> | --recurse <path>] ]\n"
       "\n"
-      "\t--standalone --path <path>  Print info about <path>.\n"
-      "\t--standalone --inode <inode>  Print info about <inode>.\n"
+      "\t--standalone <device> <partition> --path <path>  Print info about "
+      "<path>.\n"
+      "\t--standalone <device> <partition> --inode <inode>  Print info about "
+      "<inode>.\n"
+      "\t--standalone <device> <partition> --INDX <path>  Print directory "
+      "index entries for supplied directory.\n"
       "\t						If not specified, it "
       "will run as an osquery extension\n";
 
@@ -112,7 +121,7 @@ void showUsage(char* argv[]) {
 
 int main(int argc, char* argv[]) {
   if (argc > 1 && std::strcmp("--standalone", argv[1]) == 0) {
-    if (argc > 3) {
+    if (argc > 5) {
       return runAsStandalone(2, argv);
     } else {
       showUsage(argv);

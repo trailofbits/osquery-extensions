@@ -27,111 +27,83 @@ REGISTER_EXTERNAL(NTFSPartInfoTablePlugin, "table", "ntfs_part_data");
 REGISTER_EXTERNAL(NTFSINDXTablePugin, "table", "ntfs_indx_data");
 
 osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
-  // clang-format off
   return {
-	  std::make_tuple("device",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "device", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-	  std::make_tuple("partition",
-					  osquery::INTEGER_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "partition", osquery::INTEGER_TYPE, osquery::ColumnOptions::DEFAULT),
 
-      std::make_tuple("filename",
-                      osquery::TEXT_TYPE,
-                      osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "filename", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-      std::make_tuple("path",
-                      osquery::TEXT_TYPE,
-                      osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "path", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-      std::make_tuple("directory",
-                      osquery::TEXT_TYPE,
-                      osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "directory", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-      std::make_tuple("btime",
-                      osquery::TEXT_TYPE,
-                      osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-      std::make_tuple("mtime",
-                      osquery::TEXT_TYPE,
-                      osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-	  std::make_tuple("ctime",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-	  std::make_tuple("atime",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-	  std::make_tuple("fn_btime",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "fn_btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-	  std::make_tuple("fn_mtime",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "fn_mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("fn_ctime",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "fn_ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("fn_atime",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "fn_atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("type",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "type", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("active",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "active", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("flags",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "flags", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("ADS",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "ADS", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("allocated",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "allocated", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("size",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "size", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("inode",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("object_id",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "object_id", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("uid",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "uid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("gid",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "gid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("sid",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::DEFAULT),
+      std::make_tuple(
+          "sid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
 
-					  std::make_tuple("from_cache",
-					  osquery::TEXT_TYPE,
-					  osquery::ColumnOptions::HIDDEN)
-
+      std::make_tuple(
+          "from_cache", osquery::TEXT_TYPE, osquery::ColumnOptions::HIDDEN)
 
   };
-  // clang-format on
 }
 
 typedef struct query_context {
@@ -217,10 +189,10 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   if (from_cache.size() == 1) {
     int cache_val = 1;
     std::stringstream cache_str;
-    cache_str << *from_cache.begin();
+    cache_str << *(from_cache.begin());
     cache_str >> cache_val;
     clear_cache = (cache_val == 0);
-    from_cache_val = &*from_cache.begin();
+    from_cache_val = &(*(from_cache.begin()));
   }
 
   if (devices.empty() || partitions.size() != 1) {
@@ -229,7 +201,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
 
   std::stringstream part_stream;
   int partition;
-  part_stream << *partitions.begin();
+  part_stream << *(partitions.begin());
   part_stream >> partition;
 
   for (const auto& dev : devices) {
@@ -248,16 +220,16 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
     int rval = -1;
 
     if (paths.size() == 1) {
-      rval = p->getFileInfo(std::string(*paths.begin()), info);
+      rval = p->getFileInfo(std::string(*(paths.begin())), info);
     } else if (inodes.size() == 1) {
       std::stringstream inode_str;
       uint64_t inode;
-      inode_str << *inodes.begin();
+      inode_str << *(inodes.begin());
       inode_str >> inode;
       rval = p->getFileInfo(inode, info);
     } else if (directories.size() == 1) {
       query_context_t context = {result, dev, partition, NULL};
-      std::string dir(*directories.begin());
+      std::string dir(*(directories.begin()));
       p->recurseDirectory(callback, &context, &dir, 1);
       rval = 1;
     } else {
@@ -409,7 +381,7 @@ osquery::QueryData NTFSINDXTablePugin::generate(
 
   std::stringstream part_stream;
   int partition;
-  part_stream << *partitions.begin();
+  part_stream << *(partitions.begin());
   part_stream >> partition;
 
   for (const auto& dev : devices) {
@@ -427,8 +399,8 @@ osquery::QueryData NTFSINDXTablePugin::generate(
     trailofbits::DirEntryList entries;
     trailofbits::FileInfo fileInfo;
     if (paths.size() == 1) {
-      p->collectINDX(std::string(*paths.begin()), entries);
-      p->getFileInfo(*paths.begin(), fileInfo);
+      p->collectINDX(std::string(*(paths.begin())), entries);
+      p->getFileInfo(*(paths.begin()), fileInfo);
     } else if (inodes.size() == 1) {
       std::stringstream inode_str;
       uint64_t inode;

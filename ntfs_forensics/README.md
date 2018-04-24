@@ -1,6 +1,6 @@
 # NTFS forensic data osquery Extension
 
-This extension uses the [Sleuthkit](http://www.sleuthkit.org/) library to print forensic information about an NTFS filesystem.
+This extension uses the [Sleuthkit](http://www.sleuthkit.org/) library to print forensic information about an NTFS filesystem. The library and headers are bundled with this repository, so there is no additional step to build or install Sleuthkit.
 
 ## Dependencies
 
@@ -56,4 +56,6 @@ information.
 
 ## License
 
-The code in this repository is licensed under the [Apache 2.0 license](../LICENSE).
+The SleuthKit code in this library is covered under the licenses described on [the SleuthKit License page.](https://sleuthkit.org/sleuthkit/licenses.php). 
+
+All other code in this repository is licensed under the [Apache 2.0 license](../LICENSE). 
