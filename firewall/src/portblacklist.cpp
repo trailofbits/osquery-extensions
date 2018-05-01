@@ -69,7 +69,7 @@ PortBlacklistTable::~PortBlacklistTable() {}
 osquery::TableColumns PortBlacklistTable::columns() const {
   // clang-format off
   return {
-    std::make_tuple("port", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("port", osquery::INTEGER_TYPE, osquery::ColumnOptions::DEFAULT),
     std::make_tuple("direction", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
     std::make_tuple("protocol", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
     std::make_tuple("status", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT)
