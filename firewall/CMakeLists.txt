@@ -56,11 +56,13 @@ function(main)
     target_link_libraries("${PROJECT_NAME}"
       boost_system-mt
       boost_serialization-mt
+      boost_regex-mt
     )
   else()
     target_link_libraries("${PROJECT_NAME}"
       boost_system-mt-s
       boost_serialization-mt-s
+      boost_regex-mt-s
     )
   endif()
 

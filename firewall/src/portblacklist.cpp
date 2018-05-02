@@ -59,7 +59,7 @@ struct PortBlacklistTable::PrivateData final {
 
 PortBlacklistTable::PortBlacklistTable() : d(new PrivateData) {
   d->configuration_file_path = CONFIGURATION_ROOT;
-  d->configuration_file_path += "portblacklist.cfg";
+  d->configuration_file_path /= "portblacklist.cfg";
 
   loadConfiguration();
 }
@@ -141,7 +141,7 @@ osquery::QueryData PortBlacklistTable::generate(
   }
 
   // Add unmanaged firewall rules
-  RowID temp_row_id = 0x8000000000000000ULL;
+  RowID temp_row_id = 0x80000000ULL;
   for (const auto& pair : firewall_data) {
     const auto& pkey = pair.first;
     const auto& rule = pair.second;
@@ -171,25 +171,26 @@ osquery::QueryData PortBlacklistTable::generate(
 osquery::QueryData PortBlacklistTable::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   if (request.at("auto_rowid") != "false") {
-    std::cerr << "Unsupported statement with auto_rowid enabled\n";
+    VLOG(1) << "Unsupported statement with auto_rowid enabled";
     return {{std::make_pair("status", "failure")}};
   }
 
   osquery::Row row;
   auto status = GetRowData(row, request.at("json_value_array"));
   if (!status.ok()) {
-    std::cerr << status.getMessage() << std::endl;
+    VLOG(1) << status.getMessage();
     return {{std::make_pair("status", "failure")}};
   }
 
   PreprocessInsertData(row);
   if (!IsInsertDataValid(row)) {
-    std::cerr << "Invalid insert data: ";
+    std::stringstream temp;
+    temp << "Invalid insert data: ";
     for (const auto& pair : row) {
-      std::cerr << pair.first << "=\"" << pair.second << "\" ";
+      temp << pair.first << "=\"" << pair.second << "\" ";
     }
-    std::cerr << std::endl;
 
+    VLOG(1) << temp.str();
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -230,7 +231,7 @@ osquery::QueryData PortBlacklistTable::insert(
   auto fw_status =
       firewall->addPortToBlacklist(rule.port, rule.direction, rule.protocol);
   if (!fw_status.success()) {
-    std::cerr << "Failed to enable the port rule\n";
+    VLOG(1) << "Failed to enable the port rule";
   }
 
   saveConfiguration();
@@ -249,7 +250,7 @@ osquery::QueryData PortBlacklistTable::delete_(
     return {{std::make_pair("status", "failure")}};
   }
 
-  if ((row_id & 0x8000000000000000ULL) != 0) {
+  if ((row_id & 0x80000000U) != 0) {
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -275,7 +276,7 @@ osquery::QueryData PortBlacklistTable::delete_(
   auto fw_status = firewall->removePortFromBlacklist(
       rule.port, rule.direction, rule.protocol);
   if (!fw_status.success()) {
-    std::cerr << "Failed to remove the port rule\n";
+    VLOG(1) << "Failed to remove the port rule";
   }
 
   return {{std::make_pair("status", "success")}};
@@ -289,25 +290,26 @@ osquery::QueryData PortBlacklistTable::update(
     return {{std::make_pair("status", "failure")}};
   }
 
-  if ((row_id & 0x8000000000000000ULL) != 0) {
+  if ((row_id & 0x80000000U) != 0) {
     return {{std::make_pair("status", "failure")}};
   }
 
   osquery::Row row;
   status = GetRowData(row, request.at("json_value_array"));
   if (!status.ok()) {
-    std::cerr << status.getMessage() << std::endl;
+    VLOG(1) << status.getMessage();
     return {{std::make_pair("status", "failure")}};
   }
 
   PreprocessInsertData(row);
   if (!IsInsertDataValid(row)) {
-    std::cerr << "Invalid insert data: ";
+    std::stringstream temp;
+    temp << "Invalid insert data: ";
     for (const auto& pair : row) {
-      std::cerr << pair.first << "=\"" << pair.second << "\" ";
+      temp << pair.first << "=\"" << pair.second << "\" ";
     }
-    std::cerr << std::endl;
 
+    VLOG(1) << temp.str();
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -347,7 +349,7 @@ osquery::QueryData PortBlacklistTable::update(
   auto fw_status = firewall->removePortFromBlacklist(
       original_rule.port, original_rule.direction, original_rule.protocol);
   if (!fw_status.success()) {
-    std::cerr << "Failed to remove the port rule\n";
+    VLOG(1) << "Failed to remove the port rule";
   }
 
   RowID new_row_id;
@@ -375,7 +377,7 @@ osquery::QueryData PortBlacklistTable::update(
   fw_status = firewall->addPortToBlacklist(
       new_rule.port, new_rule.direction, new_rule.protocol);
   if (!fw_status.success()) {
-    std::cerr << "Failed to add the port rule\n";
+    VLOG(1) << "Failed to add the port rule";
   }
 
   return {{std::make_pair("status", "success")}};
@@ -527,9 +529,9 @@ std::string PortBlacklistTable::GeneratePrimaryKey(const PortRule& rule) {
 }
 
 RowID PortBlacklistTable::GenerateRowID() {
-  static std::uint64_t generator = 0ULL;
+  static std::uint32_t generator = 0U;
 
-  generator = (generator + 1) & 0x7FFFFFFFFFFFFFFFULL;
+  generator = (generator + 1) & 0x7FFFFFFFU;
   return generator;
 }
 
@@ -548,7 +550,12 @@ void PortBlacklistTable::loadConfiguration() {
     b_arc::text_iarchive archive(configuration_file);
 
     archive >> d->data;
-    archive >> d->row_id_to_pkey;
+    for (const auto& p : d->data) {
+      auto row_id = GenerateRowID();
+      auto primary_key = p.first;
+
+      d->row_id_to_pkey.insert({row_id, primary_key});
+    }
 
     // Re-apply each loaded rule
     for (const auto& pair : d->data) {
@@ -559,25 +566,27 @@ void PortBlacklistTable::loadConfiguration() {
 
       if (!fw_status.success() &&
           fw_status.detail() != IFirewall::Detail::AlreadyExists) {
-        std::cerr << "Failed to restore the following rule: " << rule.port
-                  << "/";
+        std::stringstream temp;
+        temp << "Failed to restore the following rule: " << rule.port << "/";
 
         if (rule.protocol == IFirewall::Protocol::TCP) {
-          std::cerr << "tcp ";
+          temp << "tcp ";
         } else {
-          std::cerr << "udp ";
+          temp << "udp ";
         }
 
         if (rule.direction == IFirewall::TrafficDirection::Inbound) {
-          std::cerr << " (inbound)\n";
+          temp << " (inbound)";
         } else {
-          std::cerr << " (outbound)\n";
+          temp << " (outbound)";
         }
+
+        VLOG(1) << temp.str();
       }
     }
 
   } catch (...) {
-    std::cerr << "Failed to load the saved configuration\n";
+    VLOG(1) << "Failed to load the saved configuration";
   }
 }
 
@@ -591,10 +600,9 @@ void PortBlacklistTable::saveConfiguration() {
     b_arc::text_oarchive archive(configuration_file);
 
     archive << d->data;
-    archive << d->row_id_to_pkey;
 
   } catch (...) {
-    std::cerr << "Failed to save the configuration\n";
+    VLOG(1) << "Failed to save the configuration";
   }
 }
 } // namespace trailofbits

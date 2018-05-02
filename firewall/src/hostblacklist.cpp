@@ -20,16 +20,19 @@
 #include <trailofbits/ihostsfile.h>
 
 #include <osquery/core/conversions.h>
+#include <osquery/logger.h>
 #include <osquery/system.h>
 
 #include <algorithm>
 #include <iostream>
 #include <mutex>
 
+#include <boost/algorithm/string.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/asio.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/regex.hpp>
 #include <boost/serialization/unordered_map.hpp>
 
 namespace b_asio = boost::asio;
@@ -52,6 +55,15 @@ void serialize(Archive& archive,
 } // namespace serialization
 } // namespace boost
 
+namespace {
+bool ValidateIPAddress(const std::string& ip_address) {
+  boost::regex expression(
+      "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-"
+      "9]|[01]?[0-9][0-9]?)$");
+  return boost::regex_match(ip_address, expression);
+}
+} // namespace
+
 namespace trailofbits {
 struct HostBlacklistTable::PrivateData final {
   std::mutex mutex;
@@ -72,7 +84,7 @@ HostBlacklistTable::HostBlacklistTable() : d(new PrivateData) {
     }
 
     d->configuration_file_path = CONFIGURATION_ROOT;
-    d->configuration_file_path += "hostblacklist.cfg";
+    d->configuration_file_path /= "hostblacklist.cfg";
 
     loadConfiguration();
 
@@ -125,11 +137,7 @@ osquery::QueryData HostBlacklistTable::generate(
 
       &firewall_blacklist
     );
-    // clang-format on
 
-    static_cast<void>(fw_status);
-
-    // clang-format off
     auto hosts_status = d->hosts_file->enumerateHosts(
       [](const std::string &domain, const std::string &address, void *user_defined) -> bool {
 
@@ -144,6 +152,7 @@ osquery::QueryData HostBlacklistTable::generate(
     );
     // clang-format on
 
+    static_cast<void>(fw_status);
     static_cast<void>(hosts_status);
   }
 
@@ -153,7 +162,6 @@ osquery::QueryData HostBlacklistTable::generate(
   for (const auto& pair : table_row_id_to_pkey) {
     const auto& row_id = pair.first;
     const auto& pkey = pair.second;
-
     const auto& rule = table_data.at(pkey);
 
     osquery::Row row;
@@ -189,7 +197,7 @@ osquery::QueryData HostBlacklistTable::generate(
   }
 
   // Add unmanaged firewall rules
-  RowID temp_row_id = 0x8000000000000000ULL;
+  RowID temp_row_id = 0x80000000ULL;
   for (const auto& host : firewall_blacklist) {
     osquery::Row row;
     row["rowid"] = std::to_string(temp_row_id);
@@ -202,6 +210,7 @@ osquery::QueryData HostBlacklistTable::generate(
     row["dns_block"] = "";
 
     results.push_back(row);
+    temp_row_id++;
   }
 
   // Add unmanaged host entries
@@ -220,6 +229,7 @@ osquery::QueryData HostBlacklistTable::generate(
     row["dns_block"] = "UNMANAGED";
 
     results.push_back(row);
+    temp_row_id++;
   }
 
   return results;
@@ -228,14 +238,14 @@ osquery::QueryData HostBlacklistTable::generate(
 osquery::QueryData HostBlacklistTable::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   if (request.at("auto_rowid") != "false") {
-    std::cerr << "Unsupported statement with auto_rowid enabled\n";
+    VLOG(1) << "Unsupported statement with auto_rowid enabled";
     return {{std::make_pair("status", "failure")}};
   }
 
   osquery::Row row;
   auto status = GetRowData(row, request.at("json_value_array"));
   if (!status.ok()) {
-    std::cerr << status.getMessage() << std::endl;
+    VLOG(1) << status.getMessage();
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -243,17 +253,18 @@ osquery::QueryData HostBlacklistTable::insert(
       row.at("address").empty() && !row.at("domain").empty();
   status = PrepareInsertData(row);
   if (!status.ok()) {
-    std::cerr << status.getMessage() << std::endl;
+    VLOG(1) << status.getMessage();
     return {{std::make_pair("status", "failure")}};
   }
 
   if (!IsInsertDataValid(row)) {
-    std::cerr << "Invalid insert data: ";
+    std::stringstream temp;
+    temp << "Invalid insert data: ";
     for (const auto& pair : row) {
-      std::cerr << pair.first << "=\"" << pair.second << "\" ";
+      temp << pair.first << "=\"" << pair.second << "\" ";
     }
-    std::cerr << std::endl;
 
+    VLOG(1) << temp.str();
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -279,55 +290,57 @@ osquery::QueryData HostBlacklistTable::insert(
     );
     // clang-format on
 
-    osquery::Row result;
-    result["id"] = std::to_string(row_id_to_pkey_it->first);
+    if (row_id_to_pkey_it != d->row_id_to_pkey.end()) {
+      osquery::Row result;
+      result["id"] = std::to_string(row_id_to_pkey_it->first);
+      result["status"] = "success";
+      return {result};
 
-    result["status"] = "success";
-    return {result};
+    } else {
+      d->data.erase(primary_key);
+    }
   }
 
   // Fail INSERTs that involve name resolution for domains that are present
   // into our /etc/hosts files; we don't want to block our sinkhole hosts
   // by mistake!
-  if (domain_resolution) {
-    struct CallbackData final {
-      std::string domain;
-      bool hosts_file_present;
-    };
+  struct CallbackData final {
+    std::string domain;
+    bool hosts_file_present;
+  };
 
-    CallbackData callback_data = {row.at("domain"), false};
+  CallbackData callback_data = {row.at("domain"), false};
 
-    // clang-format off
-    auto hosts_status = d->hosts_file->enumerateHosts(
-      [](const std::string &domain, const std::string &address, void *user_defined) -> bool {
-        auto &callback_data = *static_cast<CallbackData *>(user_defined);
+  // clang-format off
+  auto hosts_status = d->hosts_file->enumerateHosts(
+    [](const std::string &domain, const std::string &address, void *user_defined) -> bool {
+      auto &callback_data = *static_cast<CallbackData *>(user_defined);
 
-        if (callback_data.domain == domain) {
-          callback_data.hosts_file_present = true;
-          return false;
-        }
+      if (callback_data.domain == domain) {
+        callback_data.hosts_file_present = true;
+        return false;
+      }
 
-        return true;
-      },
+      return true;
+    },
 
-      &callback_data
-    );
-    // clang-format on
+    &callback_data
+  );
+  // clang-format on
 
-    if (!hosts_status.success()) {
-      return {{std::make_pair("status", "failure")}};
-    }
+  if (!hosts_status.success()) {
+    return {{std::make_pair("status", "failure")}};
+  }
 
-    if (callback_data.hosts_file_present) {
-      std::cerr << "The following domain is present in the /etc/hosts file and "
-                   "will not be accepted without an explicit address: "
-                << row["domain"] << "\n";
-      return {{std::make_pair("status", "failure")}};
-    }
+  if (domain_resolution && callback_data.hosts_file_present) {
+    VLOG(1) << "The following domain is present in the /etc/hosts file and "
+               "will not be accepted without an explicit address: "
+            << row["domain"];
+
+    return {{std::make_pair("status", "failure")}};
   }
 
   auto row_id = GenerateRowID();
-
   d->data.insert({primary_key, rule});
   d->row_id_to_pkey.insert({row_id, primary_key});
 
@@ -335,13 +348,13 @@ osquery::QueryData HostBlacklistTable::insert(
   auto fw_status = firewall->addHostToBlacklist(rule.address);
   if (!fw_status.success() &&
       fw_status.detail() != IFirewall::Detail::AlreadyExists) {
-    std::cerr << "Failed to enable the firewall host rule\n";
+    VLOG(1) << "Failed to enable the firewall host rule";
   }
 
-  auto hosts_status = d->hosts_file->addHost(rule.domain, rule.sinkhole);
+  hosts_status = d->hosts_file->addHost(rule.domain, rule.sinkhole);
   if (!hosts_status.success() &&
       hosts_status.detail() != IHostsFile::Detail::AlreadyExists) {
-    std::cerr << "Failed to enable the hosts file rule\n";
+    VLOG(1) << "Failed to enable the hosts file rule";
   }
 
   saveConfiguration();
@@ -360,7 +373,7 @@ osquery::QueryData HostBlacklistTable::delete_(
     return {{std::make_pair("status", "failure")}};
   }
 
-  if ((row_id & 0x8000000000000000ULL) != 0) {
+  if ((row_id & 0x80000000U) != 0) {
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -386,13 +399,13 @@ osquery::QueryData HostBlacklistTable::delete_(
   auto fw_status = firewall->removeHostFromBlacklist(rule.address);
   if (!fw_status.success() &&
       fw_status.detail() != IFirewall::Detail::NotFound) {
-    std::cerr << "Failed to remove the firewall host rule\n";
+    VLOG(1) << "Failed to remove the firewall host rule";
   }
 
   auto hosts_status = d->hosts_file->removeHost(rule.domain);
   if (!hosts_status.success() &&
       hosts_status.detail() != IHostsFile::Detail::NotFound) {
-    std::cerr << "Failed to remove the hosts file rule\n";
+    VLOG(1) << "Failed to remove the hosts file rule";
   }
 
   return {{std::make_pair("status", "success")}};
@@ -406,30 +419,31 @@ osquery::QueryData HostBlacklistTable::update(
     return {{std::make_pair("status", "failure")}};
   }
 
-  if ((row_id & 0x8000000000000000ULL) != 0) {
+  if ((row_id & 0x80000000U) != 0) {
     return {{std::make_pair("status", "failure")}};
   }
 
   osquery::Row row;
   status = GetRowData(row, request.at("json_value_array"));
   if (!status.ok()) {
-    std::cerr << status.getMessage() << std::endl;
+    VLOG(1) << status.getMessage();
     return {{std::make_pair("status", "failure")}};
   }
 
   status = PrepareInsertData(row);
   if (!status.ok()) {
-    std::cerr << status.getMessage() << std::endl;
+    VLOG(1) << status.getMessage();
     return {{std::make_pair("status", "failure")}};
   }
 
   if (!IsInsertDataValid(row)) {
-    std::cerr << "Invalid insert data: ";
+    std::stringstream temp;
+    temp << "Invalid insert data: ";
     for (const auto& pair : row) {
-      std::cerr << pair.first << "=\"" << pair.second << "\" ";
+      temp << pair.first << "=\"" << pair.second << "\" ";
     }
-    std::cerr << std::endl;
 
+    VLOG(1) << temp.str();
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -468,13 +482,13 @@ osquery::QueryData HostBlacklistTable::update(
 
   auto fw_status = firewall->removeHostFromBlacklist(original_rule.address);
   if (!fw_status.success()) {
-    std::cerr << "Failed to remove the firewall host rule\n";
+    VLOG(1) << "Failed to remove the firewall host rule";
   }
 
   auto hosts_status = d->hosts_file->removeHost(original_rule.domain);
   if (!hosts_status.success() &&
       hosts_status.detail() != IHostsFile::Detail::NotFound) {
-    std::cerr << "Failed to remove the hosts file rule\n";
+    VLOG(1) << "Failed to remove the hosts file rule";
   }
 
   RowID new_row_id;
@@ -501,13 +515,13 @@ osquery::QueryData HostBlacklistTable::update(
 
   fw_status = firewall->addHostToBlacklist(new_rule.address);
   if (!fw_status.success()) {
-    std::cerr << "Failed to add the firewall host rule\n";
+    VLOG(1) << "Failed to add the firewall host rule";
   }
 
   hosts_status = d->hosts_file->addHost(new_rule.domain, new_rule.sinkhole);
   if (!hosts_status.success() &&
       hosts_status.detail() != IHostsFile::Detail::AlreadyExists) {
-    std::cerr << "Failed to enable the hosts file rule\n";
+    VLOG(1) << "Failed to enable the hosts file rule";
   }
 
   return {{std::make_pair("status", "success")}};
@@ -573,7 +587,7 @@ bool HostBlacklistTable::IsInsertDataValid(const osquery::Row& row) {
   }
 
   auto address = value_it->second;
-  if (address.empty()) {
+  if (address.empty() || !ValidateIPAddress(address)) {
     return false;
   }
 
@@ -593,11 +607,10 @@ bool HostBlacklistTable::IsInsertDataValid(const osquery::Row& row) {
   }
 
   auto sinkhole = value_it->second;
-  if (sinkhole.empty()) {
+  if (sinkhole.empty() || !ValidateIPAddress(sinkhole)) {
     return false;
   }
 
-  /// \todo Validate address, domain, sinkhole
   return true;
 }
 
@@ -606,9 +619,9 @@ std::string HostBlacklistTable::GeneratePrimaryKey(const HostRule& rule) {
 }
 
 RowID HostBlacklistTable::GenerateRowID() {
-  static std::uint64_t generator = 0ULL;
+  static std::uint32_t generator = 0U;
 
-  generator = (generator + 1) & 0x7FFFFFFFFFFFFFFFULL;
+  generator = (generator + 1) & 0x7FFFFFFFU;
   return generator;
 }
 
@@ -626,12 +639,42 @@ void HostBlacklistTable::loadConfiguration() {
 
     b_arc::text_iarchive archive(configuration_file);
 
-    archive >> d->data;
-    archive >> d->row_id_to_pkey;
+    HostRuleMap data;
+    archive >> data;
+
+    // Perform some validation
+    for (auto& p : data) {
+      auto& primary_key = p.first;
+      auto& rule = p.second;
+
+      boost::algorithm::trim(rule.address);
+      boost::algorithm::trim(rule.domain);
+      boost::algorithm::trim(rule.sinkhole);
+
+      if (rule.address.empty() || rule.domain.empty() ||
+          rule.sinkhole.empty()) {
+        continue;
+      }
+
+      if (!ValidateIPAddress(rule.address) ||
+          !ValidateIPAddress(rule.sinkhole)) {
+        VLOG(1) << "Removing invalid/broken rule: " << rule.address << "/"
+                << rule.domain << "/" << rule.sinkhole;
+        continue;
+      }
+
+      d->data.insert(p);
+      d->row_id_to_pkey.insert({GenerateRowID(), primary_key});
+    }
 
     // Re-apply each loaded rule
     for (const auto& pair : d->data) {
       const auto& rule = pair.second;
+
+      if (rule.address.empty() || rule.domain.empty() ||
+          rule.sinkhole.empty()) {
+        continue;
+      }
 
       auto fw_status = firewall->addHostToBlacklist(rule.address);
       auto hosts_status = d->hosts_file->addHost(rule.domain, rule.sinkhole);
@@ -640,13 +683,13 @@ void HostBlacklistTable::loadConfiguration() {
            fw_status.detail() != IFirewall::Detail::AlreadyExists) ||
           (!hosts_status.success() &&
            hosts_status.detail() != IHostsFile::Detail::AlreadyExists)) {
-        std::cerr << "Failed to restore the following rule: " << rule.address
-                  << "/" << rule.domain << " -> " << rule.sinkhole << "\n";
+        VLOG(1) << "Failed to restore the following rule: " << rule.address
+                << "/" << rule.domain << " -> " << rule.sinkhole;
       }
     }
 
   } catch (...) {
-    std::cerr << "Failed to load the saved configuration\n";
+    VLOG(1) << "Failed to load the saved configuration";
   }
 }
 
@@ -658,12 +701,10 @@ void HostBlacklistTable::saveConfiguration() {
     }
 
     b_arc::text_oarchive archive(configuration_file);
-
     archive << d->data;
-    archive << d->row_id_to_pkey;
 
   } catch (...) {
-    std::cerr << "Failed to save the configuration\n";
+    VLOG(1) << "Failed to save the configuration";
   }
 }
 
