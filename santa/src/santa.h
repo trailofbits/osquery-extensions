@@ -19,21 +19,30 @@
 #include <list>
 #include <string>
 
-struct LogEntry {
+struct LogEntry final {
   std::string timestamp;
   std::string application;
   std::string reason;
   std::string sha256;
 };
 
-struct RuleEntry {
+struct RuleEntry final {
+  enum class Type { Binary, Certificate, Unknown };
+  enum class State { Whitelist, Blacklist, Unknown };
+
+  Type type;
+  State state;
   std::string shasum;
-  std::string state;
-  std::string type;
 };
 
-typedef std::list<LogEntry> LogEntries;
-typedef std::list<RuleEntry> RuleEntries;
+using LogEntries = std::list<LogEntry>;
+using RuleEntries = std::list<RuleEntry>;
 
-void scrapeSantaLog(LogEntries& response);
-void collectSantaRules(RuleEntries& response);
+const char* getRuleTypeName(RuleEntry::Type type);
+const char* getRuleStateName(RuleEntry::State state);
+
+RuleEntry::Type getTypeFromRuleName(const char* name);
+RuleEntry::State getStateFromRuleName(const char* name);
+
+bool scrapeSantaLog(LogEntries& response);
+bool collectSantaRules(RuleEntries& response);

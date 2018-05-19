@@ -16,43 +16,36 @@
 
 #include <iostream>
 
-#include "extension.h"
+#include "santaeventstable.h"
+#include "santarulestable.h"
+
 #include "santa.h"
 
 int runAsStandalone() {
-  LogEntries response;
-
-  try {
-    scrapeSantaLog(response);
-
-  } catch (const std::exception& e) {
-    std::cerr << "An error has occurred: " << e.what();
+  LogEntries log_entries;
+  if (!scrapeSantaLog(log_entries)) {
+    std::cerr << "Failed to access the Santa log files\n";
     return 1;
   }
 
-  std::cout << "timestamp\t\tapplication\t\tshasum\t\treason" << std::endl;
-  for (LogEntries::const_iterator iter = response.begin();
-       iter != response.end();
-       ++iter) {
-    std::cout << iter->timestamp << "\t\t" << iter->application << "\t\t"
-              << iter->sha256 << "\t\t" << iter->reason << std::endl;
+  std::cout << "timestamp\t\tapplication\t\tshasum\t\treason\n";
+  for (const auto& entry : log_entries) {
+    std::cout << entry.timestamp << "\t\t" << entry.application << "\t\t"
+              << entry.sha256 << "\t\t" << entry.reason << "\n";
   }
 
   RuleEntries rules;
-  try {
-    collectSantaRules(rules);
-  } catch (const std::exception& e) {
-    std::cerr << "An error has occured: " << e.what();
+  if (!collectSantaRules(rules)) {
+    std::cerr << "Failed to enumerate the rules in the Santa database\n";
     return 1;
   }
 
-  std::cout << "shasum\t\tstate\t\ttype" << std::endl;
-  for (RuleEntries::const_iterator iter = rules.begin();
-       iter != rules.end();
-       ++iter) {
-    std::cout << iter->shasum << "\t\t" << iter->state << "\t\t"
-              << iter->type << std::endl;
+  std::cout << "shasum\t\tstate\t\ttype\n";
+  for (const auto& rule : rules) {
+    std::cout << rule.shasum << "\t\t" << getRuleStateName(rule.state) << "\t\t"
+              << getRuleTypeName(rule.type) << "\n";
   }
+
   return 0;
 }
 
