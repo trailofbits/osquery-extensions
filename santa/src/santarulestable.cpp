@@ -293,10 +293,13 @@ osquery::QueryData SantaRulesTablePlugin::delete_(
       santactl_output.exit_code != 0) {
     // Some rules can't be removed
     if (santactl_output.std_output.find(kMandatoryRuleDeletionError) == 0) {
-      return {{std::make_pair("status", "success")}};
+      VLOG(1) << "Rule "
+              << rule.shasum + "/" + getRuleTypeName(rule.type) +
+                     " is mandatory and can't be removed";
+    } else {
+      VLOG(1) << "Failed to remove the rule";
     }
 
-    VLOG(1) << "Failed to remove the rule";
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -324,76 +327,37 @@ osquery::Status SantaRulesTablePlugin::updateRules() {
     return osquery::Status(1, "Failed to enumerate the Santa rules");
   }
 
-  // Add new rules, keeping the existing row ids alive
+  auto old_rowid_mappings = std::move(d->rowid_to_pkey);
+  d->rowid_to_pkey.clear();
+
+  d->rule_list.clear();
+
   for (const auto& new_rule : new_rule_list) {
-    // clang-format off
-    auto rule_it = std::find_if(
-      d->rule_list.begin(),
-      d->rule_list.end(),
-
-      [new_rule](const std::pair<std::string, RuleEntry> &data) -> bool {
-        const auto &old_rule = std::get<1>(data);
-
-        return (new_rule.state == old_rule.state &&
-                new_rule.type == old_rule.type &&
-                new_rule.shasum == old_rule.shasum);
-      }
-    );
-    // clang-format on
-
-    if (rule_it != d->rule_list.end()) {
-      continue;
-    }
-
-    auto new_row_id = generateRowID();
     auto primary_key = generatePrimaryKey(new_rule);
-
-    d->rowid_to_pkey.insert({new_row_id, primary_key});
     d->rule_list.insert({primary_key, new_rule});
-  }
 
-  // Remove stale rules
-  for (auto it = d->rule_list.begin(); it != d->rule_list.end();) {
-    const auto& current_rule = it->second;
+    RowID rowid;
 
-    // clang-format off
-    auto rule_it = std::find_if(
-      new_rule_list.begin(),
-      new_rule_list.end(),
+    {
+      // clang-format off
+      auto it = std::find_if(
+        old_rowid_mappings.begin(),
+        old_rowid_mappings.end(),
 
-      [current_rule](const RuleEntry &new_rule) -> bool {
-        return (new_rule.state == current_rule.state &&
-                new_rule.type == current_rule.type &&
-                new_rule.shasum == current_rule.shasum);
+        [primary_key](const std::pair<RowID, std::string> &pkey_rowid_pair) -> bool {
+          return (primary_key == pkey_rowid_pair.second);
+        }
+      );
+      // clang-format on
+
+      if (it == old_rowid_mappings.end()) {
+        rowid = generateRowID();
+      } else {
+        rowid = it->first;
       }
-    );
-    // clang-format on
-
-    if (rule_it != new_rule_list.end()) {
-      it++;
-      continue;
     }
 
-    // Erase both the entry and the rowid pointer
-    it = d->rule_list.erase(it);
-
-    auto current_rule_pkey = generatePrimaryKey(current_rule);
-
-    // clang-format off
-    auto rowid_it = std::find_if(
-      d->rowid_to_pkey.begin(),
-      d->rowid_to_pkey.end(),
-
-      [current_rule_pkey](const std::pair<RowID, std::string> &data) -> bool {
-        const auto &pkey = std::get<1>(data);
-        return current_rule_pkey == pkey;
-      }
-    );
-    // clang-format on
-
-    if (rowid_it != d->rowid_to_pkey.end()) {
-      d->rowid_to_pkey.erase(rowid_it);
-    }
+    d->rowid_to_pkey.insert({rowid, primary_key});
   }
 
   return osquery::Status(0);
