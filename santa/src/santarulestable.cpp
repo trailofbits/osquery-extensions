@@ -37,12 +37,21 @@ RowID generateRowID() {
   static std::atomic_uint32_t generator(0U);
   return generator++;
 }
+
+std::string generatePrimaryKey(const std::string& shasum, bool is_certificate) {
+  return shasum + "_" + (is_certificate ? "certificate" : "binary");
+}
+
+std::string generatePrimaryKey(const RuleEntry& rule) {
+  auto is_certificate = (rule.type == RuleEntry::Type::Certificate);
+  return generatePrimaryKey(rule.shasum, is_certificate);
+}
 } // namespace
 
 struct SantaRulesTablePlugin::PrivateData final {
   std::mutex mutex;
 
-  std::unordered_map<RowID, std::string> rowid_to_shasum;
+  std::unordered_map<RowID, std::string> rowid_to_pkey;
   std::unordered_map<std::string, RuleEntry> rule_list;
 };
 
@@ -116,7 +125,7 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
 
 osquery::QueryData SantaRulesTablePlugin::generate(
     osquery::QueryContext& request) {
-  std::unordered_map<RowID, std::string> rowid_to_shasum;
+  std::unordered_map<RowID, std::string> rowid_to_pkey;
   std::unordered_map<std::string, RuleEntry> rule_list;
 
   {
@@ -128,17 +137,17 @@ osquery::QueryData SantaRulesTablePlugin::generate(
       return {{std::make_pair("status", "failure")}};
     }
 
-    rowid_to_shasum = d->rowid_to_shasum;
+    rowid_to_pkey = d->rowid_to_pkey;
     rule_list = d->rule_list;
   }
 
   osquery::QueryData result;
 
-  for (const auto& rowid_shasum_pair : rowid_to_shasum) {
-    const auto& rowid = rowid_shasum_pair.first;
-    const auto& shasum = rowid_shasum_pair.second;
+  for (const auto& rowid_pkey_pair : rowid_to_pkey) {
+    const auto& rowid = rowid_pkey_pair.first;
+    const auto& pkey = rowid_pkey_pair.second;
 
-    auto rule_it = rule_list.find(shasum);
+    auto rule_it = rule_list.find(pkey);
     if (rule_it == rule_list.end()) {
       VLOG(1) << "RowID -> Primary key mismatch error in santa_rules table";
       continue;
@@ -191,6 +200,7 @@ osquery::QueryData SantaRulesTablePlugin::insert(
     return {{std::make_pair("status", "failure")}};
   }
 
+  // Enumerate the rules and search for the one we just added
   status = updateRules();
   if (!status.ok()) {
     VLOG(1) << status.getMessage();
@@ -199,16 +209,17 @@ osquery::QueryData SantaRulesTablePlugin::insert(
 
   bool rule_found = false;
   RowID row_id = 0U;
+  auto primary_key = generatePrimaryKey(shasum, certificate);
 
-  for (const auto& rowid_shasum_pair : d->rowid_to_shasum) {
-    const auto& rule_row_id = rowid_shasum_pair.first;
-    const auto& rule_shasum = rowid_shasum_pair.second;
+  for (const auto& rowid_pkey_pair : d->rowid_to_pkey) {
+    const auto& rowid = rowid_pkey_pair.first;
+    const auto& pkey = rowid_pkey_pair.second;
 
-    if (shasum != rule_shasum) {
+    if (primary_key != pkey) {
       continue;
     }
 
-    auto rule_it = d->rule_list.find(shasum);
+    auto rule_it = d->rule_list.find(primary_key);
     if (rule_it == d->rule_list.end()) {
       VLOG(1) << "RowID -> Primary Key mismatch in the santa_rules table";
       continue;
@@ -223,7 +234,7 @@ osquery::QueryData SantaRulesTablePlugin::insert(
       continue;
     }
 
-    row_id = rule_row_id;
+    row_id = rowid;
     rule_found = true;
 
     break;
@@ -256,13 +267,13 @@ osquery::QueryData SantaRulesTablePlugin::delete_(
     rowid = static_cast<RowID>(temp);
   }
 
-  auto shasum_it = d->rowid_to_shasum.find(rowid);
-  if (shasum_it == d->rowid_to_shasum.end()) {
+  auto pkey_it = d->rowid_to_pkey.find(rowid);
+  if (pkey_it == d->rowid_to_pkey.end()) {
     return {{std::make_pair("status", "failure")}};
   }
 
-  const auto& shasum = shasum_it->second;
-  auto rule_it = d->rule_list.find(shasum);
+  const auto& pkey = pkey_it->second;
+  auto rule_it = d->rule_list.find(pkey);
   if (rule_it == d->rule_list.end()) {
     VLOG(1) << "RowID -> Primary Key mismatch in the santa_rules table";
     return {{std::make_pair("status", "failure")}};
@@ -335,9 +346,10 @@ osquery::Status SantaRulesTablePlugin::updateRules() {
     }
 
     auto new_row_id = generateRowID();
+    auto primary_key = generatePrimaryKey(new_rule);
 
-    d->rowid_to_shasum.insert({new_row_id, new_rule.shasum});
-    d->rule_list.insert({new_rule.shasum, new_rule});
+    d->rowid_to_pkey.insert({new_row_id, primary_key});
+    d->rule_list.insert({primary_key, new_rule});
   }
 
   // Remove stale rules
@@ -362,22 +374,25 @@ osquery::Status SantaRulesTablePlugin::updateRules() {
       continue;
     }
 
+    // Erase both the entry and the rowid pointer
     it = d->rule_list.erase(it);
+
+    auto current_rule_pkey = generatePrimaryKey(current_rule);
 
     // clang-format off
     auto rowid_it = std::find_if(
-      d->rowid_to_shasum.begin(),
-      d->rowid_to_shasum.end(),
+      d->rowid_to_pkey.begin(),
+      d->rowid_to_pkey.end(),
 
-      [current_rule](const std::pair<RowID, std::string> &data) -> bool {
-        const auto &shasum = std::get<1>(data);
-        return current_rule.shasum == shasum;
+      [current_rule_pkey](const std::pair<RowID, std::string> &data) -> bool {
+        const auto &pkey = std::get<1>(data);
+        return current_rule_pkey == pkey;
       }
     );
     // clang-format on
 
-    if (rowid_it != d->rowid_to_shasum.end()) {
-      d->rowid_to_shasum.erase(rowid_it);
+    if (rowid_it != d->rowid_to_pkey.end()) {
+      d->rowid_to_pkey.erase(rowid_it);
     }
   }
 
