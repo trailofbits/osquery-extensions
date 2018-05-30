@@ -17,28 +17,25 @@ project(santa)
 
 set(CMAKE_VERBOSE_MAKEFILE TRUE)
 
-function (main)
+function(main)
   set(PROJECT_SOURCEFILES
     src/santa.h
     src/santa.cpp
 
-    src/extension.h
-    src/extension.cpp
+    src/santaeventstable.h
+    src/santaeventstable.cpp
+
+    src/santarulestable.h
+    src/santarulestable.cpp
+
+    src/utils.h
+    src/utils.cpp
 
     src/main.cpp
   )
 
-  set(Boost_USE_STATIC_LIBS ON)
-  set(Boost_USE_MULTITHREADED ON)
-  set(Boost_USE_STATIC_RUNTIME ON)
-  find_package(Boost REQUIRED COMPONENTS iostreams)
-
-  include_directories(${Boost_INCLUDE_DIRS})
-
   ADD_OSQUERY_EXTENSION("${PROJECT_NAME}" ${PROJECT_SOURCEFILES})
-  target_link_libraries("${PROJECT_NAME}" ${Boost_LIBRARIES})
-
-endfunction ()
+  target_link_libraries("${PROJECT_NAME}" boost_iostreams-mt)
+endfunction()
 
 main()
-
