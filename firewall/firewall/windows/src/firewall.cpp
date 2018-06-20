@@ -463,7 +463,8 @@ bool Firewall::ParseFirewallRuleBlock(std::stringstream& stream,
     return false;
   }
 
-  if (values["LocalPort"].length() != 0 &&
+  if (direction == TrafficDirection::Inbound &&
+      values["LocalPort"].length() != 0 &&
       values["LocalPort"].compare("Any") != 0) {
     // blocking a port
     Protocol protocol;
@@ -484,7 +485,28 @@ bool Firewall::ParseFirewallRuleBlock(std::stringstream& stream,
     PortRule port_rule = {port, direction, protocol, rule_name};
     rule = port_rule;
     return true;
+  } else if (direction == TrafficDirection::Outbound &&
+      values["RemotePort"].length() != 0 &&
+      values["RemotePort"].compare("Any") != 0) {
+    // blocking a port
+    Protocol protocol;
+    if (values["Protocol"].compare("TCP") == 0) {
+      protocol = Protocol::TCP;
+    } else if (values["Protocol"].compare("UDP") == 0) {
+      protocol = Protocol::UDP;
+    } else {
+      return false;
+    }
 
+    auto port = static_cast<std::uint16_t>(
+        std::strtoull(values["RemotePort"].c_str(), NULL, 10));
+    if (port == 0 || port > 65535) {
+      return false;
+    }
+
+    PortRule port_rule = {port, direction, protocol, rule_name};
+    rule = port_rule;
+    return true;
   } else if (values["RemoteIP"].length() != 0 &&
              values["RemoteIP"].compare("Any") != 0) {
     // blocking an address
