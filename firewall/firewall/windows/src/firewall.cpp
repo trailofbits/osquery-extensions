@@ -105,7 +105,7 @@ Firewall::Status Firewall::addPortToBlacklist(
            << (direction == TrafficDirection::Inbound ? "in" : "out") << "\"";
 
   portstr << (direction == TrafficDirection::Inbound ? "local" : "remote")
-	  << "port=" << port;
+          << "port=" << port;
 
   ProcessOutput proc_output;
   if (!ExecuteProcess(proc_output,
@@ -486,8 +486,8 @@ bool Firewall::ParseFirewallRuleBlock(std::stringstream& stream,
     rule = port_rule;
     return true;
   } else if (direction == TrafficDirection::Outbound &&
-      values["RemotePort"].length() != 0 &&
-      values["RemotePort"].compare("Any") != 0) {
+             values["RemotePort"].length() != 0 &&
+             values["RemotePort"].compare("Any") != 0) {
     // blocking a port
     Protocol protocol;
     if (values["Protocol"].compare("TCP") == 0) {
