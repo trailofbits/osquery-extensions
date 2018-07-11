@@ -4,16 +4,16 @@ Contributing to the osquery-extensions repository
 ## What should I know before I get started?
 
 The kinds of osquery features should be in an extension:
-* ...
-* ...
-* ...
+* virtual tables that could read potentially sensitive user data
+* any capability to change the state of the system
+* any virtual table that, by executing, needs to generate network traffic to third parties
+* any capability that might increase the osquery binary significantly relative to its default size
+* any virtual table that, although useful, could easily impact system performance
 
-Examples of new extensions we would accept:
-* ...
-* ...
-* ...
-
-All code changes and additions, even if written by developers at Trail of Bits, must be reviewed using a GitHub pull request.
+Hypothetical examples of new extensions we might expect from community contributions:
+* a virtual table that actively enumerates the nearby network nodes, nmap style
+* a virtual table that adds threat intelligence from third-party services to an existing table's results
+* a virtual table that returns all DNS queries made by the endpoint (an example of something potentially sensitive)
 
 ### Contributor License Agreement ("CLA")
 
@@ -30,7 +30,88 @@ By contributing to osquery-extensions, you agree that your contributions will be
 * [Developing osquery extensions in Python]()
 * [Developing osquery extensions in Go]()
 
-## Creating good pull requests
+## Git workflow
+
+Please do all of your development in a feature branch, on your own fork of osquery-extensions. You should clone osquery-extensions normally, like this:
+
+```
+git clone git@github.com:trailofbits/osquery-extensions.git
+```
+
+Then, your "remote" should be set up as follows:
+
+```
+$ cd osquery
+$ git remote -v
+origin  git@github.com:trailofbits/osquery-extensions.git (fetch)
+origin  git@gitHub.com:trailofbits/osquery-extensions.git (push)
+```
+
+Now, use the GitHub UI to fork osquery-extensions to your personal GitHub organization. Then, add the remote URL of your fork to git's local remotes:
+
+```
+$ git remote add $USER git@github.com:$USER/osquery-extensions.git
+```
+
+Now, your "remote" should be set up as follows:
+
+```
+$ git remote -v
+marpaia git@github.com:yourname/osquery-extensions.git (fetch)
+marpaia git@github.com:yourname/osquery-extensions.git (push)
+origin  git@github.com:trailofbits/osquery-extensions.git (fetch)
+origin  git@gitHub.com:trailofbits/osquery-extensions.git (push)
+```
+
+When you're ready to start working on a new feature, create a new branch:
+
+```
+$ git checkout -b my-feature
+```
+
+Write your code and when you're ready to put up a Pull Request, push your local branch to your fork:
+
+```
+$ git add .
+$ git commit -m "my awesome feature!"
+$ git push -u $USER my-feature
+```
+
+Visit https://github.com/trailofbits/osquery-extensions and use the web UI to create a Pull Request. Once your pull request has gone through sufficient review and iteration, please squash all of your commits into one commit.
+
+## Pull Request workflow
+
+All code changes and additions, even if written by developers at Trail of Bits, must be reviewed using a GitHub pull request.
+
+In most cases your PR should represent a single body of work. It is fine to change unrelated small things like nits or code-format issues but make every effort to submit isolated changes. This makes documentation, references, regression tracking and if needed, a revert, easier.
+
+## Updating Pull Requests
+
+Pull requests will often need revision, but don't be discouraged! That's normal.
+
+Please feel free to add several commits to your Pull Request. When it comes time to merge into **master** all commits in a Pull Request will be squashed using GitHub's tooling into a single commit. The development team will usually choose to remove the commit body and keep the GitHub-appended `(#PR)` number in the commit title.
+
+**You make updates to your pull request**
+
+If the pull request needs changes, or you decide to update the content, consider 'amending' your previous commit:
+
+```
+$ git commit --amend
+```
+
+Like squashing, this changes the branch history so you'll need to force push the changes to update the pull request:
+
+```
+$ git push -f
+```
+
+In all cases, if the pull request is triggering automatic build/integration tests, the tests will rerun reflecting your changes.
+
+### Linking issues
+
+Once you submit your pull request, link the GitHub issue which your Pull Request implements. To do this, if the relevant issue is #7, then simply type "#7" somewhere in the Pull Request description or comments. This links the Pull Request with the issue, which makes things easier to track down later on.
+
+### Creating good pull requests
 
 * Fill in the [required template](https://github.com/trailofbits/osquery-extensions/blob/master/PULL_REQUEST_TEMPLATE.md)
 * Platform-dependent code is okay where it makes sense, but multi-platform support is always a plus
