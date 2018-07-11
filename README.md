@@ -68,7 +68,7 @@ See the [osquery documentation on extensions](https://osquery.readthedocs.io/en/
 
 ## Contributing
 
-Do you have an idea for an osquery extension? Please [file an issue](https://github.com/trailofbits/osquery-extensions/issues/new) for it. We welcome contributions of bug fixes, feature requests, and extensions.
+Do you have an idea for an osquery extension? Please [file an issue](https://github.com/trailofbits/osquery-extensions/issues/new) for it. We welcome contributions of bug fixes, feature requests, and extensions. For more information on how you can contribute, see our [Contributing Guidelines](https://github.com/trailofbits/osquery-extensions/blob/master/CONTRIBUTING.md)
 
 ## Troubleshooting
 
