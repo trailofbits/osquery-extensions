@@ -29,8 +29,9 @@ By contributing to osquery-extensions, you agree that your contributions will be
 
 * [Main documentation on osquery SDK](https://osquery.readthedocs.io/en/stable/development/osquery-sdk/)
 * [C++ example of an osquery extension](https://github.com/facebook/osquery/tree/master/osquery/examples)
-* [Developing osquery extensions in Python]()
-* [Developing osquery extensions in Go]()
+* [Developing osquery extensions in Python](https://github.com/osquery/osquery-python)
+* [Developing osquery extensions in Go](https://github.com/kolide/osquery-go)
+* [Nick Anderson's walkthrough of developing an osquery extension on Windows](https://brewfault.io/blog/2018/1/29/building-extensions-for-osquery-on-windows)
 
 ## Git workflow
 
