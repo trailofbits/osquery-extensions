@@ -9,7 +9,7 @@ This repository includes [osquery](https://osquery.io/) [extensions](https://osq
 | efigy          | Integrates osquery with the Duo Labs EFIgy API to determine if the EFI firmware on your Mac fleet is up-to-date. | macOS |
 | santa          | Integrates osquery with the Santa application whiteslisting solution. Check DENY events and manage the whitelist/blacklist rules. | macOS |
 | fwctl          | Provides osquery with the ability to view and manage the OS-native firewall rules and `/etc/hosts` file (port and host blocking). | macOS, Linux, Windows |
-| ntfs_forensics | Provides osquery with NTFS-specific forensic information. | Windows |
+| ntfs_forensics | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
 | (more to come) | ...  | ...   |
 
 ## Building
@@ -68,7 +68,7 @@ See the [osquery documentation on extensions](https://osquery.readthedocs.io/en/
 
 ## Contributing
 
-Do you have an idea for an osquery extension? Please [file an issue](https://github.com/trailofbits/osquery-extensions/issues/new) for it. We welcome contributions of bug fixes, feature requests, and extensions. For more information on how you can contribute, see our [Contributing Guidelines](https://github.com/trailofbits/osquery-extensions/blob/master/CONTRIBUTING.md)
+Do you have an idea for an osquery extension? Please [file an issue](https://github.com/trailofbits/osquery-extensions/issues/new) for it. We welcome contributions of bug fixes, feature requests, and extensions. For more information on how you can contribute, see our [Contributing Guidelines](https://github.com/trailofbits/osquery-extensions/blob/master/CONTRIBUTING.md).
 
 ## Troubleshooting
 
