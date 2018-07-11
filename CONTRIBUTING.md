@@ -10,16 +10,18 @@ The kinds of osquery features should be in an extension:
 * any capability that might increase the osquery binary significantly relative to its default size
 * any virtual table that, although useful, could easily impact system performance
 
-Hypothetical examples of new extensions we might expect from community contributions:
+Hypothetical examples of new extensions we might expect to receive in community contributions:
 * a virtual table that actively enumerates the nearby network nodes, nmap style
 * a virtual table that adds threat intelligence from third-party services to an existing table's results
 * a virtual table that returns all DNS queries made by the endpoint (an example of something potentially sensitive)
 
-### Contributor License Agreement ("CLA")
+## Get in Touch
 
-In order to accept your pull request, we need you to submit a CLA. You only need to do this once to work on any of Trail of Bits' open source projects.
+Let's discuss your idea before you start. We do our best to respond in the [osquery Slack instance](https://osquery.slack.com). Stop into `#extensions` and say hello.
 
-Complete your CLA here: TBD
+## Contributor License Agreement ("CLA")
+
+In order to accept your pull request, we need you to submit a CLA. You only need to do this once to work on any of Trail of Bits' open source projects. You will be prompted to complete the CLA upon your first pull request.
 
 By contributing to osquery-extensions, you agree that your contributions will be licensed under both the `LICENSE` file and the `COPYING` file in the root directory of this source tree.
 
@@ -41,7 +43,7 @@ git clone git@github.com:trailofbits/osquery-extensions.git
 Then, your "remote" should be set up as follows:
 
 ```
-$ cd osquery
+$ cd osquery-extensions
 $ git remote -v
 origin  git@github.com:trailofbits/osquery-extensions.git (fetch)
 origin  git@gitHub.com:trailofbits/osquery-extensions.git (push)
@@ -57,8 +59,8 @@ Now, your "remote" should be set up as follows:
 
 ```
 $ git remote -v
-marpaia git@github.com:yourname/osquery-extensions.git (fetch)
-marpaia git@github.com:yourname/osquery-extensions.git (push)
+yourname git@github.com:yourname/osquery-extensions.git (fetch)
+yourname git@github.com:yourname/osquery-extensions.git (push)
 origin  git@github.com:trailofbits/osquery-extensions.git (fetch)
 origin  git@gitHub.com:trailofbits/osquery-extensions.git (push)
 ```
@@ -77,11 +79,16 @@ $ git commit -m "my awesome feature!"
 $ git push -u $USER my-feature
 ```
 
-Visit https://github.com/trailofbits/osquery-extensions and use the web UI to create a Pull Request. Once your pull request has gone through sufficient review and iteration, please squash all of your commits into one commit.
+### Git Commit Messages
+
+* Use the present tense ("Add feature" not "Added feature")
+* Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
+* Limit the first line to 72 characters or less
+* Reference issues and pull requests liberally after the first line
 
 ## Pull Request workflow
 
-All code changes and additions, even if written by developers at Trail of Bits, must be reviewed using a GitHub pull request.
+All code changes and additions, even if written by developers at Trail of Bits, must be reviewed using a GitHub pull request. Visit https://github.com/trailofbits/osquery-extensions and use the web UI to create a Pull Request. Once your pull request has gone through sufficient review and iteration, please squash all of your commits into one commit.
 
 In most cases your PR should represent a single body of work. It is fine to change unrelated small things like nits or code-format issues but make every effort to submit isolated changes. This makes documentation, references, regression tracking and if needed, a revert, easier.
 
@@ -137,9 +144,10 @@ Both bugs and enhancement suggestions are tracked as GitHub issues. Create an is
 
 ## C++ style guide
 
-TBD
+Trail of Bits recommends the [Google style guide for C++](https://google.github.io/styleguide/cppguide.html).
 
 ## Extension documentation guide
 
 * Use [Markdown](https://guides.github.com/features/mastering-markdown/) to add a README.md for your extension, following the structure of the existing extensions.
 * Add a row to the table in the top-level `README.md` in the extensions repo, that describes your extension.
+* Consider using spellcheck and a Markdown linter, because you'd be surprised what you miss.
