@@ -124,7 +124,7 @@ Once you submit your pull request, link the GitHub issue which your Pull Request
 * Fill in the [required template](https://github.com/trailofbits/osquery-extensions/blob/master/PULL_REQUEST_TEMPLATE.md)
 * Platform-dependent code is okay where it makes sense, but multi-platform support is always a plus
 * Do not include issue numbers in the PR title
-* See the [C++ code quality standards and expectations](#C++-style-guide), below
+* See the [C++ code quality standards and expectations](#c-style-guide), below
 
 ## Submitting issues (bugs or extension ideas)
 
