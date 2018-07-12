@@ -18,7 +18,7 @@ Ubuntu: `apt install boost -y`
 
 Windows: Open the official [Boost download page](http://www.boost.org/users/download/) and download `boost_1_66_0-msvc-14.0-64.exe` under [Boost - Third party downloads](https://dl.bintray.com/boostorg/release/1.66.0/binaries/).
 
-## Running the tests
+## Running the automated tests
 
 Once osquery has been built with tests enabled (i.e.: *without* the SKIP_TESTS variable), enter the build/<platform_name> folder and run the following command: `make fwctl_tests`.
 
@@ -63,6 +63,64 @@ $ osqueryi --allow_unsafe --disable_extensions=false --extension=/path/to/osquer
 ```
 
 All errors and messages are logged to the osquery status log (you can pass the `--verbose` option when using `osqueryi`). Inserting the same data more than once does not cause errors, and the rules will not be duplicated.
+
+### Testing the extension
+
+To test that the extension works as intended, we'll first verify that some ports and domains are unblocked, then block them via the extension and demonstrate that they're no longer accessible. Once lack of access is verified, we'll delete the rules we created and show that access to those ports and domains is restored.
+
+#### Verify access
+
+Open a web browser of your choice and verify that you can load:
+* two websites that provide secure access, in this case https://www.yahoo.com and https://www.google.com
+* a website that does not provide a secure connection, e.g., http://neverssl.com
+
+Additionally, we need to verify that you're not running a web server locally. Attempt to load https://127.0.0.1 and verify that you get an error message (or take note of the page that is returned, if you are running a web server).
+
+#### Block ports and domains
+
+Follow the directions above to install the extension, then start up osqueryi with the extension running. At the prompt, issue the following commands:
+
+``` sql
+INSERT INTO HostBlacklist (domain, sinkhole, address_type) VALUES ("www.yahoo.com", "127.0.0.1", "ipv4");
+
+INSERT INTO PortBlacklist (port, direction, protocol) VALUES (80, "OUTBOUND", "tcp");
+```
+
+Verify that these rules got created by running the following queries and checking their output against the output listed:
+``` sql
+SELECT domain, sinkhole, firewall_block, dns_block FROM HostBlacklist WHERE domain = "www.yahoo.com";
++---------------+-----------+----------------+-----------+
+| domain        | sinkhole  | firewall_block | dns_block |
++---------------+-----------+----------------+-----------+
+| www.yahoo.com | 127.0.0.1 | ENABLED        | ENABLED   |
++---------------+-----------+----------------+-----------+
+
+SELECT * FROM PortBlacklist WHERE port = 80;
++------+-----------+----------+---------+
+| port | direction | protocol | status  |
++------+-----------+----------+---------+
+| 80   | OUTBOUND  | TCP      | ENABLED |
++------+-----------+----------+---------+
+```
+
+#### Verify lack of access
+
+Open up a web browser, clear its cache, and attempt to load https://www.yahoo.com. You should get some sort of error page that the server is not responing, indicating that the host blocking is successful. If you're running a web server locally, you may see its page instead of yahoo's page. This also is an indicator that host blocking is successful.
+
+Attempt to load https://www.google.com. This should be successful, indicating that secure connections to websites still work.
+
+Now try to load http://neverssl.com. You should again get an error message, indicating that port 80 is blocked for outbound connections.
+
+#### Delete rules and verify
+
+Back in the osquery shell, run the following queries to delete the rules:
+
+``` sql
+DELETE FROM HostBlacklist WHERE domain = "www.yahoo.com";
+DELETE FROM PortBlacklist WHERE port = 80;
+```
+
+Now attempt to load https://www.yahoo.com and http://neverssl.com again. They should all be successful, indicating that the rules were successfully deleted.
 
 ## Schema
 
@@ -113,6 +171,19 @@ VALUES
   ("www.msdn.com", "127.0.0.1", "ipv4");
 ```
 
+Checking the result of blocking a domain:
+
+``` sql
+SELECT * FROM HostBlacklist
+WHERE domain = "www.msdn.com";
+
++-------------+--------------+-----------+----------------+-----------+
+| address     | domain       | sinkhole  | firewall_block | dns_block |
++-------------+--------------+-----------+----------------+-----------+
+| 23.96.52.53 | www.msdn.com | 127.0.0.1 | ENABLED        | ENABLED   |
++-------------+--------------+-----------+----------------+-----------+
+```
+
 Unblocking a domain:
 
 ``` sql
@@ -153,6 +224,19 @@ VALUES
   (80, "OUTBOUND", "TCP");
 ```
 
+Checking the result of blocking a port:
+
+``` sql
+SELECT * FROM PortBlacklist
+WHERE port = 80;
+
++------+-----------+----------+---------+
+| port | direction | protocol | status  |
++------+-----------+----------+---------+
+| 80   | OUTBOUND  | TCP      | ENABLED |
++------+-----------+----------+---------+
+```
+
 Unblocking a port:
 
 ``` sql
@@ -167,6 +251,12 @@ The **status** column return the state of the rule:
 1. **ENABLED**: The rule has been applied correctly.
 2. **DISABLED**: The rule is not applied either due to an error or because it may have been manually removed by the local administrator.
 3. **UNMANAGED**: This (read only) rule was found on the system but was not added by osquery. The PF firewall supports private configuration namespaces, so this state does not apply on macOS.
+
+## Additional notes
+
+### Duplicate INSERTs or DELETEs
+
+The extension is designed to be permissive in what it accepts: attempting to INSERT a rule that already exists will silently do nothing, and likewise attempting to DELETE a rule that doesn't exist will silently do nothing. 
 
 ## License
 
