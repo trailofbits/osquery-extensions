@@ -16,16 +16,16 @@
 
 #pragma once
 
-#include "utils.h"
+#include <memory>
+#include <trailofbits/ifirewall.h>
 
-#include <string>
+#ifdef _WIN32
+#define CONFIGURATION_ROOT                                                     \
+  "C:\\ProgramData\\osquery\\extensions\\com\\trailofbits\\fwctl"
+#elif defined(__linux) || defined(__APPLE__)
+#define CONFIGURATION_ROOT "/var/osquery/extensions/com/trailofbits/fwctl"
+#endif
 
 namespace trailofbits {
-struct ServerResponse final {
-  std::string latest_efi_version;
-  std::string latest_os_version;
-  std::string latest_build_number;
-};
-
-void queryEFIgy(ServerResponse& response, const SystemInformation& system_info);
+IFirewall& GetFirewall();
 } // namespace trailofbits

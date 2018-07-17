@@ -61,13 +61,14 @@ std::string FileInfo::getStringRep() const {
          << "type: " << typeNameFromInt(this->type) << "\n"
          << "active: " << (this->active > 0 ? "true" : "false") << "\n";
 
-  std::stringstream flags, fn_flags;
-  flags << "0x" << std::hex << std::setfill('0') << std::setw(8)
-        << this->flag_val;
+  std::stringstream vflags, fn_flags;
+  vflags << "0x" << std::hex << std::setfill('0') << std::setw(8)
+         << this->flag_val;
   fn_flags << "0x" << std::hex << std::setfill('0') << std::setw(8)
            << this->filename.flags;
 
-  output << "flags: " << flags.str() << "\nfn_flags: " << fn_flags.str() << "\n"
+  output << "flags: " << vflags.str() << "\nfn_flags: " << fn_flags.str()
+         << "\n"
          << "ads: " << (this->ads == 0 ? "false" : "true") << "\n"
          << "allocated: " << this->filename.allocated_size << "\n"
          << "size:      " << this->filename.real_size << "\n"
@@ -551,7 +552,7 @@ void Partition::walkPartition(void (*callback)(FileInfo&, void*),
   tsk_fs_dir_close(dir);
 }
 
-void Partition::collectINDX(std::string& path,
+void Partition::collectINDX(const std::string& path,
                             trailofbits::DirEntryList& entries) {
   TSK_FS_FILE* fsFile = tsk_fs_file_open(fsInfo, NULL, path.c_str());
   if (fsFile == NULL) {

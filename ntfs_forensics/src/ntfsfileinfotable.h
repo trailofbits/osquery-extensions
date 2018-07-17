@@ -16,16 +16,20 @@
 
 #pragma once
 
-#include "utils.h"
-
+#include <map>
+#include <osquery/sdk.h>
 #include <string>
 
 namespace trailofbits {
-struct ServerResponse final {
-  std::string latest_efi_version;
-  std::string latest_os_version;
-  std::string latest_build_number;
-};
+class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {
+ private:
+  osquery::TableColumns columns() const override;
+  osquery::QueryData generate(osquery::QueryContext& request) override;
 
-void queryEFIgy(ServerResponse& response, const SystemInformation& system_info);
-} // namespace trailofbits
+  typedef std::map<std::string, osquery::QueryData> partition_cache_t;
+  partition_cache_t cache;
+};
+}
+
+// Export the class outside the namespace so that osquery can pick it up
+using NTFSFileInfoTablePlugin = trailofbits::NTFSFileInfoTablePlugin;

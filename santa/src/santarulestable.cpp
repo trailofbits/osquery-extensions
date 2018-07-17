@@ -24,8 +24,6 @@
 #include "santarulestable.h"
 #include "utils.h"
 
-REGISTER_EXTERNAL(SantaRulesTablePlugin, "table", "santa_rules");
-
 namespace {
 const std::string kSantactlPath = "/usr/local/bin/santactl";
 const std::string kMandatoryRuleDeletionError =

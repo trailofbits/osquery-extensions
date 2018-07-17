@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2018 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 
 #include "efigy.h"
 
+namespace trailofbits {
 namespace pt = boost::property_tree;
 
 namespace {
@@ -132,3 +133,4 @@ void queryEFIgy(ServerResponse& response,
   response.latest_os_version = latest_os_version.get();
   response.latest_build_number = latest_build_number.get();
 }
+} // namespace trailofbits

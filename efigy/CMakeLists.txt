@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Trail of Bits, Inc.
+# Copyright (c) 2018 Trail of Bits, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,37 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 3.9.1)
+cmake_minimum_required(VERSION 3.10)
 project(efigy)
 
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
+function(main)
+  set(project_libraries
+    "-framework CoreFoundation"
+    "-framework IOKit"
+  )
 
-function (main)
-  set(PROJECT_SOURCEFILES
+  find_package(curl REQUIRED)
+  list(APPEND project_libraries
+    ${CURL_LIBRARIES}
+  )
+
+  list(APPEND project_include_folders
+    ${CURL_INCLUDE_DIR}
+  )
+
+  set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")  
+  find_package(openssl REQUIRED)
+  list(APPEND project_libraries
+    ${OPENSSL_LIBRARIES}
+  )
+
+  list(APPEND project_include_folders
+    ${OPENSSL_INCLUDE_DIR}
+  )
+
+  set(source_files
     src/utils.h
     src/utils.mm
 
     src/efigy.h
     src/efigy.cpp
 
-    src/extension.h
-    src/extension.cpp
-
-    src/main.cpp
+    src/efigytable.h
+    src/efigytable.cpp
   )
 
-  ADD_OSQUERY_EXTENSION("${PROJECT_NAME}" ${PROJECT_SOURCEFILES})
-  target_link_libraries("${PROJECT_NAME}" "-framework CoreFoundation" "-framework IOKit")
-
-  find_package(curl REQUIRED)
-  target_link_libraries("${PROJECT_NAME}" ${CURL_LIBRARIES})
-  target_include_directories("${PROJECT_NAME}" PRIVATE ${CURL_INCLUDE_DIR})
-
-  set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
-  find_package(openssl REQUIRED)
-  target_link_libraries("${PROJECT_NAME}" ${OPENSSL_LIBRARIES})
-  target_include_directories("${PROJECT_NAME}" PRIVATE ${OPENSSL_INCLUDE_DIR})
-endfunction ()
+  add_osquery_extension_ex("EFIgyTablePlugin" "table" "EFIgy"
+    SOURCES ${source_files}
+    INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src" ${project_include_folders}
+    MAININCLUDES efigytable.h
+    LIBRARIES ${project_libraries}
+  )
+endfunction()
 
 main()
 

@@ -19,8 +19,6 @@
 #include "santa.h"
 #include "santaeventstable.h"
 
-REGISTER_EXTERNAL(SantaEventsTablePlugin, "table", "santa_events");
-
 osquery::TableColumns SantaEventsTablePlugin::columns() const {
   // clang-format off
   return {

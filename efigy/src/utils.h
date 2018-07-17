@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2018 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 
 #include <string>
 
+namespace trailofbits {
 struct SystemInformation final {
   std::string board_id;
   std::string smc_ver;
@@ -49,3 +50,4 @@ void getBoardID(std::string& board_id, io_registry_entry_t registry);
 void getHostUUID(std::string& uuid, io_registry_entry_t registry);
 
 void getSystemInformation(SystemInformation& system_info);
+} // namespace trailofbits

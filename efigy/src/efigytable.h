@@ -16,16 +16,19 @@
 
 #pragma once
 
-#include "utils.h"
-
-#include <string>
+#include <osquery/sdk.h>
 
 namespace trailofbits {
-struct ServerResponse final {
-  std::string latest_efi_version;
-  std::string latest_os_version;
-  std::string latest_build_number;
-};
+class EFIgyTablePlugin final : public osquery::TablePlugin {
+ private:
+  osquery::TableColumns columns() const override;
+  osquery::QueryData generate(osquery::QueryContext& request) override;
 
-void queryEFIgy(ServerResponse& response, const SystemInformation& system_info);
+ public:
+  EFIgyTablePlugin();
+  ~EFIgyTablePlugin();
+};
 } // namespace trailofbits
+
+// Export the class outside the namespace so that osquery can pick it up
+using EFIgyTablePlugin = trailofbits::EFIgyTablePlugin;

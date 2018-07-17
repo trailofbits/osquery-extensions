@@ -158,7 +158,7 @@ class Partition {
                         std::string* path,
                         int depth);
 
-  void collectINDX(std::string& path, DirEntryList&);
+  void collectINDX(const std::string& path, DirEntryList&);
   void collectINDX(uint64_t inode, DirEntryList&);
 
   void collectINDX(TSK_FS_FILE* fsFile, DirEntryList&);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Trail of Bits, Inc.
+ * Copyright (c) 2018 Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 #include <sstream>
 #include <vector>
 
+namespace trailofbits {
 namespace {
 struct IORegistryEntryDeleter final {
   using pointer = io_registry_entry_t;
@@ -85,10 +86,10 @@ bool getRegistryPropertyAsString(std::string& property_value,
 
   if (is_string) {
     auto string_ref = reinterpret_cast<CFStringRef>(property.get());
-    std::size_t string_length = CFStringGetLength(string_ref);
+    auto string_length = CFStringGetLength(string_ref);
 
     std::vector<UniChar> characters;
-    characters.resize(string_length);
+    characters.resize(static_cast<std::size_t>(string_length));
 
     CFStringGetCharacters(
         string_ref, CFRangeMake(0U, string_length), characters.data());
@@ -101,7 +102,7 @@ bool getRegistryPropertyAsString(std::string& property_value,
     auto data_ref = reinterpret_cast<CFDataRef>(property.get());
     auto buffer = reinterpret_cast<const char*>(CFDataGetBytePtr(data_ref));
 
-    std::size_t buffer_length = CFDataGetLength(data_ref);
+    auto buffer_length = static_cast<std::size_t>(CFDataGetLength(data_ref));
     property_value = std::string(buffer, buffer_length - 1);
   }
 
@@ -395,4 +396,5 @@ void getSystemInformation(SystemInformation& system_info) {
     getHardwareModel(system_info.hw_ver, registry.get());
     getHostUUID(system_info.sys_uuid, registry.get());
   }
+}
 }

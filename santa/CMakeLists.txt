@@ -12,30 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 3.9.1)
+cmake_minimum_required(VERSION 3.10)
 project(santa)
 
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
-
 function(main)
-  set(PROJECT_SOURCEFILES
+  set(project_common_source_files
     src/santa.h
     src/santa.cpp
 
-    src/santaeventstable.h
-    src/santaeventstable.cpp
-
-    src/santarulestable.h
-    src/santarulestable.cpp
-
     src/utils.h
     src/utils.cpp
-
-    src/main.cpp
   )
 
-  ADD_OSQUERY_EXTENSION("${PROJECT_NAME}" ${PROJECT_SOURCEFILES})
-  target_link_libraries("${PROJECT_NAME}" boost_iostreams-mt)
+  set(project_libraries boost_iostreams-mt)
+
+  add_osquery_extension_ex("SantaRulesTablePlugin" "table" "santa_rules"
+    SOURCES ${project_common_source_files} src/santarulestable.h src/santarulestable.cpp
+    INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    MAININCLUDES santarulestable.h
+    LIBRARIES ${project_libraries}
+  )
+
+  add_osquery_extension_ex("SantaEventsTablePlugin" "table" "santa_events"
+    SOURCES ${project_common_source_files} src/santaeventstable.h src/santaeventstable.cpp
+    INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    MAININCLUDES santaeventstable.h
+    LIBRARIES ${project_libraries}
+  )
 endfunction()
 
 main()

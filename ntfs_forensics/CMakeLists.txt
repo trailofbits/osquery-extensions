@@ -12,29 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 3.9.1)
+cmake_minimum_required(VERSION 3.10)
 project(ntfs_forensics)
 
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
-
-function (main)
-  set(PROJECT_SOURCEFILES
+function(main)
+  set(project_common_source_files
     src/ntfs_forensics.h
     src/ntfs_forensics.cpp
-
-    src/extension.h
-    src/extension.cpp
-
-    src/main.cpp
   )
 
-  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/third-party/include")
+  set(project_include_dirs
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
 
+  add_osquery_extension_ex("NTFSFileInfoTablePlugin" "table" "ntfs_file_data"
+    SOURCES ${project_common_source_files} src/ntfsfileinfotable.h src/ntfsfileinfotable.cpp
+    INCLUDEDIRS ${project_include_dirs}
+    MAININCLUDES ntfsfileinfotable.h
+    LIBRARIES tsk_builtin
+  )
 
-  ADD_OSQUERY_EXTENSION("${PROJECT_NAME}" ${PROJECT_SOURCEFILES})
-  target_link_libraries("${PROJECT_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/lib/libtsk.lib" )
+  add_osquery_extension_ex("NTFSPartInfoTablePlugin" "table" "ntfs_part_data"
+    SOURCES ${project_common_source_files} src/ntfspartinfotable.h src/ntfspartinfotable.cpp
+    INCLUDEDIRS ${project_include_dirs}
+    MAININCLUDES ntfspartinfotable.h
+    LIBRARIES tsk_builtin
+  )
 
-endfunction ()
+  add_osquery_extension_ex("NTFSINDXTablePugin" "table" "ntfs_indx_data"
+    SOURCES ${project_common_source_files} src/ntfsindxtable.h src/ntfsindxtable.cpp
+    INCLUDEDIRS ${project_include_dirs}
+    MAININCLUDES ntfsindxtable.h
+    LIBRARIES tsk_builtin
+  )
+endfunction()
 
 main()
-
