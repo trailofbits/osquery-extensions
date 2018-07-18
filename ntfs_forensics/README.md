@@ -2,41 +2,12 @@
 
 This extension uses the [Sleuthkit](http://www.sleuthkit.org/) library to print forensic information about an NTFS filesystem. The library and headers are bundled with this repository, so there is no additional step to build or install Sleuthkit.
 
-## Dependencies
-
-Requirements:
-* Windows
-
-## Building
-
-1. Clone the osquery repository
-2. Symlink this extension into the external osquery directory. Use the following link name: "extension_ntfs".
-3. Build osquery
-4. From the build directory, run 'cmake --build . --config Release --target'
-
-```
-cd /src
-git clone https://github.com/facebook/osquery.git
-git clone https://github.com/trailofbits/osquery-extensions.git
-
-cd /src/osquery/external
-cmd.exe /c mklink /D extension_ntfs ..\osquery-extensions\ntfs_forensics\
-
-cd /src/osquery
-.\tools\make-win64-dev-env.bat
-.\tools\make-win64-binaries.bat
-cd build\windows10
-cmake --build . --config Release --target
-```
-
-The extension should be in a subfolder of `/src/osquery/build` once the make commands complete successfully. 
-
 ## Usage
 
 To quickly test an extension, you can either start it from the osqueryi shell, or launch it manually and wait for it 
 to connect to the running osquery instance.
 
-`osqueryi --extension /path/to/ntfs_forensics.ext.exe`
+`osqueryi --extension /path/to/trailofbits_osquery_extensions.ext.exe`
 
 Example: 
 

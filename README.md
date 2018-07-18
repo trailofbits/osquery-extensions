@@ -12,50 +12,89 @@ This repository includes [osquery](https://osquery.io/) [extensions](https://osq
 | ntfs_forensics | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
 | (more to come) | ...  | ...   |
 
+## Dependencies
+
+##### All platforms
+
+The full Boost package is required to build the extensions. Unfortunately the version provided with osquery does not come with all the components, and using a separate library will most likely introduce linking errors.
+
+We have submitted the following PR to fix the issue: https://github.com/facebook/osquery/pull/4339
+
+For the time being, it is best to cherry-pick the last 3 commits from that branch inside the master branch of the osquery repository; this will automatically take care of everything for Linux and macOS.
+
+For Windows, the package must be rebuilt due to a bug in the binaries that have been uploaded to the S3 repository. It is best to work inside a folder in the root of the drive like `C:\Projects\osquery` because the script will generate many folders (otherwise you risk hitting the path size limit, which is not always captured by Chocolatey).
+
+1. Run the following script once: `.\tools\make-win64-dev-env.bat`
+2. Uninstall the boost-msvc14 package: `choco uninstall boost-msvc14`
+3. Build the Boost package from scratch: `cd osquery`, `.\tools\provision\chocolatey\boost-msvc14.ps1`
+4. Enter the folder where the package has been created (should be somewhere under `build\chocolatey`) and run: `choco install -s . .\boost-msvc14.1.66.0-r1.nupkg`
+
+##### macOS
+* macOS, user with sudo (to run the osquery build dependencies install script)
+* Xcode
+* openssl and curl (install from Homebrew: `brew install openssl curl`)
+
+## Running the automated tests
+
+Once osquery has been built with tests enabled (i.e.: *without* the SKIP_TESTS variable), enter the build/<platform_name> folder and run the following command: `make trailofbits_extensions_tests`. Note that tests are not supported on Windows.
+
 ## Building
 
 1. Clone the osquery repository
-2. Symlink the extensions you want to build into the external osquery directory. Use the following link name: "extension_\<name\>".
-3. Build osquery
-4. Run 'make externals'
+2. Clone the osquery-extensions repository
+3. Symlink the osquery-extensions folder to `osquery/externals/external_trailofbits`
+4. Build osquery
+5. Build the extensions
 
-### Example
+Here's an example
 
 ```
 cd /src
-git clone https://github.com/facebook/osquery.git
-git clone https://github.com/trailofbits/osquery-extensions.git
+git clone https://github.com/facebook/osquery.git /src/osquery
+git clone https://github.com/trailofbits/osquery-extensions.git /src/osquery-extensions
 
-cd /src/osquery-extensions
-ln -s /src/osquery-extensions/efigy /src/osquery/external/extension_efigy
-
+# Use mklink on Windows
 cd /src/osquery
+ln -s /src/osquery-extensions /src/osquery/external/extension_trailofbits
+
+# On Windows, just run `.\tools\make-win64-dev-env.bat` from a PowerShell
+# instance with Administrator privileges
 make sysprep
 make deps
 
-make -j `nproc` # If using macOS, replace `nproc` with `sysctl -n hw.ncpu`
-make externals
+# On Windows, just run `.\tools\make-win64-binaries.bat` from a PowerShell
+# instance with Administrator privileges
+#
+# If using macOS, replace `nproc` with `sysctl -n hw.ncpu`
+make -j `nproc` 
 
-# Run make again to ensure osquery recognizes the extension to build
-make -j `nproc`
+# On macOS and Linux make will usually also build the extension; on
+# Windows you always have to do it manually
+#
+# For Windows run
+#   `cd build\windows10 && cmake --build . --config Release --target trailofbits_osquery_extensions`
+make externals
 ```
 
 If you see the following warning, it can be ignored: `-- Cannot find Doxygen executable in path`
 
-The extension should be in a subfolder of `/src/osquery/build` once the second make command completes successfully. Using `find . -name "efigy.ext"` can help you locate it quickly.
+This is where the extension should be available once it has been built:
+ * Windows: `osquery/build/windows10/external/Release/trailofbits_osquery_extensions.ext.exe`
+ * Linux: `osquery/build/linux/external/trailofbits_osquery_extensions.ext`
+ * macOS: `osquery/build/darwin/external/trailofbits_osquery_extensions.ext`
 
 ## Usage
 
-To quickly test an extension, you can either start it from the osqueryi shell, or launch it manually and wait for it to connect to the running osquery instance.
+To quickly test the extension, you can either start it from the osqueryi shell, or launch it manually and wait for it to connect to the running osquery instance.
 
-Consider either changing the ownership of `efigy.ext` to root or running osquery with the `--allow_unsafe` flag.
+Consider either changing the ownership of `trailofbits_osquery_extensions.ext` to root or running osquery with the `--allow_unsafe` flag.
 
-> osqueryi --extension /path/to/efigy.ext
+> osqueryi --extension /path/to/trailofbits_osquery_extensions.ext
 
 ```
-$ sudo osqueryi --extension osquery-facebook/build/darwin10.12/external/extension_efigy/efigy.ext
+$ sudo osqueryi --extension osquery/build/darwin/external/trailofbits_osquery_extensions.ext
 Using a virtual database. Need help, type '.help'
-osquery> select * from efigy;
+osquery> SELECT * FROM efigy;
 +--------------------+-----------------+--------------------+-------------------+------------+---------------------+
 | latest_efi_version | efi_version     | efi_version_status | latest_os_version | os_version | build_number_status |
 +--------------------+-----------------+--------------------+-------------------+------------+---------------------+

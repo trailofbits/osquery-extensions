@@ -32,13 +32,6 @@ function(main)
   message(STATUS "================================")
 endfunction()
 
-function(GetTableName descriptor)
-  string(FIND "${descriptor}" ":" table_name_separator)
-  string(SUBSTRING "${descriptor}" 0 ${table_name_separator} table_name)
-
-  set(GetTableName_OUTPUT "${table_name}" PARENT_SCOPE)
-endfunction()
-
 function(ImportLibraries)
   message("Importing libraries from '${CMAKE_CURRENT_SOURCE_DIR}/libraries/${library}'")
 
@@ -64,6 +57,10 @@ function(ImportExtensions)
 
   file(GLOB extension_list RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/*")
   foreach(extension ${extension_list})
+    if("${extension}" STREQUAL ".vscode")
+      continue()
+    endif()
+
     set(full_extension_path "${CMAKE_CURRENT_SOURCE_DIR}/${extension}")
     if(NOT IS_DIRECTORY "${full_extension_path}")
       continue()
@@ -87,7 +84,7 @@ function(IsFolderEnabled relative_path)
   set(platforms_file_path "${CMAKE_CURRENT_SOURCE_DIR}/${relative_path}/.platforms")
 
   if(NOT EXISTS "${platforms_file_path}")
-    message(" ! Missing platform file: ${platforms_file_path}")
+    message(" ! Missing '.platforms` file: ${relative_path}. Skipping...")
 
     set(IsFolderEnabled_OUTPUT false PARENT_SCOPE)
     return()

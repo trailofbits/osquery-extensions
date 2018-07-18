@@ -2,26 +2,6 @@
 
 The fwctl extension provides osquery with the ability to view and _manage_ the OS-native firewall rules and `/etc/hosts` file (port and host blocking). Verify what your endpoints are blocking, and add new blocking rules as needed.
 
-## Building
-
-1. Install Boost
-2. Clone the osquery repository
-3. Symlink this extension into the external osquery directory. Use the following link name: "extension_fwctl".
-4. Build osquery (see the [official building guide](https://osquery.readthedocs.io/en/latest/development/building/))
-5. Run 'make externals'
-
-## Installing Boost
-
-macOS: `brew install boost`
-
-Ubuntu: `apt install boost -y`
-
-Windows: Open the official [Boost download page](http://www.boost.org/users/download/) and download `boost_1_66_0-msvc-14.0-64.exe` under [Boost - Third party downloads](https://dl.bintray.com/boostorg/release/1.66.0/binaries/).
-
-## Running the automated tests
-
-Once osquery has been built with tests enabled (i.e.: *without* the SKIP_TESTS variable), enter the build/<platform_name> folder and run the following command: `make fwctl_tests`.
-
 ## Installation
 
 ### macOS
