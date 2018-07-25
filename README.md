@@ -44,8 +44,8 @@ You will need to have:
 
 At a high-level, the steps are:
 1. Clone the osquery and osquery-extensions repositories
-2. Run the osquery scripts to install dependencies and build osquery core
-3. Symlink the osquery-extensions folder into `osquery/externals/external_trailofbits`
+2. Symlink the osquery-extensions folder into `osquery/externals/external_trailofbits`
+3. Run the osquery scripts to install dependencies and build osquery core
 4. Build the extensions
 
 Here are example steps for each platform:
@@ -56,13 +56,13 @@ cd \Projects
 git clone https://github.com/facebook/osquery.git
 git clone https://github.com/trailofbits/osquery-extensions.git
 
+# Symbolically link the extensions repo into the osquery core repo:
+mklink /D "\Projects\osquery\external\extension_trailofbits" "\Projects\osquery-extensions"
+
 # From a shell with Administrator privileges:
 cd \Projects\osquery
 .\tools\make-win64-dev-env.bat
 .\tools\make-win64-binaries.bat
-
-# Symbolically link the extensions repo into the osquery core repo:
-mklink /D "\Projects\osquery\external\extension_trailofbits" "\Projects\osquery-extensions"
 
 # To additionally build the extensions, now:
 cd build\windows10
