@@ -14,25 +14,29 @@ This repository includes [osquery](https://osquery.io/) [extensions](https://osq
 
 ## Dependencies
 
-##### All platforms
+##### Boost library (all platforms)
 
-The full Boost package is required to build the extensions. Unfortunately the version provided with osquery does not come with all the components, and using a separate library will most likely introduce linking errors.
+The full Boost package is required to build the extensions. Unfortunately, the version provided with osquery does not yet come with all the Boost components.
 
-We have submitted the following PR to fix the issue: https://github.com/facebook/osquery/pull/4339
+We have already submitted the following PR to fix the issue: https://github.com/facebook/osquery/pull/4339
 
-For the time being, it is best to cherry-pick the last 3 commits from that branch inside the master branch of the osquery repository; this will automatically take care of everything for Linux and macOS.
+For the time being, it is best to cherry-pick the [commits from that branch](https://github.com/facebook/osquery/pull/4339/commits) over to your local osquery repository.
 
-For Windows, the package must be rebuilt due to a bug in the binaries that have been uploaded to the S3 repository. It is best to work inside a folder in the root of the drive like `C:\Projects\osquery` because the script will generate many folders (otherwise you risk hitting the path size limit, which is not always captured by Chocolatey).
+For Linux or macOS, this is enough, and will automatically take care of the Boost dependency for Linux and macOS. For Windows, you must **also** rebuild the Boost package from source (due to a bug in the binaries that were uploaded to the S3 repository). When doing this, you should work from a folder close to the root of the drive, like `C:\Projects\osquery`, because the Boost script will generate many nested folders, and often hits the path size limit and fails, a problem not very apparent to the Chocolatey package manager.
 
+So, for Windows, after cloning the osquery repository and cherry picking the commits as described, the remaining steps are:
 1. Run the following script once: `.\tools\make-win64-dev-env.bat`
 2. Uninstall the boost-msvc14 package: `choco uninstall boost-msvc14`
 3. Build the Boost package from scratch: `cd osquery`, `.\tools\provision\chocolatey\boost-msvc14.ps1`
-4. Enter the folder where the package has been created (should be somewhere under `build\chocolatey`) and run: `choco install -s . .\boost-msvc14.1.66.0-r1.nupkg`
+4. Enter the folder where the package was created: `cd .\build\chocolatey\boost-msvc14\boost_1_66_0\osquery-choco`
+5. Run `choco install -s . .\boost-msvc14.1.66.0-r1.nupkg`
 
 ##### macOS
-* macOS, user with sudo (to run the osquery build dependencies install script)
-* Xcode
+
+You will need to have:
+* Xcode (installed from the App Store)
 * openssl and curl (install from Homebrew: `brew install openssl curl`)
+* a user account with sudo (in order to run the script that installs the other osquery build dependencies)
 
 ## Running the automated tests
 
