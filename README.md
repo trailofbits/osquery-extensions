@@ -26,10 +26,10 @@ For Linux or macOS, this is enough, and will automatically take care of the Boos
 
 So, for Windows, after cloning the osquery repository and cherry picking the commits as described, the remaining steps are:
 1. Run the following script once: `.\tools\make-win64-dev-env.bat`
-2. Uninstall the boost-msvc14 package: `choco uninstall boost-msvc14`
-3. Build the Boost package from scratch: `cd osquery`, `.\tools\provision\chocolatey\boost-msvc14.ps1`
+2. Uninstall the boost-msvc14 package that osquery's scripts just installed: `choco uninstall boost-msvc14`
+3. Build the Boost package from source (at a Powershell prompt): `.\tools\provision\chocolatey\boost-msvc14.ps1`
 4. Enter the folder where the package was created: `cd .\build\chocolatey\boost-msvc14\boost_1_66_0\osquery-choco`
-5. Run `choco install -s . .\boost-msvc14.1.66.0-r1.nupkg`
+5. Run `choco install -s . .\boost-msvc14.1.66.0-r1.nupkg` to install the Boost package you just built.
 
 ##### macOS
 
@@ -44,39 +44,48 @@ Once osquery has been built with tests enabled (i.e.: *without* the SKIP_TESTS v
 
 ## Building
 
-1. Clone the osquery repository
-2. Clone the osquery-extensions repository
-3. Symlink the osquery-extensions folder to `osquery/externals/external_trailofbits`
-4. Build osquery
-5. Build the extensions
+At a high-level, the steps are:
+1. Clone the osquery and osquery-extensions repositories
+2. Run the osquery scripts to install dependencies and build osquery core
+3. Symlink the osquery-extensions folder into `osquery/externals/external_trailofbits`
+4. Build the extensions
 
-Here's an example
+Here are example steps for each platform:
 
+### Windows
+```
+cd \Projects
+git clone https://github.com/facebook/osquery.git
+git clone https://github.com/trailofbits/osquery-extensions.git
+
+# From a shell with Administrator privileges:
+cd \Projects\osquery
+.\tools\make-win64-dev-env.bat
+.\tools\make-win64-binaries.bat
+
+# Symbolically link the extensions repo into the osquery core repo:
+mklink /D "C:\Projects\osquery-pr\external\extension_trailofbits" "C:\Projects\osquery-extensions"
+
+# To additionally build the extensions, now:
+cd build\windows10
+cmake --build . --config Release --target trailofbits_osquery_extensions
+```
+
+### macOS or Linux
 ```
 cd /src
-git clone https://github.com/facebook/osquery.git /src/osquery
-git clone https://github.com/trailofbits/osquery-extensions.git /src/osquery-extensions
+git clone https://github.com/facebook/osquery.git
+git clone https://github.com/trailofbits/osquery-extensions.git
 
-# Use mklink on Windows
 cd /src/osquery
 ln -s /src/osquery-extensions /src/osquery/external/extension_trailofbits
 
-# On Windows, just run `.\tools\make-win64-dev-env.bat` from a PowerShell
-# instance with Administrator privileges
 make sysprep
 make deps
 
-# On Windows, just run `.\tools\make-win64-binaries.bat` from a PowerShell
-# instance with Administrator privileges
-#
 # If using macOS, replace `nproc` with `sysctl -n hw.ncpu`
 make -j `nproc` 
 
-# On macOS and Linux make will usually also build the extension; on
-# Windows you always have to do it manually
-#
-# For Windows run
-#   `cd build\windows10 && cmake --build . --config Release --target trailofbits_osquery_extensions`
 make externals
 ```
 
