@@ -24,7 +24,8 @@ For the time being, it is best to cherry-pick the [commits from that branch](htt
 
 For Linux or macOS, this is enough, and will automatically take care of the Boost dependency for Linux and macOS. For Windows, you must **also** rebuild the Boost package from source (due to a bug in the binaries that were uploaded to the S3 repository). When doing this, you should work from a folder close to the root of the drive, like `C:\Projects\osquery`, because the Boost script will generate many nested folders, and often hits the path size limit and fails, a problem not very apparent to the Chocolatey package manager.
 
-So, for Windows, after cloning the osquery repository and cherry picking the commits as described, the remaining steps are:
+So, for Windows, after cloning the osquery repository and cherry-picking the commits as described, the remaining steps are:
+
 1. Run the following script once: `.\tools\make-win64-dev-env.bat`
 2. Uninstall the boost-msvc14 package that osquery's scripts just installed: `choco uninstall boost-msvc14`
 3. Build the Boost package from source (at a Powershell prompt): `.\tools\provision\chocolatey\boost-msvc14.ps1`
@@ -35,12 +36,9 @@ So, for Windows, after cloning the osquery repository and cherry picking the com
 
 You will need to have:
 * Xcode (installed from the App Store)
+* [Homebrew](https://brew.sh)
 * openssl and curl (install from Homebrew: `brew install openssl curl`)
 * a user account with sudo (in order to run the script that installs the other osquery build dependencies)
-
-## Running the automated tests
-
-Once osquery has been built with tests enabled (i.e.: *without* the SKIP_TESTS variable), enter the build/<platform_name> folder and run the following command: `make trailofbits_extensions_tests`. Note that tests are not supported on Windows.
 
 ## Building
 
@@ -64,7 +62,7 @@ cd \Projects\osquery
 .\tools\make-win64-binaries.bat
 
 # Symbolically link the extensions repo into the osquery core repo:
-mklink /D "C:\Projects\osquery-pr\external\extension_trailofbits" "C:\Projects\osquery-extensions"
+mklink /D "\Projects\osquery\external\extension_trailofbits" "\Projects\osquery-extensions"
 
 # To additionally build the extensions, now:
 cd build\windows10
@@ -96,11 +94,15 @@ This is where the extension should be available once it has been built:
  * Linux: `osquery/build/linux/external/trailofbits_osquery_extensions.ext`
  * macOS: `osquery/build/darwin/external/trailofbits_osquery_extensions.ext`
 
+## Running the automated tests
+
+Once osquery has been built with tests enabled (i.e.: *without* the SKIP_TESTS variable), enter the build/<platform_name> folder and run the following command: `make trailofbits_extensions_tests`. Note that tests are not yet supported on Windows.
+
 ## Usage
 
-To quickly test the extension, you can either start it from the osqueryi shell, or launch it manually and wait for it to connect to the running osquery instance.
+To quickly test an extension, you can either start it from the osqueryi shell, or launch it manually and wait for it to connect to the running osquery instance.
 
-Consider either changing the ownership of `trailofbits_osquery_extensions.ext` to root or running osquery with the `--allow_unsafe` flag.
+By default, osquery does not want to load extensions not owned by root. You can either change the ownership of `trailofbits_osquery_extensions.ext` to root, or run osquery with the `--allow_unsafe` flag.
 
 > osqueryi --extension /path/to/trailofbits_osquery_extensions.ext
 
@@ -120,13 +122,13 @@ See the [osquery documentation on extensions](https://osquery.readthedocs.io/en/
 
 ## Contributing
 
-Do you have an idea for an osquery extension? Please [file an issue](https://github.com/trailofbits/osquery-extensions/issues/new) for it. We welcome contributions of bug fixes, feature requests, and extensions. For more information on how you can contribute, see our [Contributing Guidelines](https://github.com/trailofbits/osquery-extensions/blob/master/CONTRIBUTING.md).
+Do you have an idea for an osquery extension? Please [file an issue](https://github.com/trailofbits/osquery-extensions/issues/new) for it. We welcome contributions of bug fixes, bug reports, feature requests, and new extensions. For more information on how you can contribute, see our [Contributing Guidelines](https://github.com/trailofbits/osquery-extensions/blob/master/CONTRIBUTING.md).
 
 ## Troubleshooting
 
 When troubleshooting, ensure you are running osqueryd/osqueryi with the `--verbose` flag.
 
-* If you encounter the following error, you need change the owner of efigy.ext to be root or run osquery with the `--allow_unsafe` flag: `watcher.cpp:535] [Ref #1382] Extension binary has unsafe permissions:1`
+* As mentioned, if you encounter the following error, you need change the owner of `trailofbits_osquery_extensions.ext` to be the root account, or else run osquery with the `--allow_unsafe` flag: `watcher.cpp:535] [Ref #1382] Extension binary has unsafe permissions:1`
 
 ## License
 
