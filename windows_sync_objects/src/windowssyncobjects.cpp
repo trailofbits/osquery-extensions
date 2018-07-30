@@ -276,9 +276,9 @@ osquery::QueryData WindowsSyncObjectsTable::delete_(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
-  unsigned long long row_id;
-  auto status = osquery::safeStrtoull(request.at("id"), 10, row_id);
-  if (!status.ok()) {
+  char *null_term_ptr = nullptr;
+  auto row_id = std::strtoull(request.at("id").c_str(), &null_term_ptr, 10);
+  if (*null_term_ptr != 0) {
     VLOG(1) << "Invalid row id received";
     return {{std::make_pair("status", "failure")}};
   }
