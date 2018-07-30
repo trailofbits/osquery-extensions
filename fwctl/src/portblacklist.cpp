@@ -250,9 +250,9 @@ osquery::QueryData PortBlacklistTable::delete_(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   static_cast<void>(context);
 
-  unsigned long long row_id;
-  auto status = osquery::safeStrtoull(request.at("id"), 10, row_id);
-  if (!status.ok()) {
+  char* null_term_ptr = nullptr;
+  auto row_id = std::strtoull(request.at("id").c_str(), &null_term_ptr, 10);
+  if (*null_term_ptr != 0) {
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -292,9 +292,9 @@ osquery::QueryData PortBlacklistTable::update(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   static_cast<void>(context);
 
-  unsigned long long row_id;
-  auto status = osquery::safeStrtoull(request.at("id"), 10, row_id);
-  if (!status.ok() || row_id == 0) {
+  char* null_term_ptr = nullptr;
+  auto row_id = std::strtoull(request.at("id").c_str(), &null_term_ptr, 10);
+  if (*null_term_ptr != 0) {
     return {{std::make_pair("status", "failure")}};
   }
 
@@ -303,7 +303,7 @@ osquery::QueryData PortBlacklistTable::update(
   }
 
   osquery::Row row;
-  status = GetRowData(row, request.at("json_value_array"));
+  auto status = GetRowData(row, request.at("json_value_array"));
   if (!status.ok()) {
     VLOG(1) << status.getMessage();
     return {{std::make_pair("status", "failure")}};
@@ -365,9 +365,11 @@ osquery::QueryData PortBlacklistTable::update(
   if (new_row_id_it != request.end()) {
     // sqlite has generated the new rowid for us, so we'll discard
     // the one we have
-    unsigned long long int temp;
-    status = osquery::safeStrtoull(new_row_id_it->second, 10, temp);
-    if (!status.ok()) {
+    const auto& new_row_id_string = new_row_id_it->second;
+
+    null_term_ptr = nullptr;
+    auto temp = std::strtoull(new_row_id_string.c_str(), &null_term_ptr, 10);
+    if (*null_term_ptr != 0) {
       return {{std::make_pair("status", "failure")}};
     }
 
@@ -441,9 +443,10 @@ bool PortBlacklistTable::IsInsertDataValid(const osquery::Row& row) {
     return false;
   }
 
-  unsigned long long numeric_port_value;
-  auto status = osquery::safeStrtoull(port, 10, numeric_port_value);
-  if (!status.ok() || numeric_port_value == 0) {
+  char* null_term_ptr = nullptr;
+  auto numeric_port_value = std::strtoull(port.c_str(), &null_term_ptr, 10);
+  if (*null_term_ptr != 0 || numeric_port_value == 0U ||
+      numeric_port_value > 65535U) {
     return false;
   }
 
@@ -501,10 +504,8 @@ void PortBlacklistTable::ParseInsertData(std::uint16_t& port,
                                          IFirewall::TrafficDirection& direction,
                                          IFirewall::Protocol& protocol,
                                          const osquery::Row& valid_row) {
-  unsigned long long numeric_port_value;
-  auto status =
-      osquery::safeStrtoull(valid_row.at("port"), 10, numeric_port_value);
-
+  auto numeric_port_value =
+      std::strtoull(valid_row.at("port").c_str(), nullptr, 10);
   port = static_cast<std::uint16_t>(numeric_port_value);
 
   if (valid_row.at("direction") == "INBOUND") {

@@ -256,9 +256,9 @@ osquery::QueryData SantaRulesTablePlugin::delete_(
   RowID rowid;
 
   {
-    unsigned long long temp;
-    auto status = osquery::safeStrtoull(request.at("id"), 10, temp);
-    if (!status.ok()) {
+    char* null_term_ptr = nullptr;
+    auto temp = std::strtoull(request.at("id").c_str(), &null_term_ptr, 10);
+    if (*null_term_ptr != 0) {
       return {{std::make_pair("status", "failure")}};
     }
 
