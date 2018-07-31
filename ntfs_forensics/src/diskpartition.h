@@ -17,6 +17,7 @@
 #pragma once
 
 #include <list>
+#include <memory>
 #include <string>
 #include <unordered_set>
 
@@ -38,7 +39,8 @@ using DiskPartitionInformationList = std::list<DiskPartitionInformation>;
 
 class DiskPartition final {
  public:
-  explicit DiskPartition(DiskDevice& device, std::uint32_t partition_index);
+  explicit DiskPartition(std::shared_ptr<DiskDevice> device,
+                         std::uint32_t partition_index);
   ~DiskPartition();
 
   int getFileInfo(const std::string& path, NTFSFileInformation& results);
@@ -71,6 +73,7 @@ class DiskPartition final {
 
   int collectPath(uint64_t inode, std::stringstream& path);
 
+  std::shared_ptr<DiskDevice> disk_device;
   TSK_VS_INFO* volInfo{nullptr};
   const TSK_VS_PART_INFO* vsPartInfo{nullptr};
   TSK_FS_INFO* fsInfo{nullptr};

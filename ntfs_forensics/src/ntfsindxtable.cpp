@@ -56,15 +56,15 @@ void populateIndexRow(osquery::Row& r,
 void generateAndAppendRows(
     osquery::QueryData& results,
     const std::unordered_set<std::uint64_t>& inode_constraints,
-    DiskPartition& partition,
+    std::shared_ptr<DiskPartition> partition,
     const std::string& device_name,
     std::uint32_t partition_number) {
   for (const auto& inode : inode_constraints) {
     DirEntryList entries = {};
     NTFSFileInformation fileInfo = {};
 
-    partition.collectINDX(inode, entries);
-    partition.getFileInfo(inode, fileInfo);
+    partition->collectINDX(inode, entries);
+    partition->getFileInfo(inode, fileInfo);
 
     for (auto& entry : entries) {
       osquery::Row r = {};
@@ -77,7 +77,7 @@ void generateAndAppendRows(
 
 void generateAndAppendRows(osquery::QueryData& results,
                            const std::set<std::string>& path_constraints,
-                           DiskPartition& partition,
+                           std::shared_ptr<DiskPartition> partition,
                            const std::string& device_name,
                            std::uint32_t partition_number) {
   for (const auto& path : path_constraints) {
@@ -87,14 +87,14 @@ void generateAndAppendRows(osquery::QueryData& results,
     // The root folder is a special case; we have to query it by inode
     if (path == "/") {
       NTFSFileInformation root_file_info;
-      partition.getFileInfo(path, root_file_info);
+      partition->getFileInfo(path, root_file_info);
 
-      partition.collectINDX(root_file_info.inode, entries);
-      partition.getFileInfo(root_file_info.inode, fileInfo);
+      partition->collectINDX(root_file_info.inode, entries);
+      partition->getFileInfo(root_file_info.inode, fileInfo);
 
     } else {
-      partition.collectINDX(path, entries);
-      partition.getFileInfo(path, fileInfo);
+      partition->collectINDX(path, entries);
+      partition->getFileInfo(path, fileInfo);
     }
 
     for (auto& entry : entries) {
@@ -221,28 +221,28 @@ osquery::QueryData NTFSINDXTablePugin::generate(
     }
 
     for (const auto& partition_number : partition_list) {
-      DiskDevice* d = nullptr;
-      DiskPartition* p = nullptr;
       try {
-        d = new DiskDevice(device_name);
-        p = new DiskPartition(*d, partition_number);
-      } catch (std::runtime_error&) {
-        delete p;
-        delete d;
-        continue;
-      }
+        auto disk_device = std::make_shared<DiskDevice>(device_name);
+        auto disk_partition =
+            std::make_shared<DiskPartition>(disk_device, partition_number);
 
-      // Use the constraint the user has selected to emit the rows
-      if (!inode_constraints.empty()) {
-        generateAndAppendRows(
-            results, inode_constraints, *p, device_name, partition_number);
-      } else {
-        generateAndAppendRows(
-            results, path_constraints, *p, device_name, partition_number);
-      }
+        // Use the constraint the user has selected to emit the rows
+        if (!inode_constraints.empty()) {
+          generateAndAppendRows(results,
+                                inode_constraints,
+                                disk_partition,
+                                device_name,
+                                partition_number);
+        } else {
+          generateAndAppendRows(results,
+                                path_constraints,
+                                disk_partition,
+                                device_name,
+                                partition_number);
+        }
 
-      delete p;
-      delete d;
+      } catch (const std::exception&) {
+      }
     }
   }
 

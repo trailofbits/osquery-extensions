@@ -146,6 +146,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
     from_cache_val = &(*(from_cache.begin()));
   }
 
+  // TODO(alessandro): Fix contraint handling
   if (devices.empty() || partitions.size() != 1) {
     return {};
   }
@@ -156,59 +157,53 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   part_stream >> partition;
 
   for (const auto& dev : devices) {
-    DiskDevice* d = nullptr;
-    DiskPartition* p = nullptr;
     try {
-      d = new DiskDevice(dev);
-      p = new DiskPartition(*d, partition);
-    } catch (std::runtime_error&) {
-      delete p;
-      delete d;
-      continue;
-    }
+      auto disk_device = std::make_shared<DiskDevice>(dev);
+      auto disk_partition =
+          std::make_shared<DiskPartition>(disk_device, partition);
 
-    NTFSFileInformation info;
-    int rval = -1;
+      NTFSFileInformation info;
+      int rval = -1;
 
-    if (paths.size() == 1) {
-      rval = p->getFileInfo(std::string(*(paths.begin())), info);
-    } else if (inodes.size() == 1) {
-      std::stringstream inode_str;
-      uint64_t inode;
-      inode_str << *(inodes.begin());
-      inode_str >> inode;
-      rval = p->getFileInfo(inode, info);
-    } else if (directories.size() == 1) {
-      query_context_t context = {result, dev, partition, nullptr};
-      std::string dir(*(directories.begin()));
-      p->recurseDirectory(callback, &context, &dir, 1);
-      rval = 1;
-    } else {
-      std::stringstream map_key;
-      map_key << dev << "," << partition;
-      auto it = cache.find(map_key.str());
-      if (clear_cache && it != cache.end()) {
-        cache.erase(it);
-        it = cache.end();
-      }
-      if (it != cache.end()) {
-        result = it->second;
-      } else {
-        query_context_t context = {result, dev, partition, from_cache_val};
-        p->walkPartition(callback, &context);
+      if (paths.size() == 1) {
+        rval = disk_partition->getFileInfo(std::string(*(paths.begin())), info);
+      } else if (inodes.size() == 1) {
+        std::stringstream inode_str;
+        uint64_t inode;
+        inode_str << *(inodes.begin());
+        inode_str >> inode;
+        rval = disk_partition->getFileInfo(inode, info);
+      } else if (directories.size() == 1) {
+        query_context_t context = {result, dev, partition, nullptr};
+        std::string dir(*(directories.begin()));
+        disk_partition->recurseDirectory(callback, &context, &dir, 1);
         rval = 1;
-        cache[map_key.str()] = result;
+      } else {
+        std::stringstream map_key;
+        map_key << dev << "," << partition;
+        auto it = cache.find(map_key.str());
+        if (clear_cache && it != cache.end()) {
+          cache.erase(it);
+          it = cache.end();
+        }
+        if (it != cache.end()) {
+          result = it->second;
+        } else {
+          query_context_t context = {result, dev, partition, from_cache_val};
+          disk_partition->walkPartition(callback, &context);
+          rval = 1;
+          cache[map_key.str()] = result;
+        }
       }
-    }
-    if (rval == 0) {
-      osquery::Row r;
-      populateRow(r, info, dev, partition);
+      if (rval == 0) {
+        osquery::Row r;
+        populateRow(r, info, dev, partition);
 
-      result.push_back(r);
-    }
+        result.push_back(r);
+      }
 
-    delete p;
-    delete d;
+    } catch (const std::exception&) {
+    }
   }
   return result;
 }
