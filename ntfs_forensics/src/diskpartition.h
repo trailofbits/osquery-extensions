@@ -76,5 +76,6 @@ class DiskPartition final {
   TSK_FS_INFO* fsInfo{nullptr};
 };
 
-void getPartInfo(DiskPartitionInformationList& results);
+/// Collects basic info for all partitions for all devices on the system.
+DiskPartitionInformationList getPartitionList();
 }

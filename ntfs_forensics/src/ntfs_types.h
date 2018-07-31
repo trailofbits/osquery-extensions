@@ -21,7 +21,6 @@
 #include <string>
 
 namespace trailofbits {
-
 struct NTFSMFTFileReference final {
   uint64_t inode{0U};
   uint32_t sequence{0U};

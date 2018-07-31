@@ -37,16 +37,16 @@ osquery::QueryData NTFSPartInfoTablePlugin::generate(
     osquery::QueryContext& request) {
   static_cast<void>(request);
 
-  DiskPartitionInformationList parts;
-  getPartInfo(parts);
   osquery::QueryData result;
 
-  for (auto part : parts) {
-    osquery::Row r;
+  for (const auto& part : getPartitionList()) {
+    osquery::Row r = {};
+
     r["device"] = part.device;
     r["address"] = std::to_string(part.part_address);
     r["description"] = part.descriptor;
-    result.push_back(r);
+
+    result.push_back(std::move(r));
   }
 
   return result;

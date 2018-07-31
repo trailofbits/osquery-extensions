@@ -208,9 +208,9 @@ int DiskPartition::collectPath(uint64_t inode, std::stringstream& path_str) {
   return rval;
 }
 
-/* Collects basic info for all partitions for all devices on the system. */
-void getPartInfo(DiskPartitionInformationList& results) {
-  results.clear();
+DiskPartitionInformationList getPartitionList() {
+  DiskPartitionInformationList results;
+
   for (unsigned int i = 0;; ++i) {
     std::stringstream device;
     device << "\\\\.\\PhysicalDrive" << i;
@@ -237,6 +237,8 @@ void getPartInfo(DiskPartitionInformationList& results) {
       delete vsPartInfo;
     }
   }
+
+  return results;
 }
 
 DiskPartition::DiskPartition(DiskDevice& device, int partition_index) {
