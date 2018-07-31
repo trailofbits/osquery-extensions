@@ -27,15 +27,14 @@
 namespace trailofbits {
 struct ntfs_directory_index_entry_t final {
   ntfs_mft_file_reference_t mft_ref;
-  uint16_t entry_length;
-  uint16_t name_length;
-  uint32_t flags;
-  uint64_t child_vcn;
-
   ntfs_filename_attribute_contents_t filename;
-  uint32_t slack_addr;
 
-  ntfs_directory_index_entry();
+  uint16_t entry_length{0U};
+  uint16_t name_length{0U};
+  uint32_t flags{0U};
+  uint64_t child_vcn{0U};
+  uint32_t slack_addr{0U};
+
   std::string getStringRep() const;
   bool valid() const;
 };

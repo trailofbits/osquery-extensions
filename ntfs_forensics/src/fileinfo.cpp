@@ -22,21 +22,6 @@
 #include "fileinfo.h"
 
 namespace trailofbits {
-FileInfo::FileInfo()
-    : type(0),
-      active(0),
-      flag_val(0),
-      ads(0),
-      size(0),
-      inode(0),
-      seq(0),
-      uid(0),
-      gid(0),
-      owner_id(0),
-      secure_id(0) {
-  memset(object_id, 0, sizeof(object_id));
-}
-
 std::string FileInfo::getStringRep() const {
   // for ease of debugging
   std::stringstream output;

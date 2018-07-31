@@ -30,22 +30,22 @@ struct FileInfo final {
   std::string parent_path;
   timestamp_t standard_info_times;
   ntfs_filename_attribute_contents_t filename;
-  int type;
-  int active;
   flags_t flags;
-  uint32_t flag_val;
-  int ads;
-  size_t size;
-  uint64_t inode;
-  uint32_t seq;
-  uint8_t object_id[16];
-  int uid;
-  uint32_t gid;
-  uint32_t owner_id;
-  uint32_t secure_id;
   std::string sid;
 
-  FileInfo();
+  int type{0};
+  int active{0};
+  uint32_t flag_val{0U};
+  int ads{0};
+  size_t size{0U};
+  uint64_t inode{0U};
+  uint32_t seq{0U};
+  uint8_t object_id[16]{0U};
+  int uid{0};
+  uint32_t gid{0U};
+  uint32_t owner_id{0U};
+  uint32_t secure_id{0U};
+
   std::string getStringRep() const;
 };
 

@@ -4,10 +4,7 @@
 #include "ntfsdirectoryindexentry.h"
 
 namespace trailofbits {
-ntfs_directory_index_entry::ntfs_directory_index_entry()
-    : entry_length(0), name_length(0), flags(0), child_vcn(0), slack_addr(0) {}
-
-std::string ntfs_directory_index_entry::getStringRep() const {
+std::string ntfs_directory_index_entry_t::getStringRep() const {
   std::stringstream output;
   output << "inode: " << this->mft_ref.inode << "\n"
          << "seq: " << this->mft_ref.sequence << "\n"
@@ -22,7 +19,7 @@ std::string ntfs_directory_index_entry::getStringRep() const {
   return output.str();
 }
 
-bool ntfs_directory_index_entry::valid() const {
+bool ntfs_directory_index_entry_t::valid() const {
   return filename.valid() && entry_length >= 0x52 && entry_length < 4096 &&
          flags < 4 && child_vcn < 4096 && name_length < 4096;
 }

@@ -67,11 +67,12 @@ class Partition final {
   int getFileInfo(TSK_FS_FILE* file,
                   FileInfo& results,
                   bool collect_parent_path = true);
+
   int collectPath(uint64_t inode, std::stringstream& path);
 
-  TSK_VS_INFO* volInfo;
-  const TSK_VS_PART_INFO* vsPartInfo;
-  TSK_FS_INFO* fsInfo;
+  TSK_VS_INFO* volInfo{nullptr};
+  const TSK_VS_PART_INFO* vsPartInfo{nullptr};
+  TSK_FS_INFO* fsInfo{nullptr};
 };
 
 void getPartInfo(PartInfoList& results);

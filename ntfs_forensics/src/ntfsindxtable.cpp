@@ -40,7 +40,7 @@ osquery::TableColumns NTFSINDXTablePugin::columns() const {
     std::make_tuple("mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
     std::make_tuple("ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
     std::make_tuple("atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-    std::make_tuple("flags", osquery:TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("flags", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
     std::make_tuple("slack", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT)
   };
   // clang-format on

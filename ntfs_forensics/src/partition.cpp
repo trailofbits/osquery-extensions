@@ -237,8 +237,7 @@ void getPartInfo(PartInfoList& results) {
   }
 }
 
-Partition::Partition(Device& device, int partition_index)
-    : volInfo(NULL), vsPartInfo(NULL), fsInfo(NULL) {
+Partition::Partition(Device& device, int partition_index) {
   volInfo = tsk_vs_open(device.imageInfo(), 0, TSK_VS_TYPE_DETECT);
   if (volInfo == NULL) {
     throw std::runtime_error("unable to open volume");
@@ -483,7 +482,7 @@ void processDirIndexNodesAndEntries(const uint8_t* data,
 
   uint32_t offset = starting_offset;
   while (offset < used_offset) {
-    ntfs_directory_index_entry entry;
+    ntfs_directory_index_entry_t entry;
     processDirectoryIndexEntry(data + offset, entry, size - offset);
     if (entry.name_length > 0) {
       entries.push_back(entry);
@@ -497,7 +496,7 @@ void processDirIndexNodesAndEntries(const uint8_t* data,
   }
 
   while (offset < size && offset < (size - 0x52)) {
-    ntfs_directory_index_entry entry;
+    ntfs_directory_index_entry_t entry;
     bool rval = processDirectoryIndexEntry(data + offset, entry, size - offset);
     entry.slack_addr = offset;
     if (rval && entry.valid()) {
