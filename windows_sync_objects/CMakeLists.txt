@@ -12,25 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 3.9.1)
+cmake_minimum_required(VERSION 3.10)
 project(windows_sync_objects)
 
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
-
 function(main)
-  set(PROJECT_SOURCEFILES
+  set(project_common_source_files
     src/winapi.h
     src/objectmanager.h
     src/objectmanager.cpp
 
     src/basetable.h
-    src/windowssyncobjects.h
     src/windowssyncobjects.cpp
-
-    src/main.cpp
   )
 
-  ADD_OSQUERY_EXTENSION("${PROJECT_NAME}" ${PROJECT_SOURCEFILES})
+  set(project_include_dirs
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+
+  add_osquery_extension_ex("WindowsSyncObjectsTablePlugin" "table" "windows_sync_objects"
+    SOURCES ${project_common_source_files}
+    INCLUDEDIRS ${project_include_dirs}
+    MAININCLUDES windowssyncobjects.h
+    LIBRARIES
+  )
+
 endfunction()
 
 main()

@@ -28,6 +28,7 @@
 #include <vector>
 
 namespace trailofbits {
+namespace windows_sync_objects {
 namespace {
 struct ObjectInformation final {
   ObjectDescriptor::Type type;
@@ -54,7 +55,7 @@ RowID GenerateRowID(bool ephemeral) {
     ++generator;
   }
 
-  return static_cast<RowID>(new_id);
+  return static_cast<windows_sync_objects::RowID>(new_id);
 }
 }
 
@@ -62,7 +63,7 @@ struct WindowsSyncObjectsTable::PrivateData final {
   std::mutex mutex;
 
   std::unordered_map<std::string, ObjectInformation> path_to_object;
-  std::unordered_map<RowID, std::string> rowid_to_path;
+  std::unordered_map<windows_sync_objects::RowID, std::string> rowid_to_path;
 };
 
 WindowsSyncObjectsTable::WindowsSyncObjectsTable() : d(new PrivateData) {}
@@ -86,11 +87,11 @@ osquery::TableColumns WindowsSyncObjectsTable::columns() const {
 }
 
 osquery::QueryData WindowsSyncObjectsTable::generate(
-    osquery::QueryContext& context) {
+    osquery::QueryContext& ) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   struct CallbackData final {
-    std::unordered_map<RowID, std::string>& rowid_to_path;
+    std::unordered_map<windows_sync_objects::RowID, std::string>& rowid_to_path;
     const std::set<ObjectDescriptor::Type>& filter;
     osquery::QueryData results;
   };
@@ -109,7 +110,7 @@ osquery::QueryData WindowsSyncObjectsTable::generate(
     auto user_object_it = std::find_if(
       callback_data.rowid_to_path.begin(),
       callback_data.rowid_to_path.end(),
-      [full_path](const std::pair<RowID, std::string> &p) -> bool {
+      [full_path](const std::pair<windows_sync_objects::RowID, std::string> &p) -> bool {
         return (full_path == p.second);
       }
     );
@@ -212,7 +213,7 @@ osquery::QueryData WindowsSyncObjectsTable::generate(
 }
 
 osquery::QueryData WindowsSyncObjectsTable::insert(
-    osquery::QueryContext& context, const osquery::PluginRequest& request) {
+    osquery::QueryContext& , const osquery::PluginRequest& request) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   osquery::Row row;
@@ -273,7 +274,7 @@ osquery::QueryData WindowsSyncObjectsTable::insert(
 }
 
 osquery::QueryData WindowsSyncObjectsTable::delete_(
-    osquery::QueryContext& context, const osquery::PluginRequest& request) {
+    osquery::QueryContext& , const osquery::PluginRequest& request) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   char *null_term_ptr = nullptr;
@@ -334,7 +335,7 @@ osquery::QueryData WindowsSyncObjectsTable::delete_(
 }
 
 osquery::QueryData WindowsSyncObjectsTable::update(
-    osquery::QueryContext& context, const osquery::PluginRequest& request) {
+    osquery::QueryContext& , const osquery::PluginRequest& ) {
   // This operation is not supported
   return {{std::make_pair("status", "failure")}};
 }
@@ -394,4 +395,5 @@ osquery::Status WindowsSyncObjectsTable::GetRowData(
 
   return osquery::Status(0, "OK");
 }
+} // namespace windows_sync_objecs
 } // namespace trailofbits

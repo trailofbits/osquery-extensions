@@ -20,6 +20,7 @@
 #include <memory>
 
 namespace trailofbits {
+namespace windows_sync_objects {
 class WindowsSyncObjectsTable final : public BaseTable {
  public:
   WindowsSyncObjectsTable();
@@ -45,4 +46,7 @@ class WindowsSyncObjectsTable final : public BaseTable {
   static osquery::Status GetRowData(osquery::Row& row,
                                     const std::string& json_value_array);
 };
+} // namespace windows_sync_objects
 } // namespace trailofbits
+
+using WindowsSyncObjectsTablePlugin = trailofbits::windows_sync_objects::WindowsSyncObjectsTable;

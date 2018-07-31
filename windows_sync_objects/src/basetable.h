@@ -24,6 +24,7 @@
 #include <rapidjson/document.h>
 
 namespace trailofbits {
+namespace windows_sync_objects {
 using PrimaryKey = std::string;
 using RowID = std::uint64_t;
 using RowIdToPrimaryKeyMap = std::unordered_map<RowID, PrimaryKey>;
@@ -45,4 +46,5 @@ class BaseTable : public osquery::TablePlugin {
     return osquery::Status(0, "OK");
   }
 };
+} // namespace windows_sync_objects
 } // namespace trailofbits
