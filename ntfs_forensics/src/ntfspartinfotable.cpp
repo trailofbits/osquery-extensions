@@ -19,28 +19,26 @@
 
 #include <osquery/tables.h>
 
-#include "ntfs_forensics.h"
 #include "ntfspartinfotable.h"
+#include "partition.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSPartInfoTablePlugin::columns() const {
+  // clang-format off
   return {
-      std::make_tuple(
-          "device", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "address", osquery::INTEGER_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "description", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT)};
+    std::make_tuple("device", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("address", osquery::INTEGER_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("description", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT)
+  };
+  // clang-format on
 }
 
 osquery::QueryData NTFSPartInfoTablePlugin::generate(
     osquery::QueryContext& request) {
   static_cast<void>(request);
 
-  trailofbits::PartInfoList parts;
-  trailofbits::getPartInfo(parts);
+  PartInfoList parts;
+  getPartInfo(parts);
   osquery::QueryData result;
 
   for (auto part : parts) {

@@ -19,88 +19,42 @@
 
 #include <osquery/tables.h>
 
-#include "ntfs_forensics.h"
+#include "device.h"
+#include "fileinfo.h"
 #include "ntfsfileinfotable.h"
+#include "partition.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
+  // clang-format off
   return {
-      std::make_tuple(
-          "device", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "partition", osquery::INTEGER_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "filename", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "path", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "directory", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "fn_btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "fn_mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "fn_ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "fn_atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "type", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "active", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "flags", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "ADS", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "allocated", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "size", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "object_id", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "uid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "gid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "sid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-      std::make_tuple(
-          "from_cache", osquery::TEXT_TYPE, osquery::ColumnOptions::HIDDEN)
-
+    std::make_tuple("device", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("partition", osquery::INTEGER_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("filename", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("path", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("directory", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("fn_btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("fn_mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("fn_ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("fn_atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("type", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("active", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("flags", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("ADS", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("allocated", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("size", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("object_id", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("uid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("gid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("sid", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("from_cache", osquery::TEXT_TYPE, osquery::ColumnOptions::HIDDEN)
   };
+  // clang-format on
 }
 
 typedef struct query_context {
@@ -111,7 +65,7 @@ typedef struct query_context {
 } query_context_t;
 
 void populateRow(osquery::Row& r,
-                 trailofbits::FileInfo& info,
+                 FileInfo& info,
                  const std::string& dev,
                  int partition,
                  const std::string* from_cache = NULL) {
@@ -131,7 +85,7 @@ void populateRow(osquery::Row& r,
   r["fn_ctime"] = std::to_string(info.filename.file_name_times.ctime);
   r["fn_atime"] = std::to_string(info.filename.file_name_times.atime);
 
-  r["type"] = trailofbits::typeNameFromInt(info.type);
+  r["type"] = typeNameFromInt(info.type);
   r["active"] = info.active > 0 ? "1" : "0";
 
   r["ADS"] = std::string(info.ads != 0 ? "1" : "0");
@@ -160,7 +114,7 @@ void populateRow(osquery::Row& r,
   }
 }
 
-void callback(trailofbits::FileInfo& info, void* context) {
+void callback(FileInfo& info, void* context) {
   query_context_t* qct = static_cast<query_context_t*>(context);
 
   osquery::Row r;
@@ -202,18 +156,18 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   part_stream >> partition;
 
   for (const auto& dev : devices) {
-    trailofbits::Device* d = NULL;
-    trailofbits::Partition* p = NULL;
+    Device* d = NULL;
+    Partition* p = NULL;
     try {
-      d = new trailofbits::Device(dev);
-      p = new trailofbits::Partition(*d, partition);
+      d = new Device(dev);
+      p = new Partition(*d, partition);
     } catch (std::runtime_error&) {
       delete p;
       delete d;
       continue;
     }
 
-    trailofbits::FileInfo info;
+    FileInfo info;
     int rval = -1;
 
     if (paths.size() == 1) {

@@ -19,60 +19,49 @@
 
 #include <osquery/tables.h>
 
-#include "ntfs_forensics.h"
+#include "device.h"
+#include "ntfsdirectoryindexentry.h"
 #include "ntfsindxtable.h"
+#include "partition.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSINDXTablePugin::columns() const {
+  // clang-format on
   return {
       std::make_tuple(
           "device", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "partition", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "parent_inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "parent_path", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "filename", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple("allocated_size",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "real_size", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
           "flags", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
       std::make_tuple(
-          "slack", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-
-  };
+          "slack", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT)};
+  // clang-format on
 }
 
 void populateIndexRow(osquery::Row& r,
-                      trailofbits::ntfs_directory_index_entry_t& entry,
+                      ntfs_directory_index_entry_t& entry,
                       const std::string& dev,
                       int partition,
                       const std::string& parent_path) {
@@ -118,19 +107,19 @@ osquery::QueryData NTFSINDXTablePugin::generate(
   part_stream >> partition;
 
   for (const auto& dev : devices) {
-    trailofbits::Device* d = NULL;
-    trailofbits::Partition* p = NULL;
+    Device* d = NULL;
+    Partition* p = NULL;
     try {
-      d = new trailofbits::Device(dev);
-      p = new trailofbits::Partition(*d, partition);
+      d = new Device(dev);
+      p = new Partition(*d, partition);
     } catch (std::runtime_error&) {
       delete p;
       delete d;
       continue;
     }
 
-    trailofbits::DirEntryList entries;
-    trailofbits::FileInfo fileInfo;
+    DirEntryList entries;
+    FileInfo fileInfo;
     if (paths.size() == 1) {
       p->collectINDX(std::string(*(paths.begin())), entries);
       p->getFileInfo(*(paths.begin()), fileInfo);
