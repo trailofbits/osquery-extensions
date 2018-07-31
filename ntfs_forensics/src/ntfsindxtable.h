@@ -23,7 +23,7 @@
 
 namespace trailofbits {
 class NTFSINDXTablePugin final : public osquery::TablePlugin {
- private:
+ public:
   osquery::TableColumns columns() const override;
   osquery::QueryData generate(osquery::QueryContext& context) override;
 };

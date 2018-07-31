@@ -22,12 +22,12 @@
 
 namespace trailofbits {
 class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {
- private:
-  osquery::TableColumns columns() const override;
-  osquery::QueryData generate(osquery::QueryContext& request) override;
-
   using PartitionResultsCache = std::map<std::string, osquery::QueryData>;
   PartitionResultsCache cache;
+
+ public:
+  osquery::TableColumns columns() const override;
+  osquery::QueryData generate(osquery::QueryContext& request) override;
 };
 }
 
