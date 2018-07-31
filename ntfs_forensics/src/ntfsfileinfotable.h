@@ -26,8 +26,8 @@ class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {
   osquery::TableColumns columns() const override;
   osquery::QueryData generate(osquery::QueryContext& request) override;
 
-  using partition_cache_t = std::map<std::string, osquery::QueryData>;
-  partition_cache_t cache;
+  using PartitionResultsCache = std::map<std::string, osquery::QueryData>;
+  PartitionResultsCache cache;
 };
 }
 

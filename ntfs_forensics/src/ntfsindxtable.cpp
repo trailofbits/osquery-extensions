@@ -19,10 +19,10 @@
 
 #include <osquery/tables.h>
 
-#include "device.h"
+#include "diskdevice.h"
+#include "diskpartition.h"
 #include "ntfsdirectoryindexentry.h"
 #include "ntfsindxtable.h"
-#include "partition.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSINDXTablePugin::columns() const {
@@ -47,7 +47,7 @@ osquery::TableColumns NTFSINDXTablePugin::columns() const {
 }
 
 void populateIndexRow(osquery::Row& r,
-                      ntfs_directory_index_entry_t& entry,
+                      NTFSDirectoryIndexEntry& entry,
                       const std::string& dev,
                       int partition,
                       const std::string& parent_path) {
@@ -93,11 +93,11 @@ osquery::QueryData NTFSINDXTablePugin::generate(
   part_stream >> partition;
 
   for (const auto& dev : devices) {
-    Device* d = NULL;
-    Partition* p = NULL;
+    DiskDevice* d = NULL;
+    DiskPartition* p = NULL;
     try {
-      d = new Device(dev);
-      p = new Partition(*d, partition);
+      d = new DiskDevice(dev);
+      p = new DiskPartition(*d, partition);
     } catch (std::runtime_error&) {
       delete p;
       delete d;
@@ -105,7 +105,7 @@ osquery::QueryData NTFSINDXTablePugin::generate(
     }
 
     DirEntryList entries;
-    FileInfo fileInfo;
+    NTFSFileInformation fileInfo;
     if (paths.size() == 1) {
       p->collectINDX(std::string(*(paths.begin())), entries);
       p->getFileInfo(*(paths.begin()), fileInfo);

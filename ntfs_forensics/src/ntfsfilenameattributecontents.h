@@ -1,12 +1,11 @@
 #pragma once
 
 #include "ntfs_types.h"
-#include <string>
 
 namespace trailofbits {
-struct ntfs_filename_attribute_contents_t final {
-  ntfs_mft_file_reference_t parent;
-  timestamp_t file_name_times;
+struct NTFSFileNameAttributeContents final {
+  NTFSMFTFileReference parent;
+  NTFSTimestamp file_name_times;
   std::string filename;
 
   uint64_t allocated_size{0U};

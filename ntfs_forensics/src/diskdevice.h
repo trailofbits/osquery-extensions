@@ -16,26 +16,18 @@
 
 #pragma once
 
-#include "device.h"
+#include <string>
+
+#include <tsk/libtsk.h>
 
 namespace trailofbits {
-Device::Device(const std::string& device) {
-  if (device.empty()) {
-    throw std::runtime_error("Invalid device specified");
-  }
+class DiskDevice final {
+  TSK_IMG_INFO* img_info{nullptr};
 
-  const char* paths[1] = {device.c_str()};
-  img_info = tsk_img_open_utf8(1, paths, TSK_IMG_TYPE_DETECT, 0);
-  if (img_info == nullptr) {
-    throw std::runtime_error("Unable to open device");
-  }
-}
+ public:
+  explicit DiskDevice(const std::string& device_path);
+  ~DiskDevice();
 
-Device::~Device() {
-  tsk_img_close(img_info);
-}
-
-TSK_IMG_INFO* Device::imageInfo() {
-  return img_info;
-}
+  TSK_IMG_INFO* imageInfo();
+};
 }

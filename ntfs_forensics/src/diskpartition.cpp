@@ -19,20 +19,20 @@
 #include <sstream>
 #include <unordered_set>
 
-#include "partition.h"
+#include "diskpartition.h"
 
 #include <tsk/base/tsk_base_i.h>
 
 namespace trailofbits {
 
-void processAttrs(TSK_FS_FILE* fsFile, FileInfo& result);
+void processAttrs(TSK_FS_FILE* fsFile, NTFSFileInformation& result);
 
 template <typename T>
 void uintFromBuffer(const uint8_t* data, int64_t offset, T& result) {
   result = *(reinterpret_cast<const T*>(&data[offset]));
 }
 
-void processFlags(uint32_t f, flags_t& flags) {
+void processFlags(uint32_t f, NTFSFileInformationFlags& flags) {
   flags.read_only = f & 0x0001 ? true : false;
   flags.hidden = f & 0x0002 ? true : false;
   flags.system = f & 0x0004 ? true : false;
@@ -48,8 +48,7 @@ void processFlags(uint32_t f, flags_t& flags) {
   flags.encrypted = f & 0x4000 ? true : false;
 }
 
-void processFileReference(const uint8_t* data,
-                          ntfs_mft_file_reference_t& parent) {
+void processFileReference(const uint8_t* data, NTFSMFTFileReference& parent) {
   parent.inode = 0;
   parent.sequence = 0;
   uint64_t raw_val = *(reinterpret_cast<const uint64_t*>(data));
@@ -58,7 +57,7 @@ void processFileReference(const uint8_t* data,
 }
 
 void processFileNameBuffer(const uint8_t* data,
-                           ntfs_filename_attribute_contents_t& filename,
+                           NTFSFileNameAttributeContents& filename,
                            size_t size) {
   processFileReference(data, filename.parent);
   uintFromBuffer(data, 8, filename.file_name_times.btime);
@@ -91,7 +90,8 @@ void processFileNameBuffer(const uint8_t* data,
   }
 }
 
-void processFileNameAttrib(const TSK_FS_ATTR* attrib, FileInfo& results) {
+void processFileNameAttrib(const TSK_FS_ATTR* attrib,
+                           NTFSFileInformation& results) {
   // bytes	description
   //  0 -  7	file reference of parent dir
   //  8 - 15	file creation time
@@ -106,7 +106,8 @@ void processFileNameAttrib(const TSK_FS_ATTR* attrib, FileInfo& results) {
   }
 }
 
-void processObjectIdAttrib(const TSK_FS_ATTR* attrib, FileInfo& result) {
+void processObjectIdAttrib(const TSK_FS_ATTR* attrib,
+                           NTFSFileInformation& result) {
   // bytes	description
   //  0 - 15	object id
   // 16 - 31	birth volume id
@@ -117,7 +118,8 @@ void processObjectIdAttrib(const TSK_FS_ATTR* attrib, FileInfo& result) {
   }
 }
 
-void processStandardAttrib(const TSK_FS_ATTR* attrib, FileInfo& results) {
+void processStandardAttrib(const TSK_FS_ATTR* attrib,
+                           NTFSFileInformation& results) {
   // bytes	description
   //  0 -  7	file creation time
   //  8 - 15	file altered time
@@ -140,7 +142,7 @@ void processStandardAttrib(const TSK_FS_ATTR* attrib, FileInfo& results) {
   }
 }
 
-void processAttrs(TSK_FS_FILE* fsFile, FileInfo& results) {
+void processAttrs(TSK_FS_FILE* fsFile, NTFSFileInformation& results) {
   int dataAttribCount = 0;
   for (int i = 0; i < tsk_fs_file_attr_getsize(fsFile); ++i) {
     const TSK_FS_ATTR* attrib = tsk_fs_file_attr_get_idx(fsFile, i);
@@ -165,14 +167,14 @@ void processAttrs(TSK_FS_FILE* fsFile, FileInfo& results) {
   results.ads = (dataAttribCount > 1 ? 1 : 0);
 }
 
-int Partition::collectPath(uint64_t inode, std::stringstream& path_str) {
+int DiskPartition::collectPath(uint64_t inode, std::stringstream& path_str) {
   int rval = -1;
   TSK_FS_FILE* fsFile = tsk_fs_file_open_meta(fsInfo, NULL, inode);
   if (rval == NULL) {
     return -1;
   }
 
-  ntfs_mft_file_reference_t parent;
+  NTFSMFTFileReference parent;
   rval = -1;
   for (int i = 0; i < tsk_fs_file_attr_getsize(fsFile); ++i) {
     const TSK_FS_ATTR* attrib = tsk_fs_file_attr_get_idx(fsFile, i);
@@ -207,7 +209,7 @@ int Partition::collectPath(uint64_t inode, std::stringstream& path_str) {
 }
 
 /* Collects basic info for all partitions for all devices on the system. */
-void getPartInfo(PartInfoList& results) {
+void getPartInfo(DiskPartitionInformationList& results) {
   results.clear();
   for (unsigned int i = 0;; ++i) {
     std::stringstream device;
@@ -237,7 +239,7 @@ void getPartInfo(PartInfoList& results) {
   }
 }
 
-Partition::Partition(Device& device, int partition_index) {
+DiskPartition::DiskPartition(DiskDevice& device, int partition_index) {
   volInfo = tsk_vs_open(device.imageInfo(), 0, TSK_VS_TYPE_DETECT);
   if (volInfo == NULL) {
     throw std::runtime_error("unable to open volume");
@@ -254,12 +256,13 @@ Partition::Partition(Device& device, int partition_index) {
   }
 }
 
-Partition::~Partition() {
+DiskPartition::~DiskPartition() {
   tsk_fs_close(fsInfo);
   tsk_vs_close(volInfo);
 }
 
-int Partition::getFileInfo(const std::string& path, FileInfo& results) {
+int DiskPartition::getFileInfo(const std::string& path,
+                               NTFSFileInformation& results) {
   int rval = 0;
 
   TSK_FS_FILE* fsFile = tsk_fs_file_open(fsInfo, NULL, path.c_str());
@@ -273,7 +276,7 @@ int Partition::getFileInfo(const std::string& path, FileInfo& results) {
   return rval;
 }
 
-int Partition::getFileInfo(uint64_t inode, FileInfo& results) {
+int DiskPartition::getFileInfo(uint64_t inode, NTFSFileInformation& results) {
   int rval = 0;
   TSK_FS_FILE* fsFile = tsk_fs_file_open_meta(fsInfo, NULL, inode);
   if (fsFile == NULL) {
@@ -286,9 +289,9 @@ int Partition::getFileInfo(uint64_t inode, FileInfo& results) {
   return rval;
 }
 
-int Partition::getFileInfo(TSK_FS_FILE* fsFile,
-                           FileInfo& results,
-                           bool collect_parent_path) {
+int DiskPartition::getFileInfo(TSK_FS_FILE* fsFile,
+                               NTFSFileInformation& results,
+                               bool collect_parent_path) {
   TSK_FS_META* fsMeta = fsFile->meta;
   if (fsMeta != NULL) {
     results.inode = fsMeta->addr;
@@ -322,13 +325,14 @@ int Partition::getFileInfo(TSK_FS_FILE* fsFile,
   return 0;
 }
 
-void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
-                                 void* context,
-                                 std::string* path,
-                                 TSK_FS_DIR* dir,
-                                 TSK_INUM_T parent,
-                                 int depth,
-                                 std::unordered_set<uint64_t>& processed) {
+void DiskPartition::recurseDirectory(void (*callback)(NTFSFileInformation&,
+                                                      void*),
+                                     void* context,
+                                     std::string* path,
+                                     TSK_FS_DIR* dir,
+                                     TSK_INUM_T parent,
+                                     int depth,
+                                     std::unordered_set<uint64_t>& processed) {
   if (depth <= 0) {
     return;
   }
@@ -341,7 +345,7 @@ void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
       continue;
     }
 
-    FileInfo f;
+    NTFSFileInformation f;
     int rval = getFileInfo(fsFile, f, false);
     tsk_fs_file_close(fsFile);
 
@@ -373,13 +377,14 @@ void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
   }
 }
 
-void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
-                                 void* context,
-                                 std::string* path,
-                                 int depth) {
+void DiskPartition::recurseDirectory(void (*callback)(NTFSFileInformation&,
+                                                      void*),
+                                     void* context,
+                                     std::string* path,
+                                     int depth) {
   TSK_FS_DIR* dir = tsk_fs_dir_open(fsInfo, path->c_str());
   if (dir != NULL) {
-    FileInfo f;
+    NTFSFileInformation f;
     TSK_FS_FILE* fsFile = tsk_fs_file_open_meta(fsInfo, NULL, dir->addr);
     if (fsFile == NULL) {
       tsk_fs_dir_close(dir);
@@ -399,8 +404,8 @@ void Partition::recurseDirectory(void (*callback)(FileInfo&, void*),
   }
 }
 
-void Partition::walkPartition(void (*callback)(FileInfo&, void*),
-                              void* context) {
+void DiskPartition::walkPartition(void (*callback)(NTFSFileInformation&, void*),
+                                  void* context) {
   TSK_FS_DIR* dir = tsk_fs_dir_open_meta(fsInfo, fsInfo->root_inum);
   if (dir == NULL) {
     return;
@@ -413,7 +418,8 @@ void Partition::walkPartition(void (*callback)(FileInfo&, void*),
   tsk_fs_dir_close(dir);
 }
 
-void Partition::collectINDX(const std::string& path, DirEntryList& entries) {
+void DiskPartition::collectINDX(const std::string& path,
+                                DirEntryList& entries) {
   TSK_FS_FILE* fsFile = tsk_fs_file_open(fsInfo, NULL, path.c_str());
   if (fsFile == NULL) {
     std::cerr << "unable to open file " << path << "\n";
@@ -424,7 +430,7 @@ void Partition::collectINDX(const std::string& path, DirEntryList& entries) {
   tsk_fs_file_close(fsFile);
 }
 
-void Partition::collectINDX(uint64_t inode, DirEntryList& entries) {
+void DiskPartition::collectINDX(uint64_t inode, DirEntryList& entries) {
   TSK_FS_FILE* fsFile = tsk_fs_file_open_meta(fsInfo, NULL, inode);
   if (fsFile == NULL) {
     std::cerr << "unable to open file with inode " << inode << "\n";
@@ -436,7 +442,7 @@ void Partition::collectINDX(uint64_t inode, DirEntryList& entries) {
 }
 
 bool processDirectoryIndexEntry(const uint8_t* data,
-                                ntfs_directory_index_entry_t& entry,
+                                NTFSDirectoryIndexEntry& entry,
                                 size_t size) {
   //  0 -  7	MFT file reference
   //  8 -  9	length of this entry
@@ -482,7 +488,7 @@ void processDirIndexNodesAndEntries(const uint8_t* data,
 
   uint32_t offset = starting_offset;
   while (offset < used_offset) {
-    ntfs_directory_index_entry_t entry;
+    NTFSDirectoryIndexEntry entry;
     processDirectoryIndexEntry(data + offset, entry, size - offset);
     if (entry.name_length > 0) {
       entries.push_back(entry);
@@ -496,7 +502,7 @@ void processDirIndexNodesAndEntries(const uint8_t* data,
   }
 
   while (offset < size && offset < (size - 0x52)) {
-    ntfs_directory_index_entry_t entry;
+    NTFSDirectoryIndexEntry entry;
     bool rval = processDirectoryIndexEntry(data + offset, entry, size - offset);
     entry.slack_addr = offset;
     if (rval && entry.valid()) {
@@ -582,7 +588,7 @@ void processDirectoryIndexRootAttrib(const TSK_FS_ATTR* attrib,
   processDirIndexNodesAndEntries(data + 16, attrib->size - 16, entries);
 }
 
-void Partition::collectINDX(TSK_FS_FILE* fsFile, DirEntryList& entries) {
+void DiskPartition::collectINDX(TSK_FS_FILE* fsFile, DirEntryList& entries) {
   uint32_t record_size = 0;
   for (int i = 0; i < tsk_fs_file_attr_getsize(fsFile); ++i) {
     const TSK_FS_ATTR* attrib = tsk_fs_file_attr_get_idx(fsFile, i);

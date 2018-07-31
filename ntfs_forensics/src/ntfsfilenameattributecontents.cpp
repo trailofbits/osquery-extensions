@@ -12,7 +12,7 @@ uint32_t unixtimestamp(uint64_t ntdate) {
 }
 }
 
-bool ntfs_filename_attribute_contents_t::valid() const {
+bool NTFSFileNameAttributeContents::valid() const {
   uint32_t unix_1990 = 631152000;
   uint32_t unix_2025 = 1735689600;
 

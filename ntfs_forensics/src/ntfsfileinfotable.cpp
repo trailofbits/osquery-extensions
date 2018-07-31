@@ -19,10 +19,10 @@
 
 #include <osquery/tables.h>
 
-#include "device.h"
-#include "fileinfo.h"
+#include "diskdevice.h"
+#include "diskpartition.h"
+#include "ntfsfileinformation.h"
 #include "ntfsfileinfotable.h"
-#include "partition.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
@@ -65,7 +65,7 @@ struct query_context_t final {
 };
 
 void populateRow(osquery::Row& r,
-                 FileInfo& info,
+                 NTFSFileInformation& info,
                  const std::string& dev,
                  int partition,
                  const std::string* from_cache = NULL) {
@@ -114,7 +114,7 @@ void populateRow(osquery::Row& r,
   }
 }
 
-void callback(FileInfo& info, void* context) {
+void callback(NTFSFileInformation& info, void* context) {
   query_context_t* qct = static_cast<query_context_t*>(context);
 
   osquery::Row r;
@@ -156,18 +156,18 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   part_stream >> partition;
 
   for (const auto& dev : devices) {
-    Device* d = NULL;
-    Partition* p = NULL;
+    DiskDevice* d = NULL;
+    DiskPartition* p = NULL;
     try {
-      d = new Device(dev);
-      p = new Partition(*d, partition);
+      d = new DiskDevice(dev);
+      p = new DiskPartition(*d, partition);
     } catch (std::runtime_error&) {
       delete p;
       delete d;
       continue;
     }
 
-    FileInfo info;
+    NTFSFileInformation info;
     int rval = -1;
 
     if (paths.size() == 1) {
@@ -186,7 +186,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
     } else {
       std::stringstream map_key;
       map_key << dev << "," << partition;
-      partition_cache_t::iterator it = cache.find(map_key.str());
+      auto it = cache.find(map_key.str());
       if (clear_cache && it != cache.end()) {
         cache.erase(it);
         it = cache.end();

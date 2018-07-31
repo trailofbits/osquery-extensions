@@ -24,13 +24,14 @@
 #include "ntfsfilenameattributecontents.h"
 
 namespace trailofbits {
-struct FileInfo final {
+struct NTFSFileInformation final {
+  NTFSTimestamp standard_info_times;
+  NTFSFileNameAttributeContents filename;
+  NTFSFileInformationFlags flags;
+
   std::string name;
   std::string path;
   std::string parent_path;
-  timestamp_t standard_info_times;
-  ntfs_filename_attribute_contents_t filename;
-  flags_t flags;
   std::string sid;
 
   int type{0};
@@ -49,7 +50,7 @@ struct FileInfo final {
   std::string getStringRep() const;
 };
 
-using FileInfolist = std::list<FileInfo>;
+using NTFSFileInformationList = std::list<NTFSFileInformation>;
 
 std::string typeNameFromInt(int t);
 }

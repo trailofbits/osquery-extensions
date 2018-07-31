@@ -19,11 +19,11 @@ function(main)
   set(project_common_source_files
     src/ntfs_types.h
 
-    src/device.h
-    src/device.cpp
+    src/diskdevice.h
+    src/diskdevice.cpp
 
-    src/fileinfo.h
-    src/fileinfo.cpp
+    src/ntfsfileinformation.h
+    src/ntfsfileinformation.cpp
 
     src/ntfsdirectoryindexentry.h
     src/ntfsdirectoryindexentry.cpp
@@ -31,8 +31,8 @@ function(main)
     src/ntfsfilenameattributecontents.h
     src/ntfsfilenameattributecontents.cpp
 
-    src/partition.h
-    src/partition.cpp
+    src/diskpartition.h
+    src/diskpartition.cpp
   )
 
   set(project_include_dirs

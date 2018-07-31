@@ -19,10 +19,10 @@
 
 #include <tsk/libtsk.h>
 
-#include "fileinfo.h"
+#include "ntfsfileinformation.h"
 
 namespace trailofbits {
-std::string FileInfo::getStringRep() const {
+std::string NTFSFileInformation::getStringRep() const {
   // for ease of debugging
   std::stringstream output;
 

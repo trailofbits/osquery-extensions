@@ -22,30 +22,31 @@
 
 #include <tsk/libtsk.h>
 
-#include "device.h"
-#include "fileinfo.h"
+#include "diskdevice.h"
 #include "ntfs_types.h"
 #include "ntfsdirectoryindexentry.h"
+#include "ntfsfileinformation.h"
 
 namespace trailofbits {
-struct PartInfo {
+struct DiskPartitionInformation final {
   std::string device;
   unsigned int part_address{0U};
   std::string descriptor;
 };
 
-using PartInfoList = std::list<PartInfo>;
+using DiskPartitionInformationList = std::list<DiskPartitionInformation>;
 
-class Partition final {
+class DiskPartition final {
  public:
-  explicit Partition(Device& device, int partition_index);
-  ~Partition();
+  explicit DiskPartition(DiskDevice& device, int partition_index);
+  ~DiskPartition();
 
-  int getFileInfo(const std::string& path, FileInfo& results);
-  int getFileInfo(uint64_t inode, FileInfo& results);
+  int getFileInfo(const std::string& path, NTFSFileInformation& results);
+  int getFileInfo(uint64_t inode, NTFSFileInformation& results);
 
-  void walkPartition(void (*callback)(FileInfo&, void*), void* context);
-  void recurseDirectory(void (*callback)(FileInfo&, void*),
+  void walkPartition(void (*callback)(NTFSFileInformation&, void*),
+                     void* context);
+  void recurseDirectory(void (*callback)(NTFSFileInformation&, void*),
                         void* context,
                         std::string* path,
                         TSK_FS_DIR* dir,
@@ -53,7 +54,7 @@ class Partition final {
                         int depth,
                         std::unordered_set<uint64_t>& processed);
 
-  void recurseDirectory(void (*callback)(FileInfo&, void*),
+  void recurseDirectory(void (*callback)(NTFSFileInformation&, void*),
                         void* context,
                         std::string* path,
                         int depth);
@@ -65,7 +66,7 @@ class Partition final {
 
  private:
   int getFileInfo(TSK_FS_FILE* file,
-                  FileInfo& results,
+                  NTFSFileInformation& results,
                   bool collect_parent_path = true);
 
   int collectPath(uint64_t inode, std::stringstream& path);
@@ -75,5 +76,5 @@ class Partition final {
   TSK_FS_INFO* fsInfo{nullptr};
 };
 
-void getPartInfo(PartInfoList& results);
+void getPartInfo(DiskPartitionInformationList& results);
 }

@@ -19,8 +19,8 @@
 
 #include <osquery/tables.h>
 
+#include "diskpartition.h"
 #include "ntfspartinfotable.h"
-#include "partition.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSPartInfoTablePlugin::columns() const {
@@ -37,7 +37,7 @@ osquery::QueryData NTFSPartInfoTablePlugin::generate(
     osquery::QueryContext& request) {
   static_cast<void>(request);
 
-  PartInfoList parts;
+  DiskPartitionInformationList parts;
   getPartInfo(parts);
   osquery::QueryData result;
 
@@ -48,6 +48,7 @@ osquery::QueryData NTFSPartInfoTablePlugin::generate(
     r["description"] = part.descriptor;
     result.push_back(r);
   }
+
   return result;
 }
 }
