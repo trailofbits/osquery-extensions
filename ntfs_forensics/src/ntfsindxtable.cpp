@@ -93,8 +93,8 @@ osquery::QueryData NTFSINDXTablePugin::generate(
   part_stream >> partition;
 
   for (const auto& dev : devices) {
-    DiskDevice* d = NULL;
-    DiskPartition* p = NULL;
+    DiskDevice* d = nullptr;
+    DiskPartition* p = nullptr;
     try {
       d = new DiskDevice(dev);
       p = new DiskPartition(*d, partition);

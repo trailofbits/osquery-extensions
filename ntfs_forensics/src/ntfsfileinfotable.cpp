@@ -68,7 +68,7 @@ void populateRow(osquery::Row& r,
                  NTFSFileInformation& info,
                  const std::string& dev,
                  int partition,
-                 const std::string* from_cache = NULL) {
+                 const std::string* from_cache = nullptr) {
   r["device"] = dev;
   r["partition"] = std::to_string(partition);
   r["path"] = info.path;
@@ -109,7 +109,7 @@ void populateRow(osquery::Row& r,
   }
   r["object_id"] = oid.str();
 
-  if (from_cache != NULL) {
+  if (from_cache != nullptr) {
     r["from_cache"] = *from_cache;
   }
 }
@@ -134,7 +134,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   auto directories = request.constraints["directory"].getAll(osquery::EQUALS);
   auto from_cache = request.constraints["from_cache"].getAll(osquery::EQUALS);
 
-  const std::string* from_cache_val = NULL;
+  const std::string* from_cache_val = nullptr;
 
   bool clear_cache = false;
   if (from_cache.size() == 1) {
@@ -156,8 +156,8 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   part_stream >> partition;
 
   for (const auto& dev : devices) {
-    DiskDevice* d = NULL;
-    DiskPartition* p = NULL;
+    DiskDevice* d = nullptr;
+    DiskPartition* p = nullptr;
     try {
       d = new DiskDevice(dev);
       p = new DiskPartition(*d, partition);
@@ -179,7 +179,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
       inode_str >> inode;
       rval = p->getFileInfo(inode, info);
     } else if (directories.size() == 1) {
-      query_context_t context = {result, dev, partition, NULL};
+      query_context_t context = {result, dev, partition, nullptr};
       std::string dir(*(directories.begin()));
       p->recurseDirectory(callback, &context, &dir, 1);
       rval = 1;
