@@ -26,37 +26,23 @@
 
 namespace trailofbits {
 osquery::TableColumns NTFSINDXTablePugin::columns() const {
-  // clang-format on
+  // clang-format off
   return {
-      std::make_tuple(
-          "device", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "partition", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "parent_inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "parent_path", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "filename", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple("allocated_size",
-                      osquery::TEXT_TYPE,
-                      osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "real_size", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "flags", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
-      std::make_tuple(
-          "slack", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT)};
+    std::make_tuple("device", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("partition", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("parent_inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("parent_path", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("filename", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("inode", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("allocated_size", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("real_size", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("btime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("mtime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("ctime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("atime", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("flags", osquery:TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
+    std::make_tuple("slack", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT)
+  };
   // clang-format on
 }
 

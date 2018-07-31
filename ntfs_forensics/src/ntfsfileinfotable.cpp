@@ -57,12 +57,12 @@ osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
   // clang-format on
 }
 
-typedef struct query_context {
+struct query_context_t final {
   osquery::QueryData& result;
   const std::string& dev;
   int partition;
   const std::string* from_cache;
-} query_context_t;
+};
 
 void populateRow(osquery::Row& r,
                  FileInfo& info,

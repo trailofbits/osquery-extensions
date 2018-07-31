@@ -34,7 +34,7 @@ struct PartInfo {
   std::string descriptor;
 };
 
-typedef std::list<PartInfo> PartInfoList;
+using PartInfoList = std::list<PartInfo>;
 
 class Partition final {
  public:

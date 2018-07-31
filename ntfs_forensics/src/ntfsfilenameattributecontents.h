@@ -4,7 +4,7 @@
 #include <string>
 
 namespace trailofbits {
-typedef struct ntfs_filename_attribute_contents {
+struct ntfs_filename_attribute_contents_t final {
   ntfs_mft_file_reference_t parent;
   timestamp_t file_name_times;
   uint64_t allocated_size;
@@ -15,5 +15,5 @@ typedef struct ntfs_filename_attribute_contents {
 
   bool valid() const;
   ntfs_filename_attribute_contents();
-} ntfs_filename_attribute_contents_t;
+};
 }

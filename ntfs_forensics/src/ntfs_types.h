@@ -22,19 +22,19 @@
 
 namespace trailofbits {
 
-typedef struct ntfs_mft_file_reference {
+struct ntfs_mft_file_reference_t final {
   uint64_t inode{0U};
   uint32_t sequence{0U};
-} ntfs_mft_file_reference_t;
+};
 
-typedef struct ntfs_timestamp_struct {
+struct timestamp_t final {
   uint64_t btime{0U};
   uint64_t mtime{0U};
   uint64_t ctime{0U};
   uint64_t atime{0U};
-} timestamp_t;
+};
 
-typedef struct ntfs_flags_struct {
+struct flags_t final {
   bool read_only{false};
   bool hidden{false};
   bool system{false};
@@ -48,5 +48,5 @@ typedef struct ntfs_flags_struct {
   bool offline{false};
   bool unindexed{false};
   bool encrypted{false};
-} flags_t;
+};
 }

@@ -25,7 +25,7 @@
 #include "ntfsfilenameattributecontents.h"
 
 namespace trailofbits {
-typedef struct ntfs_directory_index_entry {
+struct ntfs_directory_index_entry_t final {
   ntfs_mft_file_reference_t mft_ref;
   uint16_t entry_length;
   uint16_t name_length;
@@ -38,7 +38,7 @@ typedef struct ntfs_directory_index_entry {
   ntfs_directory_index_entry();
   std::string getStringRep() const;
   bool valid() const;
-} ntfs_directory_index_entry_t;
+};
 
 using DirEntryList = std::list<ntfs_directory_index_entry_t>;
 }

@@ -24,7 +24,7 @@
 #include "ntfsfilenameattributecontents.h"
 
 namespace trailofbits {
-struct FileInfo {
+struct FileInfo final {
   std::string name;
   std::string path;
   std::string parent_path;
@@ -49,7 +49,7 @@ struct FileInfo {
   std::string getStringRep() const;
 };
 
-typedef std::list<FileInfo> FileInfoList;
+using FileInfolist = std::list<FileInfo>;
 
 std::string typeNameFromInt(int t);
 }
