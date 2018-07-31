@@ -88,14 +88,12 @@ std::string typeNameFromInt(int t) {
   switch (t) {
   case TSK_FS_META_TYPE_UNDEF:
     return std::string("Undefined");
-    break;
   case TSK_FS_META_TYPE_REG:
     return std::string("File");
-    break;
   case TSK_FS_META_TYPE_DIR:
     return std::string("Directory");
-    break;
+  default:
+    return std::string("Unknown");
   }
-  return std::string("Unknown");
 }
 }
