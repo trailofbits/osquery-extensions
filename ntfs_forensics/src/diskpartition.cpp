@@ -241,7 +241,8 @@ DiskPartitionInformationList getPartitionList() {
   return results;
 }
 
-DiskPartition::DiskPartition(DiskDevice& device, int partition_index) {
+DiskPartition::DiskPartition(DiskDevice& device,
+                             std::uint32_t partition_index) {
   volInfo = tsk_vs_open(device.imageInfo(), 0, TSK_VS_TYPE_DETECT);
   if (volInfo == nullptr) {
     throw std::runtime_error("unable to open volume");

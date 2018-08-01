@@ -30,7 +30,7 @@
 namespace trailofbits {
 struct DiskPartitionInformation final {
   std::string device;
-  unsigned int part_address{0U};
+  std::uint32_t part_address{0U};
   std::string descriptor;
 };
 
@@ -38,7 +38,7 @@ using DiskPartitionInformationList = std::list<DiskPartitionInformation>;
 
 class DiskPartition final {
  public:
-  explicit DiskPartition(DiskDevice& device, int partition_index);
+  explicit DiskPartition(DiskDevice& device, std::uint32_t partition_index);
   ~DiskPartition();
 
   int getFileInfo(const std::string& path, NTFSFileInformation& results);
