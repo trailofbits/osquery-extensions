@@ -33,6 +33,9 @@ function(main)
 
     src/diskpartition.h
     src/diskpartition.cpp
+
+    src/constraints.h
+    src/constraints.cpp
   )
 
   set(project_include_dirs

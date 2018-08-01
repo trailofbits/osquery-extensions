@@ -19,6 +19,7 @@
 
 #include <osquery/tables.h>
 
+#include "constraints.h"
 #include "diskdevice.h"
 #include "diskpartition.h"
 #include "ntfsfileinformation.h"
@@ -60,15 +61,13 @@ osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
 struct query_context_t final {
   osquery::QueryData& result;
   const std::string& dev;
-  int partition;
-  const std::string* from_cache;
+  std::uint32_t partition;
 };
 
 void populateRow(osquery::Row& r,
                  NTFSFileInformation& info,
                  const std::string& dev,
-                 int partition,
-                 const std::string* from_cache = nullptr) {
+                 int partition) {
   r["device"] = dev;
   r["partition"] = std::to_string(partition);
   r["path"] = info.path;
@@ -108,103 +107,115 @@ void populateRow(osquery::Row& r,
         << static_cast<unsigned>(info.object_id[i]);
   }
   r["object_id"] = oid.str();
-
-  if (from_cache != nullptr) {
-    r["from_cache"] = *from_cache;
-  }
 }
 
 void callback(NTFSFileInformation& info, void* context) {
   query_context_t* qct = static_cast<query_context_t*>(context);
 
   osquery::Row r;
-  populateRow(r, info, qct->dev, qct->partition, qct->from_cache);
+  populateRow(r, info, qct->dev, qct->partition);
   qct->result.push_back(r);
 }
 
 osquery::QueryData NTFSFileInfoTablePlugin::generate(
     osquery::QueryContext& request) {
-  osquery::QueryData result;
+  // Get the statement constraints
+  auto path_constraints = request.constraints["path"].getAll(osquery::EQUALS);
+  auto directory_constraints =
+      request.constraints["directory"].getAll(osquery::EQUALS);
 
-  auto devices = request.constraints["device"].getAll(osquery::EQUALS);
-  auto partitions = request.constraints["partition"].getAll(osquery::EQUALS);
-
-  auto paths = request.constraints["path"].getAll(osquery::EQUALS);
-  auto inodes = request.constraints["inode"].getAll(osquery::EQUALS);
-  auto directories = request.constraints["directory"].getAll(osquery::EQUALS);
-  auto from_cache = request.constraints["from_cache"].getAll(osquery::EQUALS);
-
-  const std::string* from_cache_val = nullptr;
-
-  bool clear_cache = false;
-  if (from_cache.size() == 1) {
-    int cache_val = 1;
-    std::stringstream cache_str;
-    cache_str << *(from_cache.begin());
-    cache_str >> cache_val;
-    clear_cache = (cache_val == 0);
-    from_cache_val = &(*(from_cache.begin()));
+  std::unordered_set<std::uint64_t> inode_constraints;
+  auto status = getParentInodeConstraints(inode_constraints, request, "inode");
+  if (!status.ok()) {
+    LOG(WARNING) << status.getMessage();
+    return {{}};
   }
 
-  // TODO(alessandro): Fix contraint handling
-  if (devices.empty() || partitions.size() != 1) {
-    return {};
+  auto constraint_count = 0U;
+  if (!path_constraints.empty()) {
+    constraint_count++;
   }
 
-  std::stringstream part_stream;
-  int partition;
-  part_stream << *(partitions.begin());
-  part_stream >> partition;
+  if (!directory_constraints.empty()) {
+    constraint_count++;
+  }
 
-  for (const auto& dev : devices) {
-    try {
-      auto disk_device = std::make_shared<DiskDevice>(dev);
-      auto disk_partition =
-          std::make_shared<DiskPartition>(disk_device, partition);
+  if (!inode_constraints.empty()) {
+    constraint_count++;
+  }
 
-      NTFSFileInformation info;
-      int rval = -1;
+  if (constraint_count > 1U) {
+    LOG(WARNING) << "Only zero or one of the following constraints must be "
+                    "specified: path, directory, inode";
+    return {{}};
+  }
 
-      if (paths.size() == 1) {
-        rval = disk_partition->getFileInfo(std::string(*(paths.begin())), info);
-      } else if (inodes.size() == 1) {
-        std::stringstream inode_str;
-        uint64_t inode;
-        inode_str << *(inodes.begin());
-        inode_str >> inode;
-        rval = disk_partition->getFileInfo(inode, info);
-      } else if (directories.size() == 1) {
-        query_context_t context = {result, dev, partition, nullptr};
-        std::string dir(*(directories.begin()));
-        disk_partition->recurseDirectory(callback, &context, &dir, 1);
-        rval = 1;
-      } else {
-        std::stringstream map_key;
-        map_key << dev << "," << partition;
-        auto it = cache.find(map_key.str());
-        if (clear_cache && it != cache.end()) {
-          cache.erase(it);
-          it = cache.end();
-        }
-        if (it != cache.end()) {
-          result = it->second;
+  // Build the disk device map according to the constraints we have been given
+  DiskDeviceMap device_constraints;
+  status = getDeviceAndPartitionConstraints(device_constraints, request);
+  if (!status.ok()) {
+    LOG(WARNING) << status.getMessage();
+    return {{}};
+  }
+
+  // Iterate through all devices
+  osquery::QueryData results;
+
+  for (const auto& p : device_constraints) {
+    const auto& device_name = p.first;
+    const auto& device_partitions = p.second;
+
+    // Iterate through all partitions
+    for (const auto& partition_number : device_partitions) {
+      try {
+        auto disk_device = std::make_shared<DiskDevice>(device_name);
+        auto disk_partition =
+            std::make_shared<DiskPartition>(disk_device, partition_number);
+
+        if (!path_constraints.empty()) {
+          for (const auto& path : path_constraints) {
+            NTFSFileInformation info = {};
+            auto err = disk_partition->getFileInfo(path, info);
+            if (err != 0) {
+              continue;
+            }
+
+            osquery::Row r;
+            populateRow(r, info, device_name, partition_number);
+
+            results.push_back(std::move(r));
+          }
+
+        } else if (!inode_constraints.empty()) {
+          for (const auto& inode : inode_constraints) {
+            NTFSFileInformation info = {};
+            auto err = disk_partition->getFileInfo(inode, info);
+            if (err != 0) {
+              continue;
+            }
+
+            osquery::Row r;
+            populateRow(r, info, device_name, partition_number);
+
+            results.push_back(std::move(r));
+          }
+
+        } else if (!directory_constraints.empty()) {
+          for (const auto& directory : directory_constraints) {
+            query_context_t context = {results, device_name, partition_number};
+            disk_partition->recurseDirectory(callback, &context, directory, 1);
+          }
+
         } else {
-          query_context_t context = {result, dev, partition, from_cache_val};
+          query_context_t context = {results, device_name, partition_number};
           disk_partition->walkPartition(callback, &context);
-          rval = 1;
-          cache[map_key.str()] = result;
         }
-      }
-      if (rval == 0) {
-        osquery::Row r;
-        populateRow(r, info, dev, partition);
 
-        result.push_back(r);
+      } catch (const std::exception&) {
       }
-
-    } catch (const std::exception&) {
     }
   }
-  return result;
+
+  return results;
 }
 }

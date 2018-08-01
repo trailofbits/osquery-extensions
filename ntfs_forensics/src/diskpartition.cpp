@@ -331,7 +331,7 @@ int DiskPartition::getFileInfo(TSK_FS_FILE* fsFile,
 void DiskPartition::recurseDirectory(void (*callback)(NTFSFileInformation&,
                                                       void*),
                                      void* context,
-                                     std::string* path,
+                                     const std::string& path,
                                      TSK_FS_DIR* dir,
                                      TSK_INUM_T parent,
                                      int depth,
@@ -357,8 +357,8 @@ void DiskPartition::recurseDirectory(void (*callback)(NTFSFileInformation&,
         parent == f.inode) {
       continue;
     }
-    f.parent_path = *path;
-    f.path = *path + std::string("/") + f.name;
+    f.parent_path = path;
+    f.path = path + std::string("/") + f.name;
     if (callback) {
       callback(f, context);
     }
@@ -368,7 +368,7 @@ void DiskPartition::recurseDirectory(void (*callback)(NTFSFileInformation&,
         if (nullptr != fsDir) {
           recurseDirectory(callback,
                            context,
-                           &f.path,
+                           f.path,
                            fsDir,
                            current_inode,
                            depth - 1,
@@ -383,9 +383,9 @@ void DiskPartition::recurseDirectory(void (*callback)(NTFSFileInformation&,
 void DiskPartition::recurseDirectory(void (*callback)(NTFSFileInformation&,
                                                       void*),
                                      void* context,
-                                     std::string* path,
+                                     const std::string& path,
                                      int depth) {
-  TSK_FS_DIR* dir = tsk_fs_dir_open(fsInfo, path->c_str());
+  TSK_FS_DIR* dir = tsk_fs_dir_open(fsInfo, path.c_str());
   if (dir != nullptr) {
     NTFSFileInformation f;
     TSK_FS_FILE* fsFile = tsk_fs_file_open_meta(fsInfo, nullptr, dir->addr);
@@ -417,7 +417,7 @@ void DiskPartition::walkPartition(void (*callback)(NTFSFileInformation&, void*),
   std::string path("");
   std::unordered_set<uint64_t> processed;
   recurseDirectory(
-      callback, context, &path, dir, UINT64_MAX, max_depth, processed);
+      callback, context, path, dir, UINT64_MAX, max_depth, processed);
   tsk_fs_dir_close(dir);
 }
 

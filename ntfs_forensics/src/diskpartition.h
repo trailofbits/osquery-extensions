@@ -50,7 +50,7 @@ class DiskPartition final {
                      void* context);
   void recurseDirectory(void (*callback)(NTFSFileInformation&, void*),
                         void* context,
-                        std::string* path,
+                        const std::string& path,
                         TSK_FS_DIR* dir,
                         uint64_t parent,
                         int depth,
@@ -58,7 +58,7 @@ class DiskPartition final {
 
   void recurseDirectory(void (*callback)(NTFSFileInformation&, void*),
                         void* context,
-                        std::string* path,
+                        const std::string& path,
                         int depth);
 
   void collectINDX(const std::string& path, DirEntryList&);

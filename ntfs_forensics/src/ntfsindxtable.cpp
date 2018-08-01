@@ -19,6 +19,7 @@
 
 #include <osquery/tables.h>
 
+#include "constraints.h"
 #include "diskdevice.h"
 #include "diskpartition.h"
 #include "ntfsdirectoryindexentry.h"
@@ -130,97 +131,41 @@ osquery::TableColumns NTFSINDXTablePugin::columns() const {
 
 osquery::QueryData NTFSINDXTablePugin::generate(
     osquery::QueryContext& request) {
-  // Make sure we have at least one (valid) constraint specified
+  // Get the statement constraints
   auto path_constraints =
       request.constraints["parent_path"].getAll(osquery::EQUALS);
 
-  auto str_inode_constraints =
-      request.constraints["parent_inode"].getAll(osquery::EQUALS);
-
   std::unordered_set<std::uint64_t> inode_constraints;
-  for (const auto& inode_str : str_inode_constraints) {
-    char* null_term_ptr = nullptr;
-    auto inode = std::strtoull(inode_str.c_str(), &null_term_ptr, 10);
-    if (*null_term_ptr != 0) {
-      VLOG(1) << "Invalid inode constraint specified: " << inode
-              << ". Skipping...";
+  auto status =
+      getParentInodeConstraints(inode_constraints, request, "parent_inode");
+  if (!status.ok()) {
+    LOG(WARNING) << status.getMessage();
+    return {{}};
+  }
 
-      continue;
-    }
-
-    inode_constraints.insert(inode);
+  // Build the disk device map according to the constraints we have been given
+  DiskDeviceMap device_constraints;
+  status = getDeviceAndPartitionConstraints(device_constraints, request);
+  if (!status.ok()) {
+    LOG(WARNING) << status.getMessage();
+    return {{}};
   }
 
   if (path_constraints.empty() == inode_constraints.empty()) {
     LOG(WARNING) << "Invalid or missing constraints; either parent_path or "
-                    "parent_inode is required.";
-
+                    "parent_inode is required";
     return {{}};
-  }
-
-  // Enumerate the devices we have
-  std::unordered_map<std::string, std::unordered_set<std::uint32_t>> device_map;
-
-  for (const auto& current_partition : getPartitionList()) {
-    auto device_it = device_map.find(current_partition.device);
-    if (device_it == device_map.end()) {
-      device_map.insert(
-          {current_partition.device, {current_partition.part_address}});
-
-    } else {
-      auto& partition_set = device_it->second;
-      partition_set.insert(current_partition.part_address);
-    }
-  }
-
-  // Get the SQL statement constraints
-  auto device_constraints =
-      request.constraints["device"].getAll(osquery::EQUALS);
-
-  if (device_constraints.empty()) {
-    for (const auto& p : device_map) {
-      const auto& device_name = p.first;
-      device_constraints.insert(device_name);
-    }
-  }
-
-  std::unordered_set<std::uint32_t> partition_constraints;
-  for (const auto& partition_str :
-       request.constraints["partition"].getAll(osquery::EQUALS)) {
-    char* null_term_ptr = nullptr;
-    auto partition_number =
-        std::strtoul(partition_str.c_str(), &null_term_ptr, 10);
-
-    if (*null_term_ptr != 0) {
-      VLOG(1) << "Invalid partition specified: " << partition_str
-              << ". Skipping...";
-
-      continue;
-    }
-
-    partition_constraints.insert(static_cast<std::uint32_t>(partition_number));
   }
 
   // Iterate through all devices
   osquery::QueryData results;
 
-  for (const auto& device_name : device_constraints) {
-    // Make sure the specified device exists
-    auto device_map_it = device_map.find(device_name);
-    if (device_map_it == device_map.end()) {
-      VLOG(1) << "Device " << device_name << " was not found. Skipping...";
-      continue;
-    }
-
-    const auto& available_device_partitions = device_map_it->second;
+  for (const auto& p : device_constraints) {
+    const auto& device_name = p.first;
+    const auto& device_partitions = p.second;
 
     // Iterate through all partitions
-    std::unordered_set<std::uint32_t> partition_list;
-    if (partition_constraints.empty()) {
-      partition_list = available_device_partitions;
-    }
-
-    for (const auto& partition_number : partition_list) {
+    for (const auto& partition_number : device_partitions) {
       try {
         auto disk_device = std::make_shared<DiskDevice>(device_name);
         auto disk_partition =
