@@ -144,8 +144,8 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
     constraint_count++;
   }
 
-  if (constraint_count > 1U) {
-    LOG(WARNING) << "Only zero or one of the following constraints must be "
+  if (constraint_count != 1U) {
+    LOG(WARNING) << "One of the following constraints must be "
                     "specified: path, directory, inode";
     return {{}};
   }
@@ -205,11 +205,15 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
             query_context_t context = {results, device_name, partition_number};
             disk_partition->recurseDirectory(callback, &context, directory, 1);
           }
+        }
 
-        } else {
+        // We could work without any constraint, but this is going to have the
+        // extension killed by osquery if it takes too long
+
+        /*
           query_context_t context = {results, device_name, partition_number};
           disk_partition->walkPartition(callback, &context);
-        }
+        */
 
       } catch (const std::exception&) {
       }
