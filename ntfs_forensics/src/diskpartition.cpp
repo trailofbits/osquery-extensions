@@ -255,7 +255,7 @@ DiskPartition::DiskPartition(std::shared_ptr<DiskDevice> device,
 
   fsInfo = tsk_fs_open_vol(vsPartInfo, TSK_FS_TYPE_DETECT);
   if (fsInfo == nullptr) {
-    throw osquery::Status(1, "unable to open filesystem");
+    throw osquery::Status(2, "unable to open filesystem");
   }
 }
 

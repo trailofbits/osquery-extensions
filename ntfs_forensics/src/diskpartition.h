@@ -37,7 +37,7 @@ struct DiskPartitionInformation final {
   std::string device;
 
   /// The partition number
-  std::uint32_t part_address{0U};
+  std::uint32_t part_address;
 
   /// The partition description; it usually contains the file system name
   std::string descriptor;

@@ -14,31 +14,36 @@
  * limitations under the License.
  */
 
+#include <Windows.h>
+
 #include "ntfsfilenameattributecontents.h"
 
 namespace trailofbits {
-namespace {
-uint32_t unixtimestamp(uint64_t ntdate) {
-#define NSEC_BTWN_1601_1970 (uint64_t)(116444736000000000ULL)
-
-  ntdate -= (uint64_t)NSEC_BTWN_1601_1970;
-  ntdate /= (uint64_t)10000000;
-
-  return (uint32_t)ntdate;
-}
-}
 
 bool NTFSFileNameAttributeContents::valid() const {
-  uint32_t unix_1990 = 631152000;
-  uint32_t unix_2025 = 1735689600;
+  constexpr uint64_t one_year = 315569520000000ULL; //one year in hunded-nanoseconds
 
-  return (unix_2025 > unixtimestamp(file_name_times.atime)) &&
-         (unixtimestamp(file_name_times.atime) > unix_1990) &&
-         (unix_2025 > unixtimestamp(file_name_times.btime)) &&
-         (unixtimestamp(file_name_times.btime) > unix_1990) &&
-         (unix_2025 > unixtimestamp(file_name_times.ctime)) &&
-         (unixtimestamp(file_name_times.ctime) > unix_1990) &&
-         (unix_2025 > unixtimestamp(file_name_times.mtime)) &&
-         (unixtimestamp(file_name_times.mtime) > unix_1990);
+  // the filetime for 1990 is calculated by adding the magic value for
+  // the number of hundred-nanoseconds between 1601 and 1970
+  // to 20 times the number of hundred-nanoseconds in a year
+  constexpr uint64_t _1990 = 116444736000000000ULL + (20ULL * one_year);
+
+  // MicroSoft strongly suggests converting a FILETIME to a ULARGE_INTEGER
+  // and manipulating its QuadPart
+  FILETIME current_time;
+  ::GetSystemTimeAsFileTime(&current_time);
+  ULARGE_INTEGER one_year_ahead;
+  one_year_ahead.LowPart = current_time.dwLowDateTime;
+  one_year_ahead.HighPart = current_time.dwHighDateTime;
+  one_year_ahead.QuadPart += one_year;
+
+  return (one_year_ahead.QuadPart > file_name_times.atime) &&
+         (file_name_times.atime > _1990) &&
+         (one_year_ahead.QuadPart > file_name_times.btime) &&
+         (file_name_times.btime > _1990) &&
+         (one_year_ahead.QuadPart > file_name_times.ctime) &&
+         (file_name_times.ctime > _1990) &&
+         (one_year_ahead.QuadPart > file_name_times.mtime) &&
+         (file_name_times.mtime > _1990);
 }
 }

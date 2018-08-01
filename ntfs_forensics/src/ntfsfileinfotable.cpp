@@ -179,16 +179,28 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
           DiskPartition::create(disk_partition, disk_device, partition_number);
 
       if (!status.ok()) {
-        LOG(WARNING) << status.getMessage();
+        if (status.getCode() != 2) {
+          LOG(WARNING) << status.getMessage();
+        }
         continue;
       }
 
       if (!path_constraints.empty()) {
         for (const auto& path : path_constraints) {
           NTFSFileInformation info = {};
-          auto err = disk_partition->getFileInfo(path, info);
-          if (err != 0) {
-            continue;
+
+          //special case handling for the root dir
+          if ("/" == path) {
+            auto err = disk_partition->getFileInfo("/.", info);
+            if (err != 0) {
+              continue;
+            }
+            info.path = path;
+          } else {
+            auto err = disk_partition->getFileInfo(path, info);
+            if (err != 0) {
+              continue;
+            }
           }
 
           osquery::Row r;

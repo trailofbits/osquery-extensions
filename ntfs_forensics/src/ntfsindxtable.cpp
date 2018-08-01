@@ -85,14 +85,11 @@ void generateAndAppendRows(osquery::QueryData& results,
     DirEntryList entries = {};
     NTFSFileInformation fileInfo = {};
 
-    // The root folder is a special case; we have to query it by inode
+    // Fix up the root path specifier
     if (path == "/") {
-      NTFSFileInformation root_file_info;
-      partition->getFileInfo(path, root_file_info);
-
-      partition->collectINDX(root_file_info.inode, entries);
-      partition->getFileInfo(root_file_info.inode, fileInfo);
-
+      partition->collectINDX("/.", entries);
+      partition->getFileInfo("/.", fileInfo);
+      fileInfo.path = path;
     } else {
       partition->collectINDX(path, entries);
       partition->getFileInfo(path, fileInfo);
@@ -178,7 +175,12 @@ osquery::QueryData NTFSINDXTablePugin::generate(
           DiskPartition::create(disk_partition, disk_device, partition_number);
 
       if (!status.ok()) {
-        LOG(WARNING) << status.getMessage();
+        //error code 2 is explicitly the code for unable to open filesystem
+        //this is common if partition is not specified and there are
+        //multiple non-NTFS partitions
+        if (status.getCode() != 2) {
+          LOG(WARNING) << status.getMessage();
+        }
         continue;
       }
 
