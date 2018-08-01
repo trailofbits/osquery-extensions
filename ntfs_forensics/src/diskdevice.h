@@ -16,16 +16,25 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include <tsk/libtsk.h>
 
+#include <osquery/sdk.h>
+
 namespace trailofbits {
+class DiskDevice;
+using DiskDeviceRef = std::shared_ptr<DiskDevice>;
+
 class DiskDevice final {
   TSK_IMG_INFO* img_info{nullptr};
 
+  DiskDevice(const std::string& device_name);
+
  public:
-  explicit DiskDevice(const std::string& device_path);
+  static osquery::Status create(DiskDeviceRef& disk_device,
+                                const std::string& device_name);
   ~DiskDevice();
 
   TSK_IMG_INFO* imageInfo();

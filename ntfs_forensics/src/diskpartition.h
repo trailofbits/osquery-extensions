@@ -37,10 +37,18 @@ struct DiskPartitionInformation final {
 
 using DiskPartitionInformationList = std::list<DiskPartitionInformation>;
 
+class DiskPartition;
+using DiskPartitionRef = std::shared_ptr<DiskPartition>;
+
 class DiskPartition final {
+  DiskPartition(std::shared_ptr<DiskDevice> device,
+                std::uint32_t partition_index);
+
  public:
-  explicit DiskPartition(std::shared_ptr<DiskDevice> device,
-                         std::uint32_t partition_index);
+  static osquery::Status create(DiskPartitionRef& partition,
+                                DiskDeviceRef device,
+                                std::uint32_t partition_index);
+
   ~DiskPartition();
 
   int getFileInfo(const std::string& path, NTFSFileInformation& results);

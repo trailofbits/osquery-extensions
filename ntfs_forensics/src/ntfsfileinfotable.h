@@ -17,8 +17,9 @@
 #pragma once
 
 #include <map>
-#include <osquery/sdk.h>
 #include <string>
+
+#include <osquery/sdk.h>
 
 namespace trailofbits {
 class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {

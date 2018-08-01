@@ -246,17 +246,34 @@ DiskPartition::DiskPartition(std::shared_ptr<DiskDevice> device,
     : disk_device(device) {
   volInfo = tsk_vs_open(disk_device->imageInfo(), 0, TSK_VS_TYPE_DETECT);
   if (volInfo == nullptr) {
-    throw std::runtime_error("unable to open volume");
+    throw osquery::Status(1, "unable to open volume");
   }
 
   vsPartInfo = tsk_vs_part_get(volInfo, partition_index);
   if (vsPartInfo == nullptr) {
-    throw std::runtime_error("unable to open partition");
+    throw osquery::Status(1, "unable to open partition");
   }
 
   fsInfo = tsk_fs_open_vol(vsPartInfo, TSK_FS_TYPE_DETECT);
   if (fsInfo == nullptr) {
-    throw std::runtime_error("unable to open filesystem");
+    throw osquery::Status(1, "unable to open filesystem");
+  }
+}
+
+osquery::Status DiskPartition::create(DiskPartitionRef& partition,
+                                      DiskDeviceRef device,
+                                      std::uint32_t partition_index) {
+  try {
+    auto ptr = new DiskPartition(device, partition_index);
+    partition.reset(ptr);
+
+    return osquery::Status(0);
+
+  } catch (const std::bad_alloc&) {
+    return osquery::Status(1, "Memory allocation failure");
+
+  } catch (const osquery::Status& status) {
+    return status;
   }
 }
 

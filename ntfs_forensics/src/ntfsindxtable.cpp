@@ -140,7 +140,7 @@ osquery::QueryData NTFSINDXTablePugin::generate(
       getParentInodeConstraints(inode_constraints, request, "parent_inode");
   if (!status.ok()) {
     LOG(WARNING) << status.getMessage();
-    return {{}};
+    return {};
   }
 
   // Build the disk device map according to the constraints we have been given
@@ -148,13 +148,13 @@ osquery::QueryData NTFSINDXTablePugin::generate(
   status = getDeviceAndPartitionConstraints(device_constraints, request);
   if (!status.ok()) {
     LOG(WARNING) << status.getMessage();
-    return {{}};
+    return {};
   }
 
   if (path_constraints.empty() == inode_constraints.empty()) {
     LOG(WARNING) << "Invalid or missing constraints; either parent_path or "
                     "parent_inode is required";
-    return {{}};
+    return {};
   }
 
   // Iterate through all devices
@@ -166,27 +166,34 @@ osquery::QueryData NTFSINDXTablePugin::generate(
 
     // Iterate through all partitions
     for (const auto& partition_number : device_partitions) {
-      try {
-        auto disk_device = std::make_shared<DiskDevice>(device_name);
-        auto disk_partition =
-            std::make_shared<DiskPartition>(disk_device, partition_number);
+      DiskDeviceRef disk_device;
+      status = DiskDevice::create(disk_device, device_name);
+      if (!status.ok()) {
+        LOG(WARNING) << status.getMessage();
+        continue;
+      }
 
-        // Use the constraint the user has selected to emit the rows
-        if (!inode_constraints.empty()) {
-          generateAndAppendRows(results,
-                                inode_constraints,
-                                disk_partition,
-                                device_name,
-                                partition_number);
-        } else {
-          generateAndAppendRows(results,
-                                path_constraints,
-                                disk_partition,
-                                device_name,
-                                partition_number);
-        }
+      DiskPartitionRef disk_partition;
+      status =
+          DiskPartition::create(disk_partition, disk_device, partition_number);
+      if (!status.ok()) {
+        LOG(WARNING) << status.getMessage();
+        continue;
+      }
 
-      } catch (const std::exception&) {
+      // Use the constraint the user has selected to emit the rows
+      if (!inode_constraints.empty()) {
+        generateAndAppendRows(results,
+                              inode_constraints,
+                              disk_partition,
+                              device_name,
+                              partition_number);
+      } else {
+        generateAndAppendRows(results,
+                              path_constraints,
+                              disk_partition,
+                              device_name,
+                              partition_number);
       }
     }
   }

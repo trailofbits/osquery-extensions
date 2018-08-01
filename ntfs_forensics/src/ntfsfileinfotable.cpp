@@ -128,7 +128,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   auto status = getParentInodeConstraints(inode_constraints, request, "inode");
   if (!status.ok()) {
     LOG(WARNING) << status.getMessage();
-    return {{}};
+    return {};
   }
 
   auto constraint_count = 0U;
@@ -147,7 +147,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   if (constraint_count != 1U) {
     LOG(WARNING) << "One of the following constraints must be "
                     "specified: path, directory, inode";
-    return {{}};
+    return {};
   }
 
   // Build the disk device map according to the constraints we have been given
@@ -155,7 +155,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   status = getDeviceAndPartitionConstraints(device_constraints, request);
   if (!status.ok()) {
     LOG(WARNING) << status.getMessage();
-    return {{}};
+    return {};
   }
 
   // Iterate through all devices
@@ -167,56 +167,63 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
 
     // Iterate through all partitions
     for (const auto& partition_number : device_partitions) {
-      try {
-        auto disk_device = std::make_shared<DiskDevice>(device_name);
-        auto disk_partition =
-            std::make_shared<DiskPartition>(disk_device, partition_number);
+      DiskDeviceRef disk_device;
+      status = DiskDevice::create(disk_device, device_name);
+      if (!status.ok()) {
+        LOG(WARNING) << status.getMessage();
+        continue;
+      }
 
-        if (!path_constraints.empty()) {
-          for (const auto& path : path_constraints) {
-            NTFSFileInformation info = {};
-            auto err = disk_partition->getFileInfo(path, info);
-            if (err != 0) {
-              continue;
-            }
+      DiskPartitionRef disk_partition;
+      status =
+          DiskPartition::create(disk_partition, disk_device, partition_number);
+      if (!status.ok()) {
+        LOG(WARNING) << status.getMessage();
+        continue;
+      }
 
-            osquery::Row r;
-            populateRow(r, info, device_name, partition_number);
-
-            results.push_back(std::move(r));
+      if (!path_constraints.empty()) {
+        for (const auto& path : path_constraints) {
+          NTFSFileInformation info = {};
+          auto err = disk_partition->getFileInfo(path, info);
+          if (err != 0) {
+            continue;
           }
 
-        } else if (!inode_constraints.empty()) {
-          for (const auto& inode : inode_constraints) {
-            NTFSFileInformation info = {};
-            auto err = disk_partition->getFileInfo(inode, info);
-            if (err != 0) {
-              continue;
-            }
+          osquery::Row r;
+          populateRow(r, info, device_name, partition_number);
 
-            osquery::Row r;
-            populateRow(r, info, device_name, partition_number);
-
-            results.push_back(std::move(r));
-          }
-
-        } else if (!directory_constraints.empty()) {
-          for (const auto& directory : directory_constraints) {
-            query_context_t context = {results, device_name, partition_number};
-            disk_partition->recurseDirectory(callback, &context, directory, 1);
-          }
+          results.push_back(std::move(r));
         }
 
-        // We could work without any constraint, but this is going to have the
-        // extension killed by osquery if it takes too long
+      } else if (!inode_constraints.empty()) {
+        for (const auto& inode : inode_constraints) {
+          NTFSFileInformation info = {};
+          auto err = disk_partition->getFileInfo(inode, info);
+          if (err != 0) {
+            continue;
+          }
 
-        /*
+          osquery::Row r;
+          populateRow(r, info, device_name, partition_number);
+
+          results.push_back(std::move(r));
+        }
+
+      } else if (!directory_constraints.empty()) {
+        for (const auto& directory : directory_constraints) {
           query_context_t context = {results, device_name, partition_number};
-          disk_partition->walkPartition(callback, &context);
-        */
-
-      } catch (const std::exception&) {
+          disk_partition->recurseDirectory(callback, &context, directory, 1);
+        }
       }
+
+      // We could work without any constraint, but this is going to have the
+      // extension killed by osquery if it takes too long
+
+      /*
+        query_context_t context = {results, device_name, partition_number};
+        disk_partition->walkPartition(callback, &context);
+      */
     }
   }
 
