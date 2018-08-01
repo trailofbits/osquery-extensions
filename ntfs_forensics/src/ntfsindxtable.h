@@ -22,9 +22,13 @@
 #include <osquery/sdk.h>
 
 namespace trailofbits {
+/// This is the table plugin for ntfs_indx_data
 class NTFSINDXTablePugin final : public osquery::TablePlugin {
  public:
+  /// Returns the table schema
   osquery::TableColumns columns() const override;
+
+  /// Generates the partition list
   osquery::QueryData generate(osquery::QueryContext& context) override;
 };
 }

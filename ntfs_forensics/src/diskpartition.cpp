@@ -15,7 +15,6 @@
  */
 
 #include <iomanip>
-#include <iostream>
 #include <sstream>
 #include <unordered_set>
 
@@ -262,7 +261,7 @@ DiskPartition::DiskPartition(std::shared_ptr<DiskDevice> device,
 
 osquery::Status DiskPartition::create(DiskPartitionRef& partition,
                                       DiskDeviceRef device,
-                                      std::uint32_t partition_index) {
+                                      std::uint32_t partition_index) noexcept {
   try {
     auto ptr = new DiskPartition(device, partition_index);
     partition.reset(ptr);
@@ -442,7 +441,7 @@ void DiskPartition::collectINDX(const std::string& path,
                                 DirEntryList& entries) {
   TSK_FS_FILE* fsFile = tsk_fs_file_open(fsInfo, nullptr, path.c_str());
   if (fsFile == nullptr) {
-    std::cerr << "unable to open file " << path << "\n";
+    LOG(WARNING) << "Unable to open file " << path;
     return;
   }
 
@@ -453,7 +452,7 @@ void DiskPartition::collectINDX(const std::string& path,
 void DiskPartition::collectINDX(uint64_t inode, DirEntryList& entries) {
   TSK_FS_FILE* fsFile = tsk_fs_file_open_meta(fsInfo, nullptr, inode);
   if (fsFile == nullptr) {
-    std::cerr << "unable to open file with inode " << inode << "\n";
+    LOG(WARNING) << "Unable to open file with inode " << inode;
     return;
   }
 
@@ -461,6 +460,7 @@ void DiskPartition::collectINDX(uint64_t inode, DirEntryList& entries) {
   tsk_fs_file_close(fsFile);
 }
 
+namespace {
 bool processDirectoryIndexEntry(const uint8_t* data,
                                 NTFSDirectoryIndexEntry& entry,
                                 size_t size) {
@@ -558,8 +558,8 @@ void processDirectoryIndexAttribute(const TSK_FS_ATTR* attrib,
     ssize_t bytes_read = tsk_fs_attr_read(
         attrib, offset, buffer, record_size, TSK_FS_FILE_READ_FLAG_NONE);
     if (bytes_read < record_size) {
-      std::cerr << "read " << bytes_read << " of requested " << record_size
-                << " bytes\n";
+      LOG(WARNING) << "read " << bytes_read << " of requested " << record_size
+                   << " bytes";
       return; // abort?
     }
     uint8_t* ptr = (uint8_t*)buffer;
@@ -600,12 +600,13 @@ void processDirectoryIndexRootAttrib(const TSK_FS_ATTR* attrib,
   const uint8_t* data = attrib->rd.buf;
   uintFromBuffer(data, 0, attrib_type);
   if (attrib_type != 48) {
-    std::cerr << "processDirectoryIndexRootAttrib called on index root that "
-                 "doesn't index file_name\n";
+    LOG(WARNING) << "processDirectoryIndexRootAttrib called on index root that "
+                    "doesn't index file_name";
     return;
   }
   uintFromBuffer(data, 8, record_size);
   processDirIndexNodesAndEntries(data + 16, attrib->size - 16, entries);
+}
 }
 
 void DiskPartition::collectINDX(TSK_FS_FILE* fsFile, DirEntryList& entries) {
@@ -623,7 +624,7 @@ void DiskPartition::collectINDX(TSK_FS_FILE* fsFile, DirEntryList& entries) {
       if (record_size != 0) {
         processDirectoryIndexAttribute(attrib, entries, record_size);
       } else {
-        std::cerr << "record_size is 0, skipping IDXALLOC attribute\n";
+        LOG(WARNING) << "record_size is 0, skipping IDXALLOC attribute";
       }
       break;
     }

@@ -32,7 +32,7 @@ DiskDevice::DiskDevice(const std::string& device_name) {
 }
 
 osquery::Status DiskDevice::create(DiskDeviceRef& disk_device,
-                                   const std::string& device_name) {
+                                   const std::string& device_name) noexcept {
   try {
     auto ptr = new DiskDevice(device_name);
     disk_device.reset(ptr);

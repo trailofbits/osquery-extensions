@@ -29,16 +29,24 @@ namespace trailofbits {
 class DiskDevice;
 using DiskDeviceRef = std::shared_ptr<DiskDevice>;
 
+/// This class is a wrapper around the TSK image information type
 class DiskDevice final : private boost::noncopyable {
   TSK_IMG_INFO* img_info{nullptr};
 
+  /// Constructs a new object by opening the specified device. Will throw an
+  /// osquery::Status object in case of error
   DiskDevice(const std::string& device_name);
 
  public:
+  /// Constructs a new object by opening the specified device. This function
+  /// never throws an exception
   static osquery::Status create(DiskDeviceRef& disk_device,
-                                const std::string& device_name);
+                                const std::string& device_name) noexcept;
+
+  /// Destructor
   ~DiskDevice();
 
+  /// Returns the wrapped TSK object
   TSK_IMG_INFO* imageInfo();
 };
 }

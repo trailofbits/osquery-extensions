@@ -19,6 +19,7 @@
 #include <osquery/tables.h>
 
 namespace trailofbits {
+/// A disk map, also containing the available partitions for each device
 using DiskDeviceMap =
     std::unordered_map<std::string, std::unordered_set<std::uint32_t>>;
 
