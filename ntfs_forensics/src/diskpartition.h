@@ -21,6 +21,8 @@
 #include <string>
 #include <unordered_set>
 
+#include <boost/noncopyable.hpp>
+
 #include <tsk/libtsk.h>
 
 #include "diskdevice.h"
@@ -40,7 +42,7 @@ using DiskPartitionInformationList = std::list<DiskPartitionInformation>;
 class DiskPartition;
 using DiskPartitionRef = std::shared_ptr<DiskPartition>;
 
-class DiskPartition final {
+class DiskPartition final : private boost::noncopyable {
   DiskPartition(std::shared_ptr<DiskDevice> device,
                 std::uint32_t partition_index);
 

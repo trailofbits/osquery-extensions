@@ -176,6 +176,7 @@ osquery::QueryData NTFSINDXTablePugin::generate(
       DiskPartitionRef disk_partition;
       status =
           DiskPartition::create(disk_partition, disk_device, partition_number);
+
       if (!status.ok()) {
         LOG(WARNING) << status.getMessage();
         continue;

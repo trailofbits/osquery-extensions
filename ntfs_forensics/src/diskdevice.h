@@ -19,6 +19,8 @@
 #include <memory>
 #include <string>
 
+#include <boost/noncopyable.hpp>
+
 #include <tsk/libtsk.h>
 
 #include <osquery/sdk.h>
@@ -27,7 +29,7 @@ namespace trailofbits {
 class DiskDevice;
 using DiskDeviceRef = std::shared_ptr<DiskDevice>;
 
-class DiskDevice final {
+class DiskDevice final : private boost::noncopyable {
   TSK_IMG_INFO* img_info{nullptr};
 
   DiskDevice(const std::string& device_name);
