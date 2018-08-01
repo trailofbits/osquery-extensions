@@ -293,9 +293,9 @@ void EnumObObjects(EnumObObjectsCallback callback, void* user_defined) {
   }
 }
 
-bool GenerateMutant(MutantHandle& handle,
-                    const std::string& path,
-                    const std::string& name) {
+osquery::Status GenerateMutant(MutantHandle& handle,
+                               const std::string& path,
+                               const std::string& name) {
   std::wstring path_str = osquery::stringToWstring(path.data()) + L"\\" +
                           osquery::stringToWstring(name.data());
 
@@ -309,12 +309,14 @@ bool GenerateMutant(MutantHandle& handle,
   HANDLE mutant;
   auto status = NtCreateMutant(&mutant, MUTANT_ALL_ACCESS, &attributes, TRUE);
   if (NT_ERROR(status)) {
-    VLOG(1) << "NtCreateMutant failed with error 0x" << std::hex << status;
-    return false;
+    std::stringstream message;
+    message << "NtCreateMutant failed with error 0x" << std::hex << status;
+
+    return osquery::Status(1, message.str());
   }
 
   handle = static_cast<MutantHandle>(mutant);
-  return true;
+  return osquery::Status(0);
 }
 
 bool DestroyMutant(MutantHandle handle) {
@@ -322,10 +324,10 @@ bool DestroyMutant(MutantHandle handle) {
   return (CloseHandle(mutant) != 0);
 }
 
-bool GenerateEvent(EventHandle& handle,
-                   const std::string& path,
-                   const std::string& name,
-                   EventType type) {
+osquery::Status GenerateEvent(EventHandle& handle,
+                              const std::string& path,
+                              const std::string& name,
+                              EventType type) {
   std::wstring path_str = osquery::stringToWstring(path.data()) + L"\\" +
                           osquery::stringToWstring(name.data());
 
@@ -345,12 +347,14 @@ bool GenerateEvent(EventHandle& handle,
                                                       : SynchronizationEvent,
                     TRUE);
   if (NT_ERROR(status)) {
-    VLOG(1) << "NtCreateEvent failed with error 0x" << std::hex << status;
-    return false;
+    std::stringstream message;
+    message << "NtCreateEvent failed with error 0x" << std::hex << status;
+
+    return osquery::Status(1, message.str());
   }
 
   handle = static_cast<EventHandle>(event);
-  return true;
+  return osquery::Status(0);
 }
 
 bool DestroyEvent(EventHandle handle) {
@@ -358,9 +362,9 @@ bool DestroyEvent(EventHandle handle) {
   return (CloseHandle(event) != 0);
 }
 
-bool GenerateSemaphore(SemaphoreHandle& handle,
-                       const std::string& path,
-                       const std::string& name) {
+osquery::Status GenerateSemaphore(SemaphoreHandle& handle,
+                                  const std::string& path,
+                                  const std::string& name) {
   std::wstring path_str = osquery::stringToWstring(path.data()) + L"\\" +
                           osquery::stringToWstring(name.data());
 
@@ -376,12 +380,14 @@ bool GenerateSemaphore(SemaphoreHandle& handle,
       NtCreateSemaphore(&semaphore, SEMAPHORE_ALL_ACCESS, &attributes, 1, 1);
 
   if (NT_ERROR(status)) {
-    VLOG(1) << "NtCreateSemaphore failed with error 0x" << std::hex << status;
-    return false;
+    std::stringstream message;
+    message << "NtCreateSemaphore failed with error 0x" << std::hex << status;
+
+    return osquery::Status(1, message.str());
   }
 
   handle = static_cast<SemaphoreHandle>(semaphore);
-  return true;
+  return osquery::Status(0);
 }
 
 bool DestroySemaphore(SemaphoreHandle handle) {

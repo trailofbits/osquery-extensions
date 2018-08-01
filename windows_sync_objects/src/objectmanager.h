@@ -18,6 +18,8 @@
 
 #include <string>
 
+#include <osquery/sdk.h>
+
 namespace trailofbits {
 struct ObjectDescriptor final {
   enum class Type { Semaphore, Mutant, Event };
@@ -62,21 +64,22 @@ enum class EventType { Notification, Synchronization };
 
 void EnumObObjects(EnumObObjectsCallback callback, void* user_defined);
 
-bool GenerateMutant(MutantHandle& handle,
-                    const std::string& path,
-                    const std::string& name);
+osquery::Status GenerateMutant(MutantHandle& handle,
+                               const std::string& path,
+                               const std::string& name);
+
 bool DestroyMutant(MutantHandle handle);
 
-bool GenerateEvent(EventHandle& handle,
-                   const std::string& path,
-                   const std::string& name,
-                   EventType type);
+osquery::Status GenerateEvent(EventHandle& handle,
+                              const std::string& path,
+                              const std::string& name,
+                              EventType type);
 
 bool DestroyEvent(EventHandle handle);
 
-bool GenerateSemaphore(SemaphoreHandle& handle,
-                       const std::string& path,
-                       const std::string& name);
+osquery::Status GenerateSemaphore(SemaphoreHandle& handle,
+                                  const std::string& path,
+                                  const std::string& name);
 
 bool DestroySemaphore(SemaphoreHandle handle);
 }

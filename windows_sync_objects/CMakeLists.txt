@@ -18,10 +18,11 @@ project(windows_sync_objects)
 function(main)
   set(project_common_source_files
     src/winapi.h
+
     src/objectmanager.h
     src/objectmanager.cpp
 
-    src/basetable.h
+    src/windowssyncobjects.h
     src/windowssyncobjects.cpp
   )
 
@@ -35,7 +36,6 @@ function(main)
     MAININCLUDES windowssyncobjects.h
     LIBRARIES
   )
-
 endfunction()
 
 main()

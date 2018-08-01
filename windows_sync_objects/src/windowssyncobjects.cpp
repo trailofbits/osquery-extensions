@@ -14,22 +14,26 @@
  * limitations under the License.
  */
 
-#include "windowssyncobjects.h"
-#include "objectmanager.h"
-
-#include <osquery/core/conversions.h>
-#include <osquery/system.h>
-
 #include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <mutex>
-#include <set>
 #include <unordered_map>
-#include <vector>
+#include <unordered_set>
+
+#include <osquery/sdk.h>
+
+#include <rapidjson/document.h>
+
+#include "objectmanager.h"
+#include "windowssyncobjects.h"
 
 namespace trailofbits {
-namespace windows_sync_objects {
 namespace {
+using PrimaryKey = std::string;
+using RowID = std::uint64_t;
+using RowIdToPrimaryKeyMap = std::unordered_map<RowID, PrimaryKey>;
+
 struct ObjectInformation final {
   ObjectDescriptor::Type type;
 
@@ -55,7 +59,7 @@ RowID GenerateRowID(bool ephemeral) {
     ++generator;
   }
 
-  return static_cast<windows_sync_objects::RowID>(new_id);
+  return static_cast<RowID>(new_id);
 }
 }
 
@@ -63,7 +67,7 @@ struct WindowsSyncObjectsTable::PrivateData final {
   std::mutex mutex;
 
   std::unordered_map<std::string, ObjectInformation> path_to_object;
-  std::unordered_map<windows_sync_objects::RowID, std::string> rowid_to_path;
+  std::unordered_map<RowID, std::string> rowid_to_path;
 };
 
 WindowsSyncObjectsTable::WindowsSyncObjectsTable() : d(new PrivateData) {}
@@ -86,13 +90,12 @@ osquery::TableColumns WindowsSyncObjectsTable::columns() const {
   // clang-format on
 }
 
-osquery::QueryData WindowsSyncObjectsTable::generate(
-    osquery::QueryContext& ) {
+osquery::QueryData WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   struct CallbackData final {
-    std::unordered_map<windows_sync_objects::RowID, std::string>& rowid_to_path;
-    const std::set<ObjectDescriptor::Type>& filter;
+    std::unordered_map<RowID, std::string>& rowid_to_path;
+    const std::unordered_set<ObjectDescriptor::Type>& filter;
     osquery::QueryData results;
   };
 
@@ -110,7 +113,7 @@ osquery::QueryData WindowsSyncObjectsTable::generate(
     auto user_object_it = std::find_if(
       callback_data.rowid_to_path.begin(),
       callback_data.rowid_to_path.end(),
-      [full_path](const std::pair<windows_sync_objects::RowID, std::string> &p) -> bool {
+      [full_path](const std::pair<RowID, std::string> &p) -> bool {
         return (full_path == p.second);
       }
     );
@@ -201,7 +204,7 @@ osquery::QueryData WindowsSyncObjectsTable::generate(
     return true;
   };
 
-  static const std::set<ObjectDescriptor::Type> filter = {
+  static const std::unordered_set<ObjectDescriptor::Type> filter = {
       ObjectDescriptor::Type::Event,
       ObjectDescriptor::Type::Mutant,
       ObjectDescriptor::Type::Semaphore};
@@ -213,22 +216,24 @@ osquery::QueryData WindowsSyncObjectsTable::generate(
 }
 
 osquery::QueryData WindowsSyncObjectsTable::insert(
-    osquery::QueryContext& , const osquery::PluginRequest& request) {
+    osquery::QueryContext&, const osquery::PluginRequest& request) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   osquery::Row row;
   auto status = GetRowData(row, request.at("json_value_array"));
   if (!status.ok()) {
-    VLOG(1) << status.getMessage();
-    return {{std::make_pair("status", "failure")}};
+    return {{std::make_pair("status", "failure"),
+             std::make_pair("message", status.getMessage())}};
   }
 
   ObjectInformation object_information;
 
   if (row["type"] == "Mutant") {
     MutantHandle mutant;
-    if (!GenerateMutant(mutant, row["path"], row["name"])) {
-      return {{std::make_pair("status", "failure")}};
+    status = GenerateMutant(mutant, row["path"], row["name"]);
+    if (!status.ok()) {
+      return {{std::make_pair("status", "failure"),
+               std::make_pair("message", status.getMessage())}};
     }
 
     object_information.type = ObjectDescriptor::Type::Mutant;
@@ -240,8 +245,10 @@ osquery::QueryData WindowsSyncObjectsTable::insert(
                                : EventType::Synchronization;
 
     EventHandle event;
-    if (!GenerateEvent(event, row["path"], row["name"], event_type)) {
-      return {{std::make_pair("status", "failure")}};
+    status = GenerateEvent(event, row["path"], row["name"], event_type);
+    if (!status.ok()) {
+      return {{std::make_pair("status", "failure"),
+               std::make_pair("message", status.getMessage())}};
     }
 
     object_information.type = ObjectDescriptor::Type::Event;
@@ -249,16 +256,18 @@ osquery::QueryData WindowsSyncObjectsTable::insert(
 
   } else if (row["type"] == "Semaphore") {
     SemaphoreHandle semaphore;
-    if (!GenerateSemaphore(semaphore, row["path"], row["name"])) {
-      return {{std::make_pair("status", "failure")}};
+    status = GenerateSemaphore(semaphore, row["path"], row["name"]);
+    if (!status.ok()) {
+      return {{std::make_pair("status", "failure"),
+               std::make_pair("message", status.getMessage())}};
     }
 
     object_information.type = ObjectDescriptor::Type::Semaphore;
     object_information.semaphore_handle = semaphore;
 
   } else {
-    VLOG(1) << "Invalid entity type";
-    return {{std::make_pair("status", "failure")}};
+    return {{std::make_pair("status", "failure"),
+             std::make_pair("message", "Invalid entity type")}};
   }
 
   auto path = row["path"] + "\\" + row["name"];
@@ -274,32 +283,33 @@ osquery::QueryData WindowsSyncObjectsTable::insert(
 }
 
 osquery::QueryData WindowsSyncObjectsTable::delete_(
-    osquery::QueryContext& , const osquery::PluginRequest& request) {
+    osquery::QueryContext&, const osquery::PluginRequest& request) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
-  char *null_term_ptr = nullptr;
+  char* null_term_ptr = nullptr;
   auto row_id = std::strtoull(request.at("id").c_str(), &null_term_ptr, 10);
   if (*null_term_ptr != 0) {
-    VLOG(1) << "Invalid row id received";
-    return {{std::make_pair("status", "failure")}};
+    return {{std::make_pair("status", "failure"),
+             std::make_pair("message", "Invalid row id received")}};
   }
 
   // We only support editing of our own objects
   if ((row_id & 0x8000000000000000ULL) != 0) {
-    VLOG(1) << "Entity not owned by osquery";
-    return {{std::make_pair("status", "failure")}};
+    return {{std::make_pair("status", "failure"),
+             std::make_pair("message",
+                            "The specified object is not owned by osquery")}};
   }
 
   auto path_it = d->rowid_to_path.find(row_id);
   if (path_it == d->rowid_to_path.end()) {
-    VLOG(1) << "Row id not found";
-    return {{std::make_pair("status", "failure")}};
+    return {{std::make_pair("status", "failure"),
+             std::make_pair("message", "Row id not found")}};
   }
 
   auto object_it = d->path_to_object.find(path_it->second);
   if (object_it == d->path_to_object.end()) {
-    VLOG(1) << "Row id -> path mismatch";
-    return {{std::make_pair("status", "failure")}};
+    return {{std::make_pair("status", "failure"),
+             std::make_pair("message", "Row id -> path mismatch")}};
   }
 
   auto object_information = object_it->second;
@@ -325,7 +335,8 @@ osquery::QueryData WindowsSyncObjectsTable::delete_(
   }
 
   if (!succeeded) {
-    return {{std::make_pair("status", "failure")}};
+    return {{std::make_pair("status", "failure"),
+             std::make_pair("message", "Failed to destroy the object")}};
   }
 
   d->rowid_to_path.erase(path_it);
@@ -335,19 +346,20 @@ osquery::QueryData WindowsSyncObjectsTable::delete_(
 }
 
 osquery::QueryData WindowsSyncObjectsTable::update(
-    osquery::QueryContext& , const osquery::PluginRequest& ) {
-  // This operation is not supported
-  return {{std::make_pair("status", "failure")}};
+    osquery::QueryContext&, const osquery::PluginRequest&) {
+  return {{std::make_pair("status", "failure"),
+           std::make_pair("message", "This operation is not supported")}};
 }
 
 osquery::Status WindowsSyncObjectsTable::GetRowData(
     osquery::Row& row, const std::string& json_value_array) {
   row.clear();
+  json_value_array.size();
 
   rapidjson::Document document;
-  auto status = ParseRowData(document, json_value_array);
-  if (!status.ok()) {
-    return status;
+  document.Parse(json_value_array);
+  if (document.HasParseError() || !document.IsArray()) {
+    return osquery::Status(1, "Invalid format");
   }
 
   if (document.Size() != 9U) {
@@ -395,5 +407,4 @@ osquery::Status WindowsSyncObjectsTable::GetRowData(
 
   return osquery::Status(0, "OK");
 }
-} // namespace windows_sync_objecs
 } // namespace trailofbits

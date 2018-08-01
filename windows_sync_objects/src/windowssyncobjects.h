@@ -16,37 +16,46 @@
 
 #pragma once
 
-#include "basetable.h"
 #include <memory>
 
+#include <osquery/sdk.h>
+
 namespace trailofbits {
-namespace windows_sync_objects {
-class WindowsSyncObjectsTable final : public BaseTable {
+class WindowsSyncObjectsTable final : public osquery::TablePlugin {
  public:
   WindowsSyncObjectsTable();
   virtual ~WindowsSyncObjectsTable();
 
+  /// Returns the table schema
   osquery::TableColumns columns() const;
 
+  /// Generates the table rows
   osquery::QueryData generate(osquery::QueryContext& context);
 
+  /// Inserts a new synchronization object into the table
   osquery::QueryData insert(osquery::QueryContext& context,
                             const osquery::PluginRequest& request);
 
+  /// Deletes an existing synchronization object from the table; only objects
+  /// created by this extension can be removed
   osquery::QueryData delete_(osquery::QueryContext& context,
                              const osquery::PluginRequest& request);
 
+  /// As updates are not supported, this method returns an error
   osquery::QueryData update(osquery::QueryContext& context,
                             const osquery::PluginRequest& request);
 
  private:
   struct PrivateData;
+
+  /// Private class data
   std::unique_ptr<PrivateData> d;
 
-  static osquery::Status GetRowData(osquery::Row& row,
-                                    const std::string& json_value_array);
+  /// Deserializes the JSON data received from osquery
+  osquery::Status GetRowData(osquery::Row& row,
+                             const std::string& json_value_array);
 };
-} // namespace windows_sync_objects
 } // namespace trailofbits
 
-using WindowsSyncObjectsTablePlugin = trailofbits::windows_sync_objects::WindowsSyncObjectsTable;
+// Export the class outside the namespace so that osquery can pick it up
+using WindowsSyncObjectsTablePlugin = trailofbits::WindowsSyncObjectsTable;
