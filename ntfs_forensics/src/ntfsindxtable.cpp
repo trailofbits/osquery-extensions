@@ -52,6 +52,59 @@ void populateIndexRow(osquery::Row& r,
 
   r["slack"] = std::to_string(entry.slack_addr);
 }
+
+void generateAndAppendRows(
+    osquery::QueryData& results,
+    const std::unordered_set<std::uint64_t>& inode_constraints,
+    DiskPartition& partition,
+    const std::string& device_name,
+    std::uint32_t partition_number) {
+  for (const auto& inode : inode_constraints) {
+    DirEntryList entries = {};
+    NTFSFileInformation fileInfo = {};
+
+    partition.collectINDX(inode, entries);
+    partition.getFileInfo(inode, fileInfo);
+
+    for (auto& entry : entries) {
+      osquery::Row r = {};
+      populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
+
+      results.push_back(std::move(r));
+    }
+  }
+}
+
+void generateAndAppendRows(osquery::QueryData& results,
+                           const std::set<std::string>& path_constraints,
+                           DiskPartition& partition,
+                           const std::string& device_name,
+                           std::uint32_t partition_number) {
+  for (const auto& path : path_constraints) {
+    DirEntryList entries = {};
+    NTFSFileInformation fileInfo = {};
+
+    // The root folder is a special case; we have to query it by inode
+    if (path == "/") {
+      NTFSFileInformation root_file_info;
+      partition.getFileInfo(path, root_file_info);
+
+      partition.collectINDX(root_file_info.inode, entries);
+      partition.getFileInfo(root_file_info.inode, fileInfo);
+
+    } else {
+      partition.collectINDX(path, entries);
+      partition.getFileInfo(path, fileInfo);
+    }
+
+    for (auto& entry : entries) {
+      osquery::Row r = {};
+      populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
+
+      results.push_back(std::move(r));
+    }
+  }
+}
 }
 
 osquery::TableColumns NTFSINDXTablePugin::columns() const {
@@ -181,38 +234,11 @@ osquery::QueryData NTFSINDXTablePugin::generate(
 
       // Use the constraint the user has selected to emit the rows
       if (!inode_constraints.empty()) {
-        for (const auto& inode : inode_constraints) {
-          DirEntryList entries = {};
-          NTFSFileInformation fileInfo = {};
-
-          p->collectINDX(inode, entries);
-          p->getFileInfo(inode, fileInfo);
-
-          for (auto& entry : entries) {
-            osquery::Row r = {};
-            populateIndexRow(
-                r, entry, device_name, partition_number, fileInfo.path);
-
-            results.push_back(std::move(r));
-          }
-        }
-
+        generateAndAppendRows(
+            results, inode_constraints, *p, device_name, partition_number);
       } else {
-        for (const auto& path : path_constraints) {
-          DirEntryList entries = {};
-          NTFSFileInformation fileInfo = {};
-
-          p->collectINDX(path, entries);
-          p->getFileInfo(path, fileInfo);
-
-          for (auto& entry : entries) {
-            osquery::Row r = {};
-            populateIndexRow(
-                r, entry, device_name, partition_number, fileInfo.path);
-
-            results.push_back(std::move(r));
-          }
-        }
+        generateAndAppendRows(
+            results, path_constraints, *p, device_name, partition_number);
       }
 
       delete p;

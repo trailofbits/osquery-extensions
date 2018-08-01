@@ -269,7 +269,6 @@ int DiskPartition::getFileInfo(const std::string& path,
   int rval = 0;
 
   TSK_FS_FILE* fsFile = tsk_fs_file_open(fsInfo, nullptr, path.c_str());
-
   if (fsFile == nullptr) {
     return 6;
   }
