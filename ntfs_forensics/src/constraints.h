@@ -22,10 +22,15 @@ namespace trailofbits {
 using DiskDeviceMap =
     std::unordered_map<std::string, std::unordered_set<std::uint32_t>>;
 
+/// Returns the inode constraints reading the specified key from the SQL
+/// request
 osquery::Status getParentInodeConstraints(
     std::unordered_set<std::uint64_t>& inode_constraints,
     const osquery::QueryContext& request,
     const std::string& key_name);
+
+/// Returns a disk device map (device -> partitions) that has been filtered
+/// according to the given constraints
 osquery::Status getDeviceAndPartitionConstraints(
     DiskDeviceMap& device_map, const osquery::QueryContext& request);
 }
