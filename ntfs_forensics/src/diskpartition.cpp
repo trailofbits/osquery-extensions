@@ -245,17 +245,26 @@ DiskPartition::DiskPartition(std::shared_ptr<DiskDevice> device,
     : disk_device(device) {
   volInfo = tsk_vs_open(disk_device->imageInfo(), 0, TSK_VS_TYPE_DETECT);
   if (volInfo == nullptr) {
-    throw osquery::Status(1, "unable to open volume");
+    std::stringstream strm;
+    strm << "unable to open volume: " << tsk_error_get();
+    throw osquery::Status(1, strm.str());
   }
 
   vsPartInfo = tsk_vs_part_get(volInfo, partition_index);
   if (vsPartInfo == nullptr) {
-    throw osquery::Status(1, "unable to open partition");
+    std::stringstream strm;
+    strm << "unable to open partition: " << tsk_error_get();
+    throw osquery::Status(1, strm.str());
   }
 
-  fsInfo = tsk_fs_open_vol(vsPartInfo, TSK_FS_TYPE_DETECT);
+  fsInfo =
+      tsk_fs_open_img(disk_device->imageInfo(),
+                      vsPartInfo->start * disk_device->imageInfo()->sector_size,
+                      TSK_FS_TYPE_NTFS);
   if (fsInfo == nullptr) {
-    throw osquery::Status(2, "unable to open filesystem");
+    std::stringstream strm;
+    strm << "unable to open filesystem: " << tsk_error_get();
+    throw osquery::Status(2, strm.str());
   }
 }
 

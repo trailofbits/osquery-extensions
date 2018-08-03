@@ -179,6 +179,9 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
           DiskPartition::create(disk_partition, disk_device, partition_number);
 
       if (!status.ok()) {
+        // error code 2 is explicitly the code for unable to open filesystem
+        // this is common if partition is not specified and there are
+        // multiple non-NTFS partitions
         if (status.getCode() != 2) {
           LOG(WARNING) << status.getMessage();
         }
@@ -189,7 +192,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
         for (const auto& path : path_constraints) {
           NTFSFileInformation info = {};
 
-          //special case handling for the root dir
+          // special case handling for the root dir
           if ("/" == path) {
             auto err = disk_partition->getFileInfo("/.", info);
             if (err != 0) {
