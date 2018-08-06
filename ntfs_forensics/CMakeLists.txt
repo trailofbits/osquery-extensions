@@ -17,8 +17,25 @@ project(ntfs_forensics)
 
 function(main)
   set(project_common_source_files
-    src/ntfs_forensics.h
-    src/ntfs_forensics.cpp
+    src/ntfs_types.h
+
+    src/diskdevice.h
+    src/diskdevice.cpp
+
+    src/ntfsfileinformation.h
+    src/ntfsfileinformation.cpp
+
+    src/ntfsdirectoryindexentry.h
+    src/ntfsdirectoryindexentry.cpp
+
+    src/ntfsfilenameattributecontents.h
+    src/ntfsfilenameattributecontents.cpp
+
+    src/diskpartition.h
+    src/diskpartition.cpp
+
+    src/constraints.h
+    src/constraints.cpp
   )
 
   set(project_include_dirs

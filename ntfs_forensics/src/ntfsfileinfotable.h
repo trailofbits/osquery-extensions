@@ -17,17 +17,19 @@
 #pragma once
 
 #include <map>
-#include <osquery/sdk.h>
 #include <string>
 
-namespace trailofbits {
-class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {
- private:
-  osquery::TableColumns columns() const override;
-  osquery::QueryData generate(osquery::QueryContext& request) override;
+#include <osquery/sdk.h>
 
-  typedef std::map<std::string, osquery::QueryData> partition_cache_t;
-  partition_cache_t cache;
+namespace trailofbits {
+/// This is the table plugin for ntfs_file_data
+class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {
+ public:
+  /// Returns the table schema
+  osquery::TableColumns columns() const override;
+
+  /// Generates the partition list
+  osquery::QueryData generate(osquery::QueryContext& request) override;
 };
 }
 
