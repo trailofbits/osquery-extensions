@@ -4,13 +4,14 @@ This repository includes [osquery](https://osquery.io/) [extensions](https://osq
 
 [Extensions](https://osquery.readthedocs.io/en/stable/deployment/extensions/) are a type of osquery add-on that can be loaded at runtime to provide new virtual tables, with capabilities that go beyond the limitations of mainline osquery. Trail of Bits has developed extensions to provide tables that can _manage_ service configurations as well as _view_ them (currently pending the merge of [PR4094](https://github.com/facebook/osquery/pull/4094)), or that can cross-check information on the host with external third-party services. The extensions interface is commonly used to address individual organizations' needs, or to implement proprietary detection methods. Here we use it to demonstrate some pioneering use cases of osquery. To learn more, view our talk ([slides](https://github.com/trailofbits/presentations/tree/master/Osquery%20Extensions), [video](https://www.youtube.com/watch?v=g46rjoP18EE)) from QueryCon 2018.
 
-| Extension      | Description | Supported Endpoints |
-|    :-:         |    :-:      |         :-:         |
-| efigy          | Integrates osquery with the Duo Labs EFIgy API to determine if the EFI firmware on your Mac fleet is up-to-date. | macOS |
-| santa          | Integrates osquery with the Santa application whiteslisting solution. Check DENY events and manage the whitelist/blacklist rules. | macOS |
-| fwctl          | Provides osquery with the ability to view and manage the OS-native firewall rules and `/etc/hosts` file (port and host blocking). | macOS, Linux, Windows |
-| ntfs_forensics | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
-| (more to come) | ...  | ...   |
+| Extension            | Description | Supported Endpoints |
+|          :-:         |    :-:      |         :-:         |
+| efigy                | Integrates osquery with the Duo Labs EFIgy API to determine if the EFI firmware on your Mac fleet is up-to-date. | macOS |
+| santa                | Integrates osquery with the Santa application whiteslisting solution. Check DENY events and manage the whitelist/blacklist rules. | macOS |
+| fwctl                | Provides osquery with the ability to view and manage the OS-native firewall rules and `/etc/hosts` file (port and host blocking). | macOS, Linux, Windows |
+| ntfs_forensics       | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
+| windows_sync_objects | Provides osquery with the ability of listing and locking Windows synchronization objects (mutants, events, semaphores). | Windows |
+| (more to come)       | ...  | ...   |
 
 ## Dependencies
 
@@ -30,7 +31,9 @@ So, for Windows, after cloning the osquery repository and cherry-picking the com
 2. Uninstall the boost-msvc14 package that osquery's scripts just installed: `choco uninstall boost-msvc14`
 3. Build the Boost package from source (at a Powershell prompt): `.\tools\provision\chocolatey\boost-msvc14.ps1`
 4. Enter the folder where the package was created: `cd .\build\chocolatey\boost-msvc14\boost_1_66_0\osquery-choco`
-5. Run `choco install -s . .\boost-msvc14.1.66.0-r1.nupkg` to install the Boost package you just built.
+5. Run `choco install -s . .\boost-msvc14.1.66.0-r2.nupkg` to install the Boost package you just built.
+
+In case you want a binary package, we have uploaded one in the [releases](https://github.com/trailofbits/osquery-extensions/releases) page.
 
 ##### macOS
 
