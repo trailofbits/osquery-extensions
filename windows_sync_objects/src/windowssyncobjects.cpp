@@ -31,7 +31,7 @@
 namespace trailofbits {
 namespace {
 using PrimaryKey = std::string;
-using RowID = std::uint64_t;
+using RowID = std::uint32_t;
 using RowIdToPrimaryKeyMap = std::unordered_map<RowID, PrimaryKey>;
 
 struct ObjectInformation final {
@@ -49,9 +49,9 @@ RowID GenerateRowID(bool ephemeral) {
 
   auto new_id = generator;
   if (ephemeral) {
-    new_id |= 0x80000000;
+    new_id |= 0x80000000U;
   } else {
-    new_id &= 0x7FFFFFFF;
+    new_id &= 0x7FFFFFFFU;
   }
 
   ++generator;
@@ -287,14 +287,15 @@ osquery::QueryData WindowsSyncObjectsTable::delete_(
   std::lock_guard<std::mutex> lock(d->mutex);
 
   char* null_term_ptr = nullptr;
-  auto row_id = std::strtoull(request.at("id").c_str(), &null_term_ptr, 10);
+  auto row_id = static_cast<std::uint32_t>(
+      std::strtoul(request.at("id").c_str(), &null_term_ptr, 10));
   if (*null_term_ptr != 0) {
     return {{std::make_pair("status", "failure"),
              std::make_pair("message", "Invalid row id received")}};
   }
 
   // We only support editing of our own objects
-  if ((row_id & 0x8000000000000000ULL) != 0) {
+  if ((row_id & 0x80000000U) != 0) {
     return {{std::make_pair("status", "failure"),
              std::make_pair("message",
                             "The specified object is not owned by osquery")}};
