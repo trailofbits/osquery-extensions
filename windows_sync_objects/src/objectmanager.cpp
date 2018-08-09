@@ -75,7 +75,7 @@ void ListObDirectoryObjectsHelper(std::vector<DirectoryEntry>& entry_list,
                                          entry_list.empty() ? TRUE : FALSE,
                                          &entry_index,
                                          &response_size);
-    if (NT_ERROR(status)) {
+    if (!NT_SUCCESS(status)) {
       auto error_code = RtlNtStatusToDosError(status);
       VLOG(1) << "Directory query failed with the following error: "
               << GetErrorMessage(error_code);
@@ -85,11 +85,32 @@ void ListObDirectoryObjectsHelper(std::vector<DirectoryEntry>& entry_list,
     auto directory_entries =
         reinterpret_cast<const OBJECT_DIRECTORY_INFORMATION*>(buffer.data());
 
-    for (std::size_t i = 0U; directory_entries[i].Name.Length != 0; i++) {
+    std::size_t i = 0U;
+    while (true) {
+      // Be as explicit as possible when checking whether this entry is null
+      // or not
+      //
+      // https://docs.microsoft.com/en-us/windows/desktop/api/subauth/ns-subauth-_unicode_string
+      //
+      // "Windows 7, Windows Server 2008, Windows Vista, Windows Server 2003 and
+      //  Windows XP:  When the Length structure member is zero and the
+      //  MaximumLength structure member is 1, the Buffer structure member can
+      //  be
+      //  an empty string or contain solely a null character. This behavior
+      //  changed beginning with Windows Server 2008 R2 and Windows 7 with SP1"
+      if (directory_entries[i].Name.Length == 0 ||
+          directory_entries[i].Name.MaximumLength == 1 ||
+          directory_entries[i].Name.Buffer == nullptr ||
+          directory_entries[i].Name.Buffer[0] == 0U) {
+        break;
+      }
+
       DirectoryEntry entry = {directory_entries[i].Name.Buffer,
                               directory_entries[i].TypeName.Buffer};
 
       entry_list.push_back(entry);
+
+      i++;
     }
 
     if (status != STATUS_MORE_ENTRIES) {
@@ -126,7 +147,7 @@ bool QueryObObjectInformation(ObjectDescriptor& object_descriptor,
 
     HANDLE object;
     auto status = NtOpenEvent(&object, EVENT_QUERY_STATE, &object_attributes);
-    if (status < 0) {
+    if (!NT_SUCCESS(status)) {
       return false;
     }
 
@@ -138,7 +159,7 @@ bool QueryObObjectInformation(ObjectDescriptor& object_descriptor,
                           nullptr);
 
     CloseHandle(object);
-    if (NT_ERROR(status)) {
+    if (!NT_SUCCESS(status)) {
       return false;
     }
 
@@ -169,7 +190,7 @@ bool QueryObObjectInformation(ObjectDescriptor& object_descriptor,
 
     HANDLE object;
     auto status = NtOpenMutant(&object, MUTANT_QUERY_STATE, &object_attributes);
-    if (status < 0) {
+    if (!NT_SUCCESS(status)) {
       return false;
     }
 
@@ -181,7 +202,7 @@ bool QueryObObjectInformation(ObjectDescriptor& object_descriptor,
                            nullptr);
 
     CloseHandle(object);
-    if (NT_ERROR(status)) {
+    if (!NT_SUCCESS(status)) {
       return false;
     }
 
@@ -199,7 +220,7 @@ bool QueryObObjectInformation(ObjectDescriptor& object_descriptor,
     auto status =
         NtOpenSemaphore(&object, SEMAPHORE_QUERY_STATE, &object_attributes);
 
-    if (status < 0) {
+    if (!NT_SUCCESS(status)) {
       return false;
     }
 
@@ -211,7 +232,7 @@ bool QueryObObjectInformation(ObjectDescriptor& object_descriptor,
                               nullptr);
 
     CloseHandle(object);
-    if (NT_ERROR(status)) {
+    if (!NT_SUCCESS(status)) {
       return false;
     }
 
@@ -243,7 +264,7 @@ bool ListObDirectoryObjects(std::vector<DirectoryEntry>& directory_entries,
                                       &directory_attributes);
 
   bool succeeded = false;
-  if (NT_ERROR(status)) {
+  if (!NT_SUCCESS(status)) {
     auto error_code = RtlNtStatusToDosError(status);
 
     VLOG(1) << "Failed to open the following directory object: "
@@ -308,7 +329,7 @@ osquery::Status GenerateMutant(MutantHandle& handle,
 
   HANDLE mutant;
   auto status = NtCreateMutant(&mutant, MUTANT_ALL_ACCESS, &attributes, TRUE);
-  if (NT_ERROR(status)) {
+  if (!NT_SUCCESS(status)) {
     std::stringstream message;
     message << "NtCreateMutant failed with error 0x" << std::hex << status;
 
@@ -346,7 +367,7 @@ osquery::Status GenerateEvent(EventHandle& handle,
                     (type == EventType::Notification) ? NotificationEvent
                                                       : SynchronizationEvent,
                     TRUE);
-  if (NT_ERROR(status)) {
+  if (!NT_SUCCESS(status)) {
     std::stringstream message;
     message << "NtCreateEvent failed with error 0x" << std::hex << status;
 
@@ -379,7 +400,7 @@ osquery::Status GenerateSemaphore(SemaphoreHandle& handle,
   auto status =
       NtCreateSemaphore(&semaphore, SEMAPHORE_ALL_ACCESS, &attributes, 1, 1);
 
-  if (NT_ERROR(status)) {
+  if (!NT_SUCCESS(status)) {
     std::stringstream message;
     message << "NtCreateSemaphore failed with error 0x" << std::hex << status;
 

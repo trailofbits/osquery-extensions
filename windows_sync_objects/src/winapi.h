@@ -24,6 +24,8 @@
 
 #include <cstdint>
 
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+
 namespace {
 const std::uint32_t OBJ_CASE_INSENSITIVE = 0x00000040L;
 const std::uint32_t DIRECTORY_QUERY = 0x0001;
@@ -114,12 +116,12 @@ struct SEMAPHORE_BASIC_INFORMATION final {
 extern "C" NTSYSCALLAPI void WINAPI
 RtlInitUnicodeString(UNICODE_STRING* DestinationString, PCWSTR SourceString);
 
-extern "C" NTSYSCALLAPI ULONG WINAPI
+extern "C" NTSYSCALLAPI NTSTATUS WINAPI
 NtOpenDirectoryObject(PHANDLE DirectoryHandle,
                       ACCESS_MASK DesiredAccess,
                       OBJECT_ATTRIBUTES* ObjectAttributes);
 
-extern "C" NTSYSCALLAPI ULONG WINAPI
+extern "C" NTSYSCALLAPI NTSTATUS WINAPI
 NtQueryDirectoryObject(HANDLE DirectoryHandle,
                        PVOID Buffer,
                        ULONG Length,
@@ -128,7 +130,7 @@ NtQueryDirectoryObject(HANDLE DirectoryHandle,
                        PULONG Context,
                        PULONG ReturnLength);
 
-extern "C" NTSYSCALLAPI ULONG WINAPI
+extern "C" NTSYSCALLAPI NTSTATUS WINAPI
 NtQueryObject(HANDLE Object,
               OBJECT_INFORMATION_CLASS ObjectInfoClass,
               PVOID Buffer,
