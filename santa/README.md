@@ -4,29 +4,83 @@
 This extension for osquery enables the osquery user to read the log of `DENY` events that Santa generated on the host 
 with a table called `santa_events`, and to remotely view and *create* new rules for Santa (with or without the use of a Santa sync server or Upvote server) with a table called `santa_rules`.
 
+## Schema
+
+### santa_events table
+| Column         | Type | Description                                                         |
+|----------------|------|---------------------------------------------------------------------|
+| timestamp      | TEXT | Event timestamp                                                     |
+| path           | TEXT | The executable path                                                 |
+| shasum         | TEXT | Object hash                                                         |
+| reason         | TEXT | Either **BINARY** or **CERT** for certificates                      |
+
+The value in the **reason** column determines the meaning of the **shasum** field:
+
+| **reason** value | **shasum** value                                                         |
+|------------------|--------------------------------------------------------------------------|
+| **CERT**         | This is a reference to the certificate used to sign the application      |
+| **BINARY**       | Raw hash of the executable (i.e.: `openssl sha256 /path/to/application`) |
+
+### santa_rules table
+| Column         | Type | Description                                                         |
+|----------------|------|---------------------------------------------------------------------|
+| shasum         | TEXT | The certificate or binary hash                                      |
+| state          | TEXT | Either **whitelist** or **blacklist**                               |
+| type           | TEXT | Either **binary** or **certificate**                                |
+
 ## Usage
 
-To quickly test an extension, you can either start it from the osqueryi shell, or launch it manually and wait for it 
-to connect to the running osquery instance.
-
-Consider either changing the ownership of `trailofbits_osquery_extensions.ext` to root, or running osquery with the `--allow_unsafe` flag.
-
-`osqueryi --extension /path/to/trailofbits_osquery_extensions.ext`
-
-Example: 
-
-```
-$ sudo ./build/darwin10.13/osquery/osqueryi --extension osquery/build/darwin/external/trailofbits_osquery_extensions.ext
-Using a virtual database. Need help, type '.help'
-osquery> .schema santa_rules
-CREATE TABLE santa_rules(`shasum` TEXT, `state` TEXT, `type` TEXT);
-osquery> .schema santa_events
-CREATE TABLE santa_events(`timestamp` TEXT, `path` TEXT, `shasum` TEXT, `reason` TEXT);
+### Listing allow and deny events
+``` sql
+SELECT * FROM santa_events;
 ```
 
-See the [osquery documentation on extensions](https://osquery.readthedocs.io/en/stable/deployment/extensions) for further 
-information.
+### Listing system rules
+``` sql
+SELECT * FROM santa_rules;
+```
+
+## Adding and removing rules
+
+Editing is performed by calling the **santactl** command line; this means that adding and removing rules will generate process events.
+
+It is also important to remember that this functionality only works when Santa has **not** been configured to use a sync server.
+
+### Creating a new binary rule
+Calculate the hash of the binary you want to allow: `openssl sha256 /path/to/application`. You can also use `santactl fileinfo /path/to/application` and use the first sha256 hash.
+
+``` sql
+INSERT INTO santa_rules
+  (shasum, state, type)
+
+VALUES
+  (
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "whitelist",
+    "binary"
+  );
+```
+
+### Creating a new certificate rule
+Print the certificates that validate the application: `santactl fileinfo /path/to/application`. Look at the chain and take the sha256 value of the certificate you want to add to the configuration.
+
+``` sql
+INSERT INTO santa_rules
+  (shasum, state, type)
+
+VALUES
+  (
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "blacklist",
+    "certificate"
+  );
+```
+
+### Removing rules
+``` sql
+DELETE FROM santa_rules
+WHERE shasum = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+```
 
 ## License
-
 The code in this repository is licensed under the [Apache 2.0 license](../LICENSE).
