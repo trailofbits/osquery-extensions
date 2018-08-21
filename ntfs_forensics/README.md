@@ -9,7 +9,7 @@ to connect to the running osquery instance.
 
 `osqueryi --extension /path/to/trailofbits_osquery_extensions.ext.exe`
 
-Example: 
+Example:
 
 ```
 $ .\osquery\Release\osqueryi.exe --allow_unsafe --disable_extensions=false --extension .\external\extension_ntfs\Release\ntfs_fo
@@ -27,6 +27,6 @@ information.
 
 ## License
 
-The SleuthKit code in this library is covered under the licenses described on [the SleuthKit License page.](https://sleuthkit.org/sleuthkit/licenses.php). 
+The SleuthKit code in this library is covered under the licenses described on [the SleuthKit License page](https://sleuthkit.org/sleuthkit/licenses.php).
 
-All other code in this repository is licensed under the [Apache 2.0 license](../LICENSE). 
+All other code in this repository is licensed under the [Apache 2.0 license](../LICENSE).
