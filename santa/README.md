@@ -1,12 +1,12 @@
 # Santa osquery Extension
 
 [Santa](https://github.com/google/santa/) is an open-source application whitelist/blacklist enforcement solution for macOS.
-This extension for osquery enables the osquery user to read the log of `DENY` events that Santa generated on the host 
-with a table called `santa_events`, and to remotely view and *create* new rules for Santa (with or without the use of a Santa sync server or Upvote server) with a table called `santa_rules`.
+This extension for osquery enables the osquery user to read the log of `DENY` events from the Santa generated log file on the host, 
+with a table called `santa_denied`. It also adds a table called `santa_allowed`, to read the log of `ALLOW` events. Finally, it allows the user to remotely view and *create* new rules for Santa (with or without the use of a Santa sync server or Upvote server) with a table called `santa_rules`.
 
 ## Schema
 
-### santa_events table
+### santa_allowed and santa_denied tables (same schema for each table)
 | Column         | Type | Description                                                         |
 |----------------|------|---------------------------------------------------------------------|
 | timestamp      | TEXT | Event timestamp                                                     |
@@ -32,7 +32,8 @@ The value in the **reason** column determines the meaning of the **shasum** fiel
 
 ### Listing allow and deny events
 ``` sql
-SELECT * FROM santa_events;
+SELECT * FROM santa_denied;
+SELECT * FROM santa_allowed;  -- note: this table will normally have hundreds of thousands of entries
 ```
 
 ### Listing system rules

@@ -77,12 +77,21 @@ void extractValues(const std::string& line,
 
 void scrapeStream(std::istream& incoming,
                   LogEntries& response,
-                  bool save_to_archive = false) {
+                  bool save_to_archive,
+                  SantaDecisionType decision) {
   std::string line;
   while (std::getline(incoming, line)) {
-    // explicitly filter to only include EXEC actions
-    if (line.find("action=EXEC") == std::string::npos) {
-      continue;
+    if(decision == kAllowed) {
+      // explicitly filter to only include ALLOW decisions
+      if (line.find("decision=ALLOW") == std::string::npos) {
+        continue;
+      }
+    }
+    else /* if (decision == kDenied) */ {
+      // explicitly filter to only include DENY decisions
+      if (line.find("decision=DENY") == std::string::npos) {
+        continue;
+      }
     }
 
     std::map<std::string, std::string> values;
@@ -99,7 +108,7 @@ void scrapeStream(std::istream& incoming,
   }
 }
 
-void scrapeCurrentLog(LogEntries& response) {
+void scrapeCurrentLog(LogEntries& response, SantaDecisionType decision) {
   response.clear();
 
   std::ifstream log_file;
@@ -108,11 +117,11 @@ void scrapeCurrentLog(LogEntries& response) {
     return;
   }
 
-  scrapeStream(log_file, response);
+  scrapeStream(log_file, response, false, decision);
   log_file.close();
 }
 
-bool scrapeCompressedSantaLog(std::string file_path, LogEntries& response) {
+bool scrapeCompressedSantaLog(std::string file_path, LogEntries& response, SantaDecisionType decision) {
   std::ifstream log_file(file_path, std::ios_base::in | std::ios_base::binary);
   if (!log_file.is_open()) {
     return false;
@@ -123,7 +132,7 @@ bool scrapeCompressedSantaLog(std::string file_path, LogEntries& response) {
   in.push(log_file);
 
   std::istream incoming(&in);
-  scrapeStream(incoming, response, true);
+  scrapeStream(incoming, response, true, decision);
 
   log_file.close();
   return true;
@@ -149,9 +158,9 @@ void processArchivedLines(LogEntries& response) {
   }
 }
 
-bool scrapeSantaLog(LogEntries& response) {
+bool scrapeSantaLog(LogEntries& response, SantaDecisionType decision) {
   try {
-    scrapeCurrentLog(response);
+    scrapeCurrentLog(response, decision);
 
     // if there are no new archived files, just process our stash
     if (!newArchiveFileExists()) {
@@ -166,7 +175,7 @@ bool scrapeSantaLog(LogEntries& response) {
 
       std::stringstream strstr;
       strstr << kSantaLogPath << "." << i << ".gz";
-      if (!scrapeCompressedSantaLog(strstr.str(), response)) {
+      if (!scrapeCompressedSantaLog(strstr.str(), response, decision)) {
         break;
       }
     }
