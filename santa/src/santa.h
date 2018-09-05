@@ -19,6 +19,11 @@
 #include <list>
 #include <string>
 
+enum SantaDecisionType {
+    kAllowed,
+    kDenied,
+};
+
 struct LogEntry final {
   std::string timestamp;
   std::string application;
@@ -44,5 +49,5 @@ const char* getRuleStateName(RuleEntry::State state);
 RuleEntry::Type getTypeFromRuleName(const char* name);
 RuleEntry::State getStateFromRuleName(const char* name);
 
-bool scrapeSantaLog(LogEntries& response);
+bool scrapeSantaLog(LogEntries& response, SantaDecisionType decision);
 bool collectSantaRules(RuleEntries& response);

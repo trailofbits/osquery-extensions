@@ -17,9 +17,9 @@
 #include <osquery/logger.h>
 
 #include "santa.h"
-#include "santaeventstable.h"
+#include "santadecisionstable.h"
 
-osquery::TableColumns SantaEventsTablePlugin::columns() const {
+osquery::TableColumns decisionTablesColumns() {
   // clang-format off
   return {
       std::make_tuple("timestamp",
@@ -41,10 +41,9 @@ osquery::TableColumns SantaEventsTablePlugin::columns() const {
   // clang-format on
 }
 
-osquery::QueryData SantaEventsTablePlugin::generate(
-    osquery::QueryContext& request) {
+osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request, SantaDecisionType decision) {
   LogEntries log_entries;
-  if (!scrapeSantaLog(log_entries)) {
+  if (!scrapeSantaLog(log_entries, decision)) {
     return {};
   }
 
@@ -60,4 +59,22 @@ osquery::QueryData SantaEventsTablePlugin::generate(
   }
 
   return result;
+}
+
+osquery::QueryData SantaAllowedDecisionsTablePlugin::generate(
+    osquery::QueryContext& request) {
+      return decisionTablesGenerate(request, decision);
+}
+
+osquery::QueryData SantaDeniedDecisionsTablePlugin::generate(
+    osquery::QueryContext& request) {
+      return decisionTablesGenerate(request, decision);
+}
+
+osquery::TableColumns SantaAllowedDecisionsTablePlugin::columns() const {
+  return decisionTablesColumns();
+}
+
+osquery::TableColumns SantaDeniedDecisionsTablePlugin::columns() const {
+  return decisionTablesColumns();
 }

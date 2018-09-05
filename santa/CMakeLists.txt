@@ -33,10 +33,17 @@ function(main)
     LIBRARIES ${project_libraries}
   )
 
-  add_osquery_extension_ex("SantaEventsTablePlugin" "table" "santa_events"
-    SOURCES ${project_common_source_files} src/santaeventstable.h src/santaeventstable.cpp
+  add_osquery_extension_ex("SantaAllowedDecisionsTablePlugin" "table" "santa_allowed"
+    SOURCES ${project_common_source_files} src/santadecisionstable.h src/santadecisionstable.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    MAININCLUDES santaeventstable.h
+    MAININCLUDES santadecisionstable.h
+    LIBRARIES ${project_libraries}
+  )
+
+  add_osquery_extension_ex("SantaDeniedDecisionsTablePlugin" "table" "santa_denied"
+    SOURCES ${project_common_source_files} src/santadecisionstable.h src/santadecisionstable.cpp
+    INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    MAININCLUDES santadecisionstable.h
     LIBRARIES ${project_libraries}
   )
 endfunction()
