@@ -2,4 +2,4 @@
 .vscode
 tags
 tags.lock
-
+*.swp
