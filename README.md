@@ -11,6 +11,7 @@ This repository includes [osquery](https://osquery.io/) [extensions](https://osq
 | fwctl                | Provides osquery with the ability to view and manage the OS-native firewall rules and `/etc/hosts` file (port and host blocking). | macOS, Linux, Windows |
 | ntfs_forensics       | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
 | windows_sync_objects | Provides osquery with the ability of listing and locking Windows synchronization objects (mutants, events, semaphores). | Windows |
+| darwin_unified_log   | Provides an event driven table that contains entries from the unified system log on MacOS. | macOS | 
 | (more to come)       | ...  | ...   |
 
 ## Dependencies
