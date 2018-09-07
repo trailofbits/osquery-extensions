@@ -63,7 +63,7 @@ osquery::Status SantaRulesTablePlugin::GetRowData(
     return osquery::Status(1, "Invalid json received by osquery");
   }
 
-  if (document.Size() != 3U) {
+  if (document.Size() != 4U) {
     return osquery::Status(1, "Wrong column count");
   }
 
@@ -77,6 +77,15 @@ osquery::Status SantaRulesTablePlugin::GetRowData(
 
   if (document[2].IsNull()) {
     return osquery::Status(1, "Missing 'type' value");
+  }
+
+  // The custom_message column is optional, and may be null.
+  if (document[3].IsNull()) {
+    row["custom_message"] = "";
+  }
+  else {
+    // It can also be any string.
+    row["custom_message"] = document[3].GetString();    
   }
 
   row["shasum"] = document[0].GetString();
@@ -115,6 +124,10 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
                       osquery::ColumnOptions::DEFAULT),
 
       std::make_tuple("type",
+                      osquery::TEXT_TYPE,
+                      osquery::ColumnOptions::DEFAULT),
+      
+      std::make_tuple("custom_message",
                       osquery::TEXT_TYPE,
                       osquery::ColumnOptions::DEFAULT)
   };
@@ -158,6 +171,7 @@ osquery::QueryData SantaRulesTablePlugin::generate(
     row["shasum"] = rule.shasum;
     row["state"] = getRuleStateName(rule.state);
     row["type"] = getRuleTypeName(rule.type);
+    row["custom_message"] = rule.custom_message;
 
     result.push_back(std::move(row));
   }
@@ -180,9 +194,10 @@ osquery::QueryData SantaRulesTablePlugin::insert(
   bool whitelist = row["state"] == "whitelist";
   bool certificate = row["type"] == "certificate";
   const auto& shasum = row.at("shasum");
+  const auto& custom_message = row.at("custom_message");
 
   std::vector<std::string> santactl_args = {
-      "rule", whitelist ? "--whitelist" : "--blacklist", "--sha256", shasum};
+      "rule", whitelist ? "--whitelist" : "--blacklist", "--sha256", shasum, "--message", custom_message};
 
   if (certificate) {
     santactl_args.push_back("--certificate");
@@ -229,6 +244,11 @@ osquery::QueryData SantaRulesTablePlugin::insert(
     }
 
     if (rule.state != getStateFromRuleName(row["state"].data())) {
+      continue;
+    }
+
+    // TODO: Do we even care if the custom message field matches?
+    if (rule.custom_message != row["custommsg"].data()) {
       continue;
     }
 
@@ -285,11 +305,11 @@ osquery::QueryData SantaRulesTablePlugin::delete_(
     santactl_args.push_back("--certificate");
   }
 
-  // The command always succeeds, even if the rule does not exists
+  // The santactl command always succeeds, even if the rule does not exist.
   ProcessOutput santactl_output;
   if (!ExecuteProcess(santactl_output, kSantactlPath, santactl_args) ||
       santactl_output.exit_code != 0) {
-    // Some rules can't be removed
+    // Some rules can't be removed.
     if (santactl_output.std_output.find(kMandatoryRuleDeletionError) == 0) {
       VLOG(1) << "Rule "
               << rule.shasum + "/" + getRuleTypeName(rule.type) +

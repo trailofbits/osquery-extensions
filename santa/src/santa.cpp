@@ -195,13 +195,13 @@ static int rulesCallback(void* context,
   // clang-format off
 
   // Expected argc/argv format:
-  //     shasum,           state,        type
-  //     shasum, white/blacklist, binary/cert
+  //     shasum,           state,        type, custom_message
+  //     shasum, white/blacklist, binary/cert, arbitrary text
 
   // clang-format on
 
   RuleEntries* rules = static_cast<RuleEntries*>(context);
-  if (argc != 3) {
+  if (argc != 4) {
     return 0;
   }
 
@@ -212,6 +212,7 @@ static int rulesCallback(void* context,
 
   new_rule.type = (argv[2][0] == '1') ? RuleEntry::Type::Binary
                                       : RuleEntry::Type::Certificate;
+  new_rule.custom_message = argv[3];
 
   rules->push_back(std::move(new_rule));
   return 0;
@@ -248,8 +249,10 @@ bool collectSantaRules(RuleEntries& response) {
   }
 
   char* sqlite_error_message = nullptr;
+  // Note: Santa calls its column 'custommsg', but following osquery convention
+  // our column is called 'custom_message'.
   rc = sqlite3_exec(db,
-                    "SELECT shasum, state, type FROM rules;",
+                    "SELECT shasum, state, type, custommsg FROM rules;",
                     rulesCallback,
                     &response,
                     &sqlite_error_message);
