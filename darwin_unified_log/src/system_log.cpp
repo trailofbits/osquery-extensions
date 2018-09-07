@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <cstdlib>
+#include <chrono>
+
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
@@ -23,7 +26,8 @@
 
 namespace pt = boost::property_tree;
 
-constexpr size_t MAX_SIZE = 5000;
+constexpr size_t DEFAULT_MAX_SIZE = 5000;
+size_t MAX_SIZE = DEFAULT_MAX_SIZE;
 
 const std::string FIELD_NAMES[] = {"category",
                                    "activityID",
@@ -43,11 +47,18 @@ const std::string FIELD_NAMES[] = {"category",
                                    "senderImageUUID",
                                    "processImagePath",
                                    "senderImagePath"};
+
+const char* ENV_VAR_PREDICATE = "LOG_TABLE_PREDICATE";
+const char* ENV_VAR_MAX_ENTRIES = "LOG_TABLE_MAX_ENTRIES";
+const char* ENV_VAR_LOG_LEVEL = "LOG_TABLE_LEVEL";
+
+LogMonitor::LogMonitor() : is_shutting_down(false) { }
+
 LogMonitor::~LogMonitor() {
-  stop();
+  tearDown();
 }
 
-void LogMonitor::stop() {
+void LogMonitor::stop_monitoring() {
   if (log_process.running()) {
     kill(log_process.id(), SIGTERM);
   }
@@ -55,20 +66,55 @@ void LogMonitor::stop() {
   if (reading_thread.joinable()) {
     reading_thread.join();
   }
+
+  log_output = bp::ipstream();
 }
 
 void LogMonitor::tearDown() {
-  stop();
+  is_shutting_down = true;
+  std::lock_guard<std::mutex> lock(process_management_lock);
+  stop_monitoring();
+
 }
 
 void LogMonitor::configure() {
-  //process the configuration here
+  auto max_entries_env = std::getenv(ENV_VAR_MAX_ENTRIES);
+  if (nullptr != max_entries_env) {
+    VLOG(1) << "found a max_entries in environment variables";
+    try {
+      MAX_SIZE = std::stoul(max_entries_env);
+      VLOG(1) << "new MAX_SIZE is now " << MAX_SIZE;
+    } catch (std::invalid_argument) {
+      VLOG(1) << "invalid value for environment variable " << ENV_VAR_MAX_ENTRIES << ": " << max_entries_env;
+    }
+  } else {
+    MAX_SIZE = DEFAULT_MAX_SIZE;
+  }
+
+
+  std::string old_log_predicate = log_predicate;
+  auto predicate_env = std::getenv(ENV_VAR_PREDICATE);
+  if (nullptr != predicate_env) {
+    log_predicate = std::string(predicate_env);
+  } else {
+    log_predicate = "";
+  }
+
+  std::string old_log_level = log_level;
+  auto log_level_env = std::getenv(ENV_VAR_LOG_LEVEL);
+  if (nullptr != log_level_env) {
+    log_level = std::string(log_level_env);
+  } else {
+    log_level = "";
+  }
+
+
 }
 
 void process_log(LogMonitor *logMonitor) {
   std::stringstream buffer;
   std::string line;
-  while (std::getline(logMonitor->log_output, line)) {
+  while (std::getline(logMonitor->log_output, line) && !logMonitor->is_shutting_down) {
     if (line[0] == '[' || line[0] == '}') {
       if (buffer.str().size()) {
         buffer << "}";
@@ -82,12 +128,35 @@ void process_log(LogMonitor *logMonitor) {
   }
 }
 
+
 osquery::Status LogMonitor::setUp() {
+  std::lock_guard<std::mutex> lock(process_management_lock);
+  configure();
+
+  return start_monitoring();
+}
+
+osquery::Status LogMonitor::start_monitoring() {
+  if (log_process.running()) {
+    return osquery::Status(1, "setUp called but log monitoring process already running");
+  }
+
   try {
+    std::vector<std::string> log_args = {"stream", "--style", "json"};
+    if (log_predicate.size()) {
+      log_args.push_back("--predicate");
+      log_args.push_back(log_predicate);
+      VLOG(1) << "applying log_predicate of \"" << log_predicate << "\"";
+    }
+
+    if (log_level.size()) {
+      log_args.push_back("--level");
+      log_args.push_back(log_level);
+      VLOG(1) << "applying log_level of \"" << log_level << "\"";
+    }
+
     log_process = bp::child("/usr/bin/log", 
-                            "stream",
-                            "--style",
-                            "json",
+                            bp::args(log_args),
                             bp::std_in.close(),
                             bp::std_out > log_output,
                             bp::std_err > bp::null);

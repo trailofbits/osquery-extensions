@@ -111,6 +111,6 @@ void UnifiedLogTablePlugin::tearDown() {
 }
 
 void UnifiedLogTablePlugin::configure() {
-  return logMonitor.configure();
+  logMonitor.configure();
 }
 

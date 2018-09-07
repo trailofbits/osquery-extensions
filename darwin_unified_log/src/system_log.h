@@ -30,10 +30,13 @@
 
 #include <osquery/sdk.h>
 
+#include <iostream>
+
 namespace bp = boost::process;
 
 class LogMonitor {
   public:
+    LogMonitor();
     ~LogMonitor();
     osquery::Status setUp();
     void configure();
@@ -42,7 +45,8 @@ class LogMonitor {
     void getEntries(osquery::QueryData &);
 
   private:
-    void stop();
+    osquery::Status start_monitoring();
+    void stop_monitoring();
     void addEntries(std::vector<std::string> entries);
 
     bp::child log_process;
@@ -50,7 +54,12 @@ class LogMonitor {
     std::thread reading_thread;
     std::deque<osquery::Row> entries;
 
+    std::string log_level;
+    std::string log_predicate;
     std::mutex entry_lock;
+
+    std::mutex process_management_lock;
+    std::atomic<bool> is_shutting_down;
 
     friend void process_log(LogMonitor *logMonitor);
 
