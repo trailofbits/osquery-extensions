@@ -2,11 +2,11 @@
 
 This extension adds a new event driven table `darwin_unified_log` that streams log entries from the MacOS unified system log.
 
-##Schema
+## Schema
 | Column               | Type | Description                                                         |
 |----------------------|------|---------------------------------------------------------------------|
 | activityID           | TEXT | ID of the activity logged                                           |
-| category             | TEXT | The category of the leg message                                     |
+| category             | TEXT | The category used to log the event                                  |
 | eventMessage         | TEXT | The log message itself                                              |
 | eventType            | TEXT | Type of event logged                                                |
 | machTimestamp        | TEXT | Raw timestamp of the message                                        |
@@ -17,10 +17,11 @@ This extension adds a new event driven table `darwin_unified_log` that streams l
 | processUniqueID      | TEXT | Unique ID of the process                                            |
 | senderImagePath      | TEXT | Path of the sending image                                           |
 | senderImageUUID      | TEXT | UUID of the sending image                                           |
-| senderProgramCounter | TEXT | Programm counter of the sending process                             |
+| senderProgramCounter | TEXT | Program counter of the sending process                              |
+| subsystem            | TEXT | The subsystem used to log the event                                 |
 | threadID             | TEXT | Thread ID                                                           |
 | timestamp            | TEXT | Date and time of the log entry                                      |
-| timezoneName         | TEXT | name of the timezone for the log entry                              |
+| timezoneName         | TEXT | Name of the timezone for the log entry                              |
 | traceID              | TEXT | Trace ID                                                            |
 
 ## Usage
