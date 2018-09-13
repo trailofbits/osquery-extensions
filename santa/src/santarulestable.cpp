@@ -247,10 +247,7 @@ osquery::QueryData SantaRulesTablePlugin::insert(
       continue;
     }
 
-    // TODO: Do we even care if the custom message field matches?
-    if (rule.custom_message != row["custommsg"].data()) {
-      continue;
-    }
+    // Note: rule.custom_message field is not matched.
 
     row_id = rowid;
     rule_found = true;

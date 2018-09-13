@@ -212,7 +212,8 @@ static int rulesCallback(void* context,
 
   new_rule.type = (argv[2][0] == '1') ? RuleEntry::Type::Binary
                                       : RuleEntry::Type::Certificate;
-  new_rule.custom_message = argv[3];
+  
+  new_rule.custom_message = (argv[3] == nullptr) ? "" : argv[3];
 
   rules->push_back(std::move(new_rule));
   return 0;
@@ -267,6 +268,9 @@ bool collectSantaRules(RuleEntries& response) {
   }
 
   sqlite3_close(db);
+  if(rc != SQLITE_OK) {
+    VLOG(1) << "Failed to close the Santa rule database";
+  }
   return (rc == SQLITE_OK);
 }
 
