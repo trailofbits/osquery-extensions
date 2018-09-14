@@ -41,7 +41,8 @@ osquery::TableColumns decisionTablesColumns() {
   // clang-format on
 }
 
-osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request, SantaDecisionType decision) {
+osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request,
+                                          SantaDecisionType decision) {
   LogEntries log_entries;
   if (!scrapeSantaLog(log_entries, decision)) {
     return {};
@@ -63,12 +64,12 @@ osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request, SantaD
 
 osquery::QueryData SantaAllowedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
-      return decisionTablesGenerate(request, decision);
+  return decisionTablesGenerate(request, decision);
 }
 
 osquery::QueryData SantaDeniedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
-      return decisionTablesGenerate(request, decision);
+  return decisionTablesGenerate(request, decision);
 }
 
 osquery::TableColumns SantaAllowedDecisionsTablePlugin::columns() const {

@@ -20,8 +20,8 @@
 #include <string>
 
 enum SantaDecisionType {
-    kAllowed,
-    kDenied,
+  kAllowed,
+  kDenied,
 };
 
 struct LogEntry final {
@@ -38,6 +38,7 @@ struct RuleEntry final {
   Type type;
   State state;
   std::string shasum;
+  std::string custom_message;
 };
 
 using LogEntries = std::list<LogEntry>;
