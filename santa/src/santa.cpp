@@ -81,13 +81,12 @@ void scrapeStream(std::istream& incoming,
                   SantaDecisionType decision) {
   std::string line;
   while (std::getline(incoming, line)) {
-    if(decision == kAllowed) {
+    if (decision == kAllowed) {
       // explicitly filter to only include ALLOW decisions
       if (line.find("decision=ALLOW") == std::string::npos) {
         continue;
       }
-    }
-    else /* if (decision == kDenied) */ {
+    } else /* if (decision == kDenied) */ {
       // explicitly filter to only include DENY decisions
       if (line.find("decision=DENY") == std::string::npos) {
         continue;
@@ -121,7 +120,9 @@ void scrapeCurrentLog(LogEntries& response, SantaDecisionType decision) {
   log_file.close();
 }
 
-bool scrapeCompressedSantaLog(std::string file_path, LogEntries& response, SantaDecisionType decision) {
+bool scrapeCompressedSantaLog(std::string file_path,
+                              LogEntries& response,
+                              SantaDecisionType decision) {
   std::ifstream log_file(file_path, std::ios_base::in | std::ios_base::binary);
   if (!log_file.is_open()) {
     return false;
@@ -212,7 +213,7 @@ static int rulesCallback(void* context,
 
   new_rule.type = (argv[2][0] == '1') ? RuleEntry::Type::Binary
                                       : RuleEntry::Type::Certificate;
-  
+
   new_rule.custom_message = (argv[3] == nullptr) ? "" : argv[3];
 
   rules->push_back(std::move(new_rule));
@@ -268,7 +269,7 @@ bool collectSantaRules(RuleEntries& response) {
   }
 
   rc = sqlite3_close(db);
-  if(rc != SQLITE_OK) {
+  if (rc != SQLITE_OK) {
     VLOG(1) << "Failed to close the Santa rule database";
   }
   return (rc == SQLITE_OK);

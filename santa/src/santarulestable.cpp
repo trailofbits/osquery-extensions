@@ -82,10 +82,9 @@ osquery::Status SantaRulesTablePlugin::GetRowData(
   // The custom_message column is optional, and may be null.
   if (document[3].IsNull()) {
     row["custom_message"] = "";
-  }
-  else {
+  } else {
     // It can also be any string.
-    row["custom_message"] = document[3].GetString();    
+    row["custom_message"] = document[3].GetString();
   }
 
   row["shasum"] = document[0].GetString();
@@ -197,7 +196,12 @@ osquery::QueryData SantaRulesTablePlugin::insert(
   const auto& custom_message = row.at("custom_message");
 
   std::vector<std::string> santactl_args = {
-      "rule", whitelist ? "--whitelist" : "--blacklist", "--sha256", shasum, "--message", custom_message};
+      "rule",
+      whitelist ? "--whitelist" : "--blacklist",
+      "--sha256",
+      shasum,
+      "--message",
+      custom_message};
 
   if (certificate) {
     santactl_args.push_back("--certificate");

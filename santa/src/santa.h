@@ -20,8 +20,8 @@
 #include <string>
 
 enum SantaDecisionType {
-    kAllowed,
-    kDenied,
+  kAllowed,
+  kDenied,
 };
 
 struct LogEntry final {
