@@ -267,7 +267,7 @@ bool collectSantaRules(RuleEntries& response) {
     sqlite3_free(sqlite_error_message);
   }
 
-  sqlite3_close(db);
+  rc = sqlite3_close(db);
   if(rc != SQLITE_OK) {
     VLOG(1) << "Failed to close the Santa rule database";
   }
