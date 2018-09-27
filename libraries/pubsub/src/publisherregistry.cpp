@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "publisherregistry.h"
+#include <pubsub/publisherregistry.h>
 
 #include <boost/thread/shared_mutex.hpp>
 

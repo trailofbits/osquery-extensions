@@ -2,3 +2,6 @@
 	path = opt_dependencies/pcap/src
 	url = https://github.com/the-tcpdump-group/libpcap.git
 	branch = libpcap-1.9
+[submodule "opt_dependencies/json11/src"]
+	path = opt_dependencies/json11/src
+	url = https://github.com/dropbox/json11.git

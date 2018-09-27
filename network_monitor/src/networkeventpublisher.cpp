@@ -67,9 +67,11 @@ osquery::Status NetworkEventPublisher::release() noexcept {
   return osquery::Status(0);
 }
 
-osquery::Status NetworkEventPublisher::configure() noexcept {
+osquery::Status NetworkEventPublisher::configure(
+    const json11::Json& configuration) noexcept {
   static_cast<void>(kSnapshotLength);
   static_cast<void>(kPacketBufferTimeout);
+  static_cast<void>(configuration);
   std::cout << "Configuring NetworkEventPublisher\n";
   return osquery::Status(0);
 

@@ -24,6 +24,11 @@ namespace trailofbits {
 template <typename EventPublisher>
 class BaseEventSubscriber : public IEventSubscriber {
  public:
+  /// Called each time the configuration changes
+  virtual osquery::Status configure(
+      typename EventPublisher::SubscriptionContextRef subscription_context,
+      const json11::Json& configuration) noexcept = 0;
+
   /// This method is called by the publishers when there is new data to be
   /// processed
   virtual osquery::Status callback(

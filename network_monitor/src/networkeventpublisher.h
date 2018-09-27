@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "publisherregistry.h"
+#include <pubsub/publisherregistry.h>
 
 #include <memory>
 #include <string>
@@ -60,7 +60,8 @@ class NetworkEventPublisher final
   osquery::Status release() noexcept override;
 
   /// Called each time the configuration changes
-  osquery::Status configure() noexcept override;
+  osquery::Status configure(
+      const json11::Json& configuration) noexcept override;
 
   /// Worker method; should perform some work and then return
   osquery::Status run() noexcept override;

@@ -35,11 +35,16 @@ class IEventPublisher {
   /// One-time initialization
   virtual osquery::Status initialize() noexcept = 0;
 
+  /// Called each time the configuration changes
+  virtual osquery::Status configure(
+      const json11::Json& configuration) noexcept = 0;
+
+  /// Forwards the configuration change to the subscribers
+  virtual void configureSubscribers(
+      const json11::Json& configuration) noexcept = 0;
+
   /// One-time deinitialization
   virtual osquery::Status release() noexcept = 0;
-
-  /// Called each time the configuration changes
-  virtual osquery::Status configure() noexcept = 0;
 
   /// Worker method; should perform some work and then return
   virtual osquery::Status run() noexcept = 0;

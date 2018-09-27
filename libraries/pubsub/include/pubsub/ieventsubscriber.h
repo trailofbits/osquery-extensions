@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "configurationfile.h"
+
 #include <osquery/status.h>
 
 #include <memory>
@@ -29,9 +31,6 @@ class IEventSubscriber {
 
   /// One-time deinitialization
   virtual void release() noexcept = 0;
-
-  /// Called each time the configuration changes
-  virtual osquery::Status configure() noexcept = 0;
 
   /// Destructor
   virtual ~IEventSubscriber() = default;

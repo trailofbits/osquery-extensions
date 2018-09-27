@@ -42,15 +42,19 @@ void NetworkEventSubscriber::release() noexcept {
   std::cout << "Releasing NetworkEventSubscriber\n";
 }
 
-osquery::Status NetworkEventSubscriber::configure() noexcept {
+osquery::Status NetworkEventSubscriber::configure(
+    NetworkEventPublisher::SubscriptionContextRef subscription_context,
+    const json11::Json& configuration) noexcept {
   std::cout << "Configuring NetworkEventSubscriber\n";
+  static_cast<void>(subscription_context);
+  static_cast<void>(configuration);
   return osquery::Status(0);
 }
 
 osquery::Status NetworkEventSubscriber::callback(
     NetworkEventPublisher::SubscriptionContextRef subscription_context,
     NetworkEventPublisher::EventContextRef event_context) {
-  std::cout << "GOT EVENTS\n";
+  // std::cout << "GOT EVENTS\n";
   return osquery::Status(0);
 }
 } // namespace trailofbits

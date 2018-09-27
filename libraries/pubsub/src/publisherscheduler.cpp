@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include "publisherscheduler.h"
-#include "publisherregistry.h"
-#include "subscriberregistry.h"
+#include <pubsub/publisherregistry.h>
+#include <pubsub/publisherscheduler.h>
+#include <pubsub/subscriberregistry.h>
 
 #include <atomic>
 #include <iostream>
@@ -24,14 +24,81 @@
 #include <unordered_map>
 
 namespace trailofbits {
+namespace {
+/// A reference to a thread
+using ThreadRef = std::unique_ptr<std::thread>;
+
+/// Shared data between the scheduler and the publisher thread
+struct PublisherThreadData final {
+  /// Constructor, used to acquire the reference to the `terminate` flag
+  PublisherThreadData(std::atomic_bool& terminate_thread)
+      : terminate(terminate_thread) {}
+
+  /// This thread
+  ThreadRef thread;
+
+  /// Whether the thread should terminate or keep processing data
+  std::atomic_bool& terminate;
+
+  /// The publisher that this thread should serve
+  IEventPublisherRef publisher;
+
+  /// The configuration file
+  ConfigurationFileRef configuration_file;
+};
+
+/// A reference to a publisher thread
+using PublisherThreadDataRef = std::shared_ptr<PublisherThreadData>;
+
+/// A thread servicing a publisher
+void publisherThread(PublisherThreadDataRef publisher_thread_data) {
+  auto& terminate_thread = publisher_thread_data->terminate;
+  auto configuration_file = publisher_thread_data->configuration_file;
+  auto publisher_ref = publisher_thread_data->publisher;
+
+  auto configuration_handle = configuration_file->getHandle();
+
+  while (!terminate_thread) {
+    if (configuration_file->configurationChanged(configuration_handle)) {
+      auto configuration_data =
+          configuration_file->getConfiguration(configuration_handle);
+
+      auto s = publisher_ref->configure(configuration_data);
+      if (!s.ok()) {
+        auto publisher_name =
+            PublisherRegistry::instance().publisherName(publisher_ref);
+
+        std::cerr << "Publisher \"" << publisher_name
+                  << "\" failed the configuration: " << s.getMessage()
+                  << ". Halting...\n";
+        break;
+      }
+
+      publisher_ref->configureSubscribers(configuration_data);
+    }
+
+    auto s = publisher_ref->run();
+    if (!s.ok()) {
+      auto publisher_name =
+          PublisherRegistry::instance().publisherName(publisher_ref);
+
+      std::cerr << "Publisher \"" << publisher_name
+                << "\" reported an error: " << s.getMessage()
+                << ". Halting...\n";
+      break;
+    }
+  }
+}
+} // namespace
+
 /// Private class data
 struct PublisherScheduler::PrivateData final {
   /// The list of publishers allocated by the registries; it is used to spawn
   /// the threads that will make them run
   std::vector<IEventPublisherRef> publisher_list;
 
-  /// The list of publisher threads
-  std::vector<std::unique_ptr<std::thread>> publisher_thread_list;
+  /// The publisher thread list
+  std::vector<PublisherThreadDataRef> publisher_thread_descriptors;
 
   /// This is used to send the shutdown command to the threads
   std::atomic_bool terminate_threads{false};
@@ -62,52 +129,29 @@ osquery::Status PublisherScheduler::create(
   }
 }
 
-PublisherScheduler::~PublisherScheduler() {}
+PublisherScheduler::~PublisherScheduler() {
+  stop();
+}
 
-osquery::Status PublisherScheduler::start() {
+osquery::Status PublisherScheduler::start(
+    ConfigurationFileRef configuration_file) {
   for (const auto& publisher : d->publisher_list) {
-    auto status = publisher->configure();
-    if (!status.ok()) {
-      auto publisher_name =
-          PublisherRegistry::instance().publisherName(publisher);
-
-      std::cerr << "Publisher \"" << publisher_name
-                << "\" failed to update the configuration: "
-                << status.getMessage() << "\n";
-
-      continue;
-    }
-
     try {
-      auto& terminate = d->terminate_threads;
+      auto publisher_thread_data =
+          std::make_shared<PublisherThreadData>(d->terminate_threads);
+      publisher_thread_data->publisher = publisher;
+      publisher_thread_data->configuration_file = configuration_file;
+      publisher_thread_data->thread =
+          std::make_unique<std::thread>(publisherThread, publisher_thread_data);
 
-      // clang-format off
-      auto thread_ref = std::make_unique<std::thread>([&publisher, &terminate]() -> void {
-        while (!terminate) {
-          // todo: check and update configuration
-          // ...
-
-          auto s = publisher->run();
-          if (!s.ok()) {
-            auto publisher_name =
-                PublisherRegistry::instance().publisherName(publisher);
-            std::cerr << "Publisher \"" << publisher_name
-                      << "\" reported an error: " << s.getMessage()
-                      << ". Halting...\n";
-            break;
-          }
-        }
-      });
-      // clang-format on
-
-      d->publisher_thread_list.push_back(std::move(thread_ref));
+      d->publisher_thread_descriptors.push_back(publisher_thread_data);
 
     } catch (const std::bad_alloc&) {
       return osquery::Status(1, "Memory allocation failure");
     }
   }
 
-  if (d->publisher_thread_list.empty()) {
+  if (d->publisher_thread_descriptors.empty()) {
     return osquery::Status(1, "No active publisher found");
   }
 
@@ -116,10 +160,10 @@ osquery::Status PublisherScheduler::start() {
 void PublisherScheduler::stop() {
   d->terminate_threads = true;
 
-  for (const auto& publisher_thread : d->publisher_thread_list) {
-    publisher_thread->join();
+  for (const auto& publisher_descriptor : d->publisher_thread_descriptors) {
+    publisher_descriptor->thread->join();
   }
 
-  d->publisher_thread_list.clear();
+  d->publisher_thread_descriptors.clear();
 }
 } // namespace trailofbits

@@ -17,7 +17,7 @@
 #pragma once
 
 #include "networkeventpublisher.h"
-#include "subscriberregistry.h"
+#include <pubsub/subscriberregistry.h>
 
 namespace trailofbits {
 class NetworkEventSubscriber final
@@ -38,7 +38,9 @@ class NetworkEventSubscriber final
   virtual void release() noexcept override;
 
   /// Called each time the configuration changes
-  virtual osquery::Status configure() noexcept override;
+  virtual osquery::Status configure(
+      NetworkEventPublisher::SubscriptionContextRef subscription_context,
+      const json11::Json& configuration) noexcept override;
 
   virtual osquery::Status callback(
       NetworkEventPublisher::SubscriptionContextRef subscription_context,

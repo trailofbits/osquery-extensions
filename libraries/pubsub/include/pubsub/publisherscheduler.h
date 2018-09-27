@@ -49,7 +49,7 @@ class PublisherScheduler final {
   ~PublisherScheduler();
 
   /// Starts the publisher threads
-  osquery::Status start();
+  osquery::Status start(ConfigurationFileRef configuration_file);
 
   /// Terminates the publishers
   void stop();

@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-#include "publisherregistry.h"
-#include "publisherscheduler.h"
-#include "subscriberregistry.h"
+#include <pubsub/publisherregistry.h>
+#include <pubsub/publisherscheduler.h>
+#include <pubsub/subscriberregistry.h>
 
 #include <osquery/sdk.h>
 
 #include <iostream>
+
+const std::string kConfigurationFile =
+    "/var/osquery/extensions/com/trailofbits/network_monitor.json";
 
 int main(int argc, char* argv[]) {
   auto status = trailofbits::SubscriberRegistry::instance().initialize();
@@ -36,9 +39,18 @@ int main(int argc, char* argv[]) {
   trailofbits::PublisherSchedulerRef scheduler;
   status =
       trailofbits::PublisherScheduler::create(scheduler, active_publishers);
+
   if (!status.ok()) {
     std::cerr << "Failed to create the publisher scheduler: "
               << status.getMessage() << "\n";
+    return 1;
+  }
+
+  trailofbits::ConfigurationFileRef configuration_file;
+  status = trailofbits::ConfigurationFile::create(configuration_file,
+                                                  kConfigurationFile);
+  if (!status.ok()) {
+    LOG(ERROR) << status.getMessage();
     return 1;
   }
 
@@ -49,7 +61,7 @@ int main(int argc, char* argv[]) {
     runner.requestShutdown(status.getCode());
   }
 
-  status = scheduler->start();
+  status = scheduler->start(configuration_file);
   if (!status.ok()) {
     std::cerr << "The scheduler returned an error: " << status.getMessage()
               << "\n";

@@ -27,19 +27,21 @@ function(pubsubMain)
     src/subscriberregistry.cpp
 
     src/publisherscheduler.cpp
+    src/configurationfile.cpp
   )
 
   set(public_include_files
-    "${public_include_folder}/ieventpublisher.h"
-    "${public_include_folder}/ieventsubscriber.h"
+    "${public_include_folder}/pubsub/ieventpublisher.h"
+    "${public_include_folder}/pubsub/ieventsubscriber.h"
 
-    "${public_include_folder}/baseeventpublisher.h"
-    "${public_include_folder}/baseeventsubscriber.h"
+    "${public_include_folder}/pubsub/baseeventpublisher.h"
+    "${public_include_folder}/pubsub/baseeventsubscriber.h"
 
-    "${public_include_folder}/publisherregistry.h"
-    "${public_include_folder}/subscriberregistry.h"
+    "${public_include_folder}/pubsub/publisherregistry.h"
+    "${public_include_folder}/pubsub/subscriberregistry.h"
 
-    "${public_include_folder}/publisherscheduler.h"
+    "${public_include_folder}/pubsub/publisherscheduler.h"
+    "${public_include_folder}/pubsub/configurationfile.h"
   )
 
   add_library("${PROJECT_NAME}" STATIC ${source_files} ${public_include_files})
@@ -63,17 +65,15 @@ function(pubsubMain)
   # Dependencies
   #
 
-  #target_link_libraries("${PROJECT_NAME}" PUBLIC )
+  list(APPEND libraries boost_thread-mt)
 
-  #find_package(Threads)
-  #list(APPEND libraries ${CMAKE_THREAD_LIBS_INIT})
+  find_package(Threads)
+  list(APPEND libraries ${CMAKE_THREAD_LIBS_INIT})
 
-  #find_package(Boost REQUIRED COMPONENTS thread)
-  #list(APPEND libraries ${Boost_LIBRARIES})
-  #list(APPEND include_dirs ${Boost_INCLUDE_DIRS})
+  ImportDependency("json11")
+  list(APPEND libraries json11)
 
-  #target_include_directories("${PROJECT_NAME}" PUBLIC ${include_dirs})
-  #target_link_libraries("${PROJECT_NAME}" PUBLIC ${libraries})
+  target_link_libraries("${PROJECT_NAME}" PUBLIC ${libraries})
 endfunction()
 
 pubsubMain()

@@ -50,6 +50,24 @@ class BaseEventPublisher : public IEventPublisher {
   boost::shared_timed_mutex subscriber_map_mutex;
 
  public:
+  virtual void configureSubscribers(
+      const json11::Json& configuration) noexcept override {
+    boost::upgrade_lock<decltype(subscriber_map_mutex)> lock(
+        subscriber_map_mutex);
+
+    for (const auto& p : subscriber_list) {
+      auto& subscriber_ref = p.first;
+      auto& context_ref = p.second;
+
+      auto subscriber_ptr = static_cast<SubscriberType*>(subscriber_ref.get());
+      auto status = subscriber_ptr->configure(context_ref, configuration);
+      if (!status.ok()) {
+        std::cerr << "Subscriber returned error: " << status.getMessage()
+                  << "\n";
+      }
+    }
+  }
+
   /// This method is used by subscribers to register to new event data
   /// from this publisher
   virtual osquery::Status subscribe(IEventSubscriberRef subscriber) override {
