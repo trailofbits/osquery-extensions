@@ -1,0 +1,4 @@
+[submodule "opt_dependencies/pcap/src"]
+	path = opt_dependencies/pcap/src
+	url = https://github.com/the-tcpdump-group/libpcap.git
+	branch = libpcap-1.9

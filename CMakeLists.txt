@@ -13,14 +13,17 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.10)
+project("traiofbits_extensions")
 
 set(ROOT_TEST_TARGET "trailofbits_extensions_tests")
 add_custom_target("${ROOT_TEST_TARGET}")
 
+set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+
 set(ENV{OSQUERY_EXTENSION_GROUP_NAME} "trailofbits_osquery_extensions")
 set(ENV{OSQUERY_EXTENSION_GROUP_VERSION} "1.0")
 
-function(main)
+function(trailofbitsExtensionsMain)
   message(STATUS "================================")
   message(STATUS "Trail of Bits osquery extensions")
   message(STATUS "Version: $ENV{OSQUERY_EXTENSION_GROUP_VERSION}")
@@ -52,6 +55,13 @@ function(ImportLibraries)
   endforeach()
 endfunction()
 
+function(ImportDependency dependency_name)
+  set(dependency_path "${TOB_EXTENSIONS_ROOT}/opt_dependencies/${dependency_name}")
+  message("Importing dependency '${dependency_name}' from '${dependency_path}'")
+
+  add_subdirectory("${dependency_path}" "opt_dependencies/${dependency_name}")
+endfunction()
+
 function(ImportExtensions)
   message("Importing extensions from '${CMAKE_CURRENT_SOURCE_DIR}'")
 
@@ -71,7 +81,7 @@ function(ImportExtensions)
       continue()
     endif()
 
-    if("${extension}" STREQUAL "libraries" OR "${extension}" STREQUAL ".git")
+    if("${extension}" STREQUAL "libraries" OR "${extension}" STREQUAL ".git" OR "${extension}" STREQUAL "opt_dependencies")
       continue()
     endif()
 
@@ -147,4 +157,4 @@ function(AddTest test_name out_executable_target_name)
   set("${out_executable_target_name}" "${target_name}" PARENT_SCOPE)
 endfunction()
 
-main()
+trailofbitsExtensionsMain()
