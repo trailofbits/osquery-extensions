@@ -139,7 +139,7 @@ osquery::Status SubscriberRegistry::initialize() {
     }
 
     d->subscriber_map.insert(
-        {subscriber, {subscriber_name, subscriber_descriptor.publisher_name}});
+        {subscriber, {subscriber_descriptor.publisher_name, subscriber_name}});
   }
 
   if (d->subscriber_map.empty()) {

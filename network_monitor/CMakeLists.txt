@@ -23,11 +23,11 @@ function(main)
   set(source_files
     src/main.cpp
 
-    src/networkeventpublisher.h
-    src/networkeventpublisher.cpp
+    src/dnseventspublisher.h
+    src/dnseventspublisher.cpp
 
-    src/networkeventsubscriber.h
-    src/networkeventsubscriber.cpp
+    src/dnseventssubscriber.h
+    src/dnseventssubscriber.cpp
 
     src/pcap_utils.h
     src/pcap_utils.cpp

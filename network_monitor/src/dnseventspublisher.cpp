@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "networkeventpublisher.h"
+#include "dnseventspublisher.h"
 #include "pcap_utils.h"
 
 #include <iostream>
@@ -29,7 +29,7 @@ const std::string kFilterRules = "port 53 and (tcp or udp)";
 } // namespace
 
 /// Private class data
-struct NetworkEventPublisher::PrivateData final {
+struct DNSEventsPublisher::PrivateData final {
   // Contains device information such as IP addresses and netmasks
   NetworkDeviceInformation device_information;
 
@@ -40,11 +40,11 @@ struct NetworkEventPublisher::PrivateData final {
   struct bpf_program ebpf_filter_program {};
 };
 
-NetworkEventPublisher::NetworkEventPublisher() : d(new PrivateData) {}
+DNSEventsPublisher::DNSEventsPublisher() : d(new PrivateData) {}
 
-osquery::Status NetworkEventPublisher::create(IEventPublisherRef& publisher) {
+osquery::Status DNSEventsPublisher::create(IEventPublisherRef& publisher) {
   try {
-    auto ptr = new NetworkEventPublisher();
+    auto ptr = new DNSEventsPublisher();
     publisher.reset(ptr);
 
     return osquery::Status(0);
@@ -57,17 +57,17 @@ osquery::Status NetworkEventPublisher::create(IEventPublisherRef& publisher) {
   }
 }
 
-osquery::Status NetworkEventPublisher::initialize() noexcept {
+osquery::Status DNSEventsPublisher::initialize() noexcept {
   std::cout << "Initializing NetworkEventPublisher\n";
   return osquery::Status(0);
 }
 
-osquery::Status NetworkEventPublisher::release() noexcept {
+osquery::Status DNSEventsPublisher::release() noexcept {
   std::cout << "Releasing NetworkEventPublisher\n";
   return osquery::Status(0);
 }
 
-osquery::Status NetworkEventPublisher::configure(
+osquery::Status DNSEventsPublisher::configure(
     const json11::Json& configuration) noexcept {
   static_cast<void>(kSnapshotLength);
   static_cast<void>(kPacketBufferTimeout);
@@ -129,7 +129,7 @@ osquery::Status NetworkEventPublisher::configure(
   return osquery::Status(0);*/
 }
 
-osquery::Status NetworkEventPublisher::run() noexcept {
+osquery::Status DNSEventsPublisher::run() noexcept {
   EventContextRef event_context;
   auto status = createEventContext(event_context);
   if (!status.ok()) {

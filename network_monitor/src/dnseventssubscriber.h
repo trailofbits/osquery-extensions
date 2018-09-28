@@ -16,16 +16,16 @@
 
 #pragma once
 
-#include "networkeventpublisher.h"
+#include "dnseventspublisher.h"
 #include <pubsub/subscriberregistry.h>
 
 namespace trailofbits {
-class NetworkEventSubscriber final
-    : public BaseEventSubscriber<NetworkEventPublisher> {
+class DNSEventsSubscriber final
+    : public BaseEventSubscriber<DNSEventsPublisher> {
  public:
   /// Returns the friendly publisher name
   static const char* name() {
-    return "network_events";
+    return "dns_events";
   }
 
   /// Factory function
@@ -39,13 +39,14 @@ class NetworkEventSubscriber final
 
   /// Called each time the configuration changes
   virtual osquery::Status configure(
-      NetworkEventPublisher::SubscriptionContextRef subscription_context,
+      DNSEventsPublisher::SubscriptionContextRef subscription_context,
       const json11::Json& configuration) noexcept override;
 
   virtual osquery::Status callback(
-      NetworkEventPublisher::SubscriptionContextRef subscription_context,
-      NetworkEventPublisher::EventContextRef event_context) override;
+      osquery::QueryData& new_events,
+      DNSEventsPublisher::SubscriptionContextRef subscription_context,
+      DNSEventsPublisher::EventContextRef event_context) override;
 };
 
-DECLARE_SUBSCRIBER(NetworkEventPublisher, NetworkEventSubscriber);
+DECLARE_SUBSCRIBER(DNSEventsPublisher, DNSEventsSubscriber);
 } // namespace trailofbits

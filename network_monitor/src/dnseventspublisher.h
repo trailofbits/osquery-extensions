@@ -22,36 +22,35 @@
 #include <string>
 
 namespace trailofbits {
-class NetworkEventPublisher;
+class DNSEventsPublisher;
 
-/// A reference to a NetworkEventPublisher object
-struct NetworkEventSubscriptionContext final {};
+/// A reference to a DNSEventsPublisher object
+struct DNSEventSubscriptionContext final {};
 
-struct NetworkEventData final {};
+struct DNSEventData final {};
 
 /// A network sniffer based on libcap
-class NetworkEventPublisher final
-    : public BaseEventPublisher<NetworkEventSubscriptionContext,
-                                NetworkEventData> {
+class DNSEventsPublisher final
+    : public BaseEventPublisher<DNSEventSubscriptionContext, DNSEventData> {
   struct PrivateData;
 
   /// Private class data
   std::unique_ptr<PrivateData> d;
 
   /// Private constructor; use the ::create() static function instead
-  explicit NetworkEventPublisher();
+  explicit DNSEventsPublisher();
 
  public:
-  /// Factory function used to create NetworkEventPublisher objects
+  /// Factory function used to create DNSEventsPublisher objects
   static osquery::Status create(IEventPublisherRef& publisher);
 
   /// Returns the friendly publisher name
   static const char* name() {
-    return "network_events";
+    return "dns_events_publisher";
   }
 
   /// Destructor
-  virtual ~NetworkEventPublisher() = default;
+  virtual ~DNSEventsPublisher() = default;
 
   /// One-time initialization
   osquery::Status initialize() noexcept override;
@@ -67,11 +66,11 @@ class NetworkEventPublisher final
   osquery::Status run() noexcept override;
 
   /// Disable the copy constructor
-  NetworkEventPublisher(const NetworkEventPublisher& other) = delete;
+  DNSEventsPublisher(const DNSEventsPublisher& other) = delete;
 
   /// Disable the assignment operator
-  NetworkEventPublisher& operator=(const NetworkEventPublisher& other) = delete;
+  DNSEventsPublisher& operator=(const DNSEventsPublisher& other) = delete;
 };
 
-DECLARE_PUBLISHER(NetworkEventPublisher);
+DECLARE_PUBLISHER(DNSEventsPublisher);
 } // namespace trailofbits

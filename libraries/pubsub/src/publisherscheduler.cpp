@@ -139,8 +139,10 @@ osquery::Status PublisherScheduler::start(
     try {
       auto publisher_thread_data =
           std::make_shared<PublisherThreadData>(d->terminate_threads);
+
       publisher_thread_data->publisher = publisher;
       publisher_thread_data->configuration_file = configuration_file;
+
       publisher_thread_data->thread =
           std::make_unique<std::thread>(publisherThread, publisher_thread_data);
 

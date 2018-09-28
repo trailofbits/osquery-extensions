@@ -26,6 +26,7 @@ function(pubsubMain)
     src/publisherregistry.cpp
     src/subscriberregistry.cpp
 
+    src/eventbufferlibrary.cpp
     src/publisherscheduler.cpp
     src/configurationfile.cpp
   )
@@ -40,6 +41,7 @@ function(pubsubMain)
     "${public_include_folder}/pubsub/publisherregistry.h"
     "${public_include_folder}/pubsub/subscriberregistry.h"
 
+    "${public_include_folder}/pubsub/eventbufferlibrary.h"
     "${public_include_folder}/pubsub/publisherscheduler.h"
     "${public_include_folder}/pubsub/configurationfile.h"
   )

@@ -62,5 +62,11 @@ class ConfigurationFile final {
 
   /// Returns the new configuration, if ::configurationChanged() returned true
   json11::Json getConfiguration(ConfigurationFileHandle handle);
+
+  /// Disable the copy constructor
+  ConfigurationFile(const ConfigurationFile& other) = delete;
+
+  /// Disable the assignment operator
+  ConfigurationFile& operator=(const ConfigurationFile& other) = delete;
 };
 } // namespace trailofbits

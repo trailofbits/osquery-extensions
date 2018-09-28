@@ -17,7 +17,9 @@
 #pragma once
 
 #include "baseeventsubscriber.h"
+#include "eventbufferlibrary.h"
 #include "ieventpublisher.h"
+#include "subscriberregistry.h"
 
 #include <boost/thread/shared_mutex.hpp>
 
@@ -139,10 +141,26 @@ class BaseEventPublisher : public IEventPublisher {
       auto& context_ref = p.second;
 
       auto subscriber_ptr = static_cast<SubscriberType*>(subscriber_ref.get());
-      auto status = subscriber_ptr->callback(context_ref, event_context);
+
+      osquery::QueryData new_events = {};
+      auto status =
+          subscriber_ptr->callback(new_events, context_ref, event_context);
+
       if (!status.ok()) {
         std::cerr << "Subscriber returned error: " << status.getMessage()
                   << "\n";
+      }
+
+      if (!new_events.empty()) {
+        auto buffer_name =
+            SubscriberRegistry::instance().subscriberName(subscriber_ref);
+
+        if (buffer_name.empty()) {
+          std::cerr << "Failed to acquire the subscriber name\n";
+          continue;
+        }
+
+        EventBufferLibrary::instance().saveEvents(new_events, buffer_name);
       }
     }
   }
