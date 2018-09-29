@@ -90,6 +90,12 @@ make -j `nproc`
 
 If you see the following warning, it can be ignored: `-- Cannot find Doxygen executable in path`
 
+It's also possible to select which extensions to build, using the TRAILOFBITS_EXTENSIONS_TO_BUILD environment variable and specifying a comma separated list of extension names.  
+For example, if you wish to build both the windows_sync_objects and fwctl extensions on Windows, you can set it to:
+```
+$env:TRAILOFBITS_EXTENSIONS_TO_BUILD = "windows_sync_objects,fwctl"
+```
+
 This is where the extension should be available once it has been built:
  * Windows: `osquery/build/windows10/external/Release/trailofbits_osquery_extensions.ext.exe`
  * Linux: `osquery/build/linux/external/trailofbits_osquery_extensions.ext`

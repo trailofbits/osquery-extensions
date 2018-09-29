@@ -55,6 +55,11 @@ endfunction()
 function(ImportExtensions)
   message("Importing extensions from '${CMAKE_CURRENT_SOURCE_DIR}'")
 
+  if (DEFINED ENV{TRAILOFBITS_EXTENSIONS_TO_BUILD})
+    set(extensions_to_build $ENV{TRAILOFBITS_EXTENSIONS_TO_BUILD})
+    string(REPLACE "," ";" extensions_to_build "${extensions_to_build}")
+  endif()
+
   file(GLOB extension_list RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/*")
   foreach(extension ${extension_list})
     if("${extension}" STREQUAL ".vscode")
@@ -67,6 +72,10 @@ function(ImportExtensions)
     endif()
 
     if("${extension}" STREQUAL "libraries" OR "${extension}" STREQUAL ".git")
+      continue()
+    endif()
+
+    if (DEFINED extensions_to_build AND NOT "${extension}" IN_LIST extensions_to_build)
       continue()
     endif()
 
