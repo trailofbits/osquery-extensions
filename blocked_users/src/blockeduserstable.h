@@ -37,7 +37,7 @@ class BlockedUsersTable final : public osquery::TablePlugin {
 
  public:
   BlockedUsersTable() = default;
-  ~BlockedUsersTable() = default;
+  ~BlockedUsersTable() override = default;
 };
 } // namespace trailofbits
 

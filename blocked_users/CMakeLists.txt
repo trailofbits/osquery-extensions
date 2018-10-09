@@ -19,6 +19,12 @@ function(blockedUsersMain)
   set(source_files
     src/blockeduserstable.h
     src/blockeduserstable.cpp
+    src/passwdentry.cpp
+    src/passwdentry.h
+    src/shadowfile.cpp
+    src/shadowfile.h
+    src/shadowentry.cpp
+    src/shadowentry.h
   )
 
   add_osquery_extension_ex("BlockedUsersTable" "table" "blocked_users"

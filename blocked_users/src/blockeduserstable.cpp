@@ -21,7 +21,12 @@
 #include <shadow.h>
 #include <sys/types.h>
 
+#include <boost/thread.hpp>
+
 #include <trailofbits/extutils.h>
+
+#include "passwdentry.h"
+#include "shadowfile.h"
 
 namespace trailofbits {
 namespace {
@@ -29,6 +34,8 @@ const std::string kUserModCommand = "/usr/sbin/usermod";
 
 std::vector<std::string> lockArgs{"--lock", "--expiredate", "1", ""};
 std::vector<std::string> unlockArgs{"--unlock", "--expiredate", "", ""};
+
+boost::shared_mutex passwd_mutex;
 
 struct LockedUser final {
   uid_t uid;
@@ -38,24 +45,22 @@ struct LockedUser final {
 using LockedUsers = std::vector<LockedUser>;
 
 osquery::Status uidToUsername(std::string& username, uid_t uid) {
-  struct passwd* user_passwd = getpwuid(uid);
-
-  if (user_passwd != nullptr) {
-    username = user_passwd->pw_name;
-  } else {
-    return osquery::Status(1, "No user found with uid: " + std::to_string(uid));
+  try {
+    PasswdEntry user_passwd(uid);
+    username = user_passwd.username();
+  } catch (const osquery::Status& status) {
+    return status;
   }
 
   return osquery::Status(0);
 }
 
 osquery::Status usernameToUid(uid_t& uid, const std::string& username) {
-  struct passwd* user_passwd = getpwnam(username.c_str());
-
-  if (user_passwd != nullptr) {
-    uid = user_passwd->pw_uid;
-  } else {
-    return osquery::Status(1, "No user found with username: " + username);
+  try {
+    PasswdEntry user_passwd(username);
+    uid = user_passwd.uid();
+  } catch (const osquery::Status& status) {
+    return status;
   }
 
   return osquery::Status(0);
@@ -148,25 +153,23 @@ osquery::Status unlockUser(const std::string& username) {
 osquery::Status getLockedUserList(LockedUsers& locked_users) {
   locked_users.clear();
 
-  setspent();
+  try {
+    const ShadowFile shadow_file;
 
-  bool more_shadow_entries = true;
+    for (const auto& shadow_entry : shadow_file) {
+      const PasswdEntry passwd_entry(shadow_entry.username());
 
-  while (more_shadow_entries) {
-    struct spwd* shadow_entry = getspent();
-
-    if (shadow_entry != nullptr) {
-      struct passwd* passwd_entry = getpwnam(shadow_entry->sp_namp);
-
-      if (passwd_entry != nullptr && shadow_entry->sp_pwdp[0] == '!') {
-        locked_users.push_back({passwd_entry->pw_uid, shadow_entry->sp_namp});
+      if (!passwd_entry.isEmpty() && (shadow_entry.isPasswordLocked() ||
+                                      shadow_entry.accountIsExpired())) {
+        locked_users.push_back({passwd_entry.uid(), passwd_entry.username()});
       }
-    } else {
-      more_shadow_entries = false;
+      // TODO: We just ignore non existing users (passwd_entry.isEmpty()) or log
+      // them?
     }
-  }
 
-  endspent();
+  } catch (const osquery::Status& status) {
+    return status;
+  }
 
   return osquery::Status(0);
 }
@@ -210,6 +213,8 @@ osquery::TableColumns BlockedUsersTable::columns() const {
 }
 
 osquery::QueryData BlockedUsersTable::generate(osquery::QueryContext& request) {
+  boost::shared_lock_guard<boost::shared_mutex> passwd_lock(passwd_mutex);
+
   LockedUsers locked_user_list;
   auto status = getLockedUserList(locked_user_list);
   if (!status.ok()) {
@@ -235,6 +240,8 @@ osquery::QueryData BlockedUsersTable::generate(osquery::QueryContext& request) {
 
 osquery::QueryData BlockedUsersTable::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
+  boost::lock_guard<boost::shared_mutex> passwd_lock(passwd_mutex);
+
   osquery::Row row;
   auto status = GetRowData(row, request.at("json_value_array"));
   if (!status.ok()) {
@@ -289,6 +296,7 @@ osquery::QueryData BlockedUsersTable::insert(
 
 osquery::QueryData BlockedUsersTable::delete_(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
+  boost::lock_guard<boost::shared_mutex> passwd_lock(passwd_mutex);
   std::string str_user_id = request.at("id");
   uid_t user_id;
   auto status = parseUid(user_id, str_user_id);
