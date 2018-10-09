@@ -38,6 +38,9 @@ struct DNSEventsPublisher::PrivateData final {
 
   // The eBPF program used to filter the network traffic
   struct bpf_program ebpf_filter_program {};
+
+  // Link type
+  int link_type{0};
 };
 
 DNSEventsPublisher::DNSEventsPublisher() : d(new PrivateData) {}
@@ -58,38 +61,46 @@ osquery::Status DNSEventsPublisher::create(IEventPublisherRef& publisher) {
 }
 
 osquery::Status DNSEventsPublisher::initialize() noexcept {
-  std::cout << "Initializing NetworkEventPublisher\n";
   return osquery::Status(0);
 }
 
 osquery::Status DNSEventsPublisher::release() noexcept {
-  std::cout << "Releasing NetworkEventPublisher\n";
   return osquery::Status(0);
 }
 
 osquery::Status DNSEventsPublisher::configure(
     const json11::Json& configuration) noexcept {
-  static_cast<void>(kSnapshotLength);
-  static_cast<void>(kPacketBufferTimeout);
-  static_cast<void>(configuration);
-  std::cout << "Configuring NetworkEventPublisher\n";
-  return osquery::Status(0);
+  if (!configuration.is_object()) {
+    return osquery::Status(1, "Invalid configuration");
+  }
 
-  /*static const std::string device_name = "enp7s0";
+  const auto& dns_event_configuration = configuration["dns_events"];
+  if (dns_event_configuration == json11::Json()) {
+    return osquery::Status(0,
+                           "The 'dns_events' configuration section is missing");
+  }
 
-  auto status =
-      createPcap(d->pcap, device_name, kSnapshotLength, kPacketBufferTimeout);
+  const auto& interface_name_obj = dns_event_configuration["interface"];
+  if (interface_name_obj == json11::Json()) {
+    return osquery::Status(
+        0, "The 'interface' value is missing from the 'dns_events' section");
+  }
+
+  auto interface_name = interface_name_obj.string_value();
+  auto status = createPcap(
+      d->pcap, interface_name, kSnapshotLength, kPacketBufferTimeout);
+
   if (!status.ok()) {
     return status;
   }
 
-  auto link_header_type = pcap_datalink(d->pcap.get());
-  if (link_header_type == PCAP_ERROR_NOT_ACTIVATED) {
+  d->link_type = pcap_datalink(d->pcap.get());
+  if (d->link_type == PCAP_ERROR_NOT_ACTIVATED) {
     return osquery::Status(1, "Failed to acquire the link-layer header type");
   }
 
   bool valid_link_header_type = false;
-  switch (link_header_type) {
+  switch (d->link_type) {
   case DLT_IPV4:
   case DLT_IPV6:
   case DLT_EN10MB:
@@ -104,7 +115,7 @@ osquery::Status DNSEventsPublisher::configure(
     return osquery::Status(1, "Invalid link-layer header type");
   }
 
-  status = getNetworkDeviceInformation(d->device_information, device_name);
+  status = getNetworkDeviceInformation(d->device_information, interface_name);
   if (!status.ok()) {
     return status;
   }
@@ -116,6 +127,7 @@ osquery::Status DNSEventsPublisher::configure(
                    PCAP_NETMASK_UNKNOWN) != 0) {
     auto error_message = std::string("Failed to compile the eBPF filter: ") +
                          pcap_geterr(d->pcap.get());
+
     return osquery::Status(1, error_message);
   }
 
@@ -123,18 +135,60 @@ osquery::Status DNSEventsPublisher::configure(
     auto error_message =
         std::string("Failed to enable the eBPF filter program: ") +
         pcap_geterr(d->pcap.get());
+
     return osquery::Status(1, error_message);
   }
 
-  return osquery::Status(0);*/
+  return osquery::Status(0);
 }
 
 osquery::Status DNSEventsPublisher::run() noexcept {
+  auto start_time = std::chrono::system_clock::now();
+
+  PacketList packet_list;
+
+  while (true) {
+    auto current_time = std::chrono::system_clock::now();
+    auto elapsed_time = current_time - start_time;
+
+    if (elapsed_time > std::chrono::seconds(5U)) {
+      break;
+    }
+
+    pcap_pkthdr* packet_header = nullptr;
+    const std::uint8_t* packet_data_buffer = nullptr;
+    auto capture_error =
+        pcap_next_ex(d->pcap.get(), &packet_header, &packet_data_buffer);
+
+    if (capture_error == 0) {
+      break;
+
+    } else if (capture_error == -1) {
+      auto error_message = std::string("Failed to capture the next packet: ") +
+                           pcap_geterr(d->pcap.get());
+
+      return osquery::Status(1, error_message);
+    }
+
+    PacketData packet_data;
+    packet_data.assign(packet_data_buffer,
+                       packet_data_buffer + packet_header->len);
+    packet_list.insert({packet_header->ts, std::move(packet_data)});
+  }
+
+  if (packet_list.empty()) {
+    return osquery::Status(0);
+  }
+
   EventContextRef event_context;
   auto status = createEventContext(event_context);
   if (!status.ok()) {
     return status;
   }
+
+  event_context->link_type = d->link_type;
+  event_context->packet_list = std::move(packet_list);
+  packet_list.clear();
 
   emitEvents(event_context);
   return osquery::Status(0);

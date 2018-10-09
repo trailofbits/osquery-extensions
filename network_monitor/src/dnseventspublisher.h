@@ -21,13 +21,40 @@
 #include <memory>
 #include <string>
 
+#include <sys/time.h>
+
 namespace trailofbits {
 class DNSEventsPublisher;
 
 /// A reference to a DNSEventsPublisher object
 struct DNSEventSubscriptionContext final {};
 
-struct DNSEventData final {};
+/// Packet data
+using PacketData = std::vector<std::uint8_t>;
+
+/// This comparator allows us to use the `struct timeval` type as a key
+/// for ordered containers
+struct TimevalComparator final {
+  bool operator()(const struct timeval& l, const struct timeval& r) const {
+    if (l.tv_sec != r.tv_sec) {
+      return l.tv_sec < r.tv_sec;
+    }
+
+    return l.tv_usec < r.tv_usec;
+  }
+};
+
+/// A timestamp-sorted list of packets
+using PacketList = std::map<struct timeval, PacketData, TimevalComparator>;
+
+/// The event object emitted by this publisher
+struct DNSEventData final {
+  /// Link type
+  int link_type{0};
+
+  /// A list of packets
+  PacketList packet_list;
+};
 
 /// A network sniffer based on libcap
 class DNSEventsPublisher final

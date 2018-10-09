@@ -15,10 +15,51 @@
  */
 
 #include "dnseventssubscriber.h"
+#include "packet.h"
 
 #include <pubsub/table_generator.h>
 
 namespace trailofbits {
+namespace {
+std::ostream& operator<<(std::ostream& stream, const IPAddress& ip_address) {
+  switch (ip_address.ip_protocol) {
+  case IPProtocol::IPv4: {
+    const auto& address = boost::get<u_int32_t>(ip_address.address);
+
+    auto components = reinterpret_cast<const std::uint8_t*>(&address);
+    stream << static_cast<std::uint32_t>(components[0]) << "."
+           << static_cast<std::uint32_t>(components[1]) << "."
+           << static_cast<std::uint32_t>(components[2]) << "."
+           << static_cast<std::uint32_t>(components[3]);
+
+    break;
+  }
+
+  case IPProtocol::IPv6: {
+    const auto& address = boost::get<in6_addr>(ip_address.address);
+
+    for (auto i = 0U; i < 16U; i++) {
+      stream << address.__in6_u.__u6_addr8;
+      if (i + 1 < 16U) {
+        stream << ":";
+      }
+    }
+
+    break;
+  }
+  }
+
+  return stream;
+}
+
+std::string ipAddressToString(const IPAddress& address) {
+  std::stringstream buffer;
+  buffer << address;
+
+  return buffer.str();
+}
+} // namespace
+
 osquery::Status DNSEventsSubscriber::create(IEventSubscriberRef& subscriber) {
   try {
     auto ptr = new DNSEventsSubscriber();
@@ -52,28 +93,46 @@ osquery::Status DNSEventsSubscriber::callback(
     osquery::QueryData& new_events,
     DNSEventsPublisher::SubscriptionContextRef subscription_context,
     DNSEventsPublisher::EventContextRef event_context) {
-  static_cast<void>(subscription_context);
-  static_cast<void>(event_context);
+  for (const auto& p : event_context->packet_list) {
+    const auto& timestamp = p.first;
+    const auto& packet_data = p.second;
 
-  osquery::Row dummy_row = {{"event_time", "0"},
-                            {"requested_domain", "trailofbits.com"},
-                            {"returned_address", "127.0.0.1"},
-                            {"client_address", "127.0.0.1"}};
+    PacketRef packet_ref;
+    auto status = Packet::create(
+        packet_ref, event_context->link_type, timestamp.tv_sec, packet_data);
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to parse packet at timestamp " << timestamp.tv_sec
+                 << "." << timestamp.tv_usec << ": " << status.getMessage();
+      continue;
+    }
 
-  for (auto i = 0U; i < 3U; ++i) {
-    new_events.push_back(dummy_row);
+    auto source_address = packet_ref->sourceAddress();
+    auto destination_address = packet_ref->destinationAddress();
+
+    osquery::Row row = {};
+    row["event_time"] = std::to_string(packet_ref->timestamp());
+
+    row["ip_protocol"] =
+        (packet_ref->ipProtocol() == IPProtocol::IPv4) ? "ipv4" : "ipv6";
+
+    row["protocol"] = (packet_ref->protocol() == Protocol::TCP) ? "tcp" : "udp";
+
+    row["source_address"] = ipAddressToString(source_address);
+    row["destination_address"] = ipAddressToString(destination_address);
+
+    new_events.push_back(std::move(row));
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(5));
   return osquery::Status(0);
 }
 
 // clang-format off
 BEGIN_TABLE(dns_events)
   TABLE_COLUMN(event_time, osquery::TEXT_TYPE)
-  TABLE_COLUMN(requested_domain, osquery::TEXT_TYPE)
-  TABLE_COLUMN(returned_address, osquery::TEXT_TYPE)
-  TABLE_COLUMN(client_address, osquery::TEXT_TYPE)
+  TABLE_COLUMN(ip_protocol, osquery::TEXT_TYPE)
+  TABLE_COLUMN(protocol, osquery::TEXT_TYPE)
+  TABLE_COLUMN(source_address, osquery::TEXT_TYPE)
+  TABLE_COLUMN(destination_address, osquery::TEXT_TYPE)
 END_TABLE(dns_events)
 // clang-format on
 } // namespace trailofbits

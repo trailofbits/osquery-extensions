@@ -31,6 +31,9 @@ function(main)
 
     src/pcap_utils.h
     src/pcap_utils.cpp
+
+    src/packet.h
+    src/packet.cpp
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})
