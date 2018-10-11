@@ -15,7 +15,6 @@
  */
 
 #include "dnseventssubscriber.h"
-#include "packet.h"
 
 #include <pubsub/table_generator.h>
 
@@ -100,9 +99,22 @@ osquery::Status DNSEventsSubscriber::callback(
     PacketRef packet_ref;
     auto status = Packet::create(
         packet_ref, event_context->link_type, timestamp.tv_sec, packet_data);
+
     if (!status.ok()) {
-      LOG(ERROR) << "Failed to parse packet at timestamp " << timestamp.tv_sec
-                 << "." << timestamp.tv_usec << ": " << status.getMessage();
+      LOG(ERROR) << "Failed to parse the packet at timestamp "
+                 << timestamp.tv_sec << "." << timestamp.tv_usec << ": "
+                 << status.getMessage();
+
+      continue;
+    }
+
+    DNSRequestRef dns_request;
+    status = DNSRequest::create(dns_request, packet_ref);
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to parse the DNS request at timestamp "
+                 << timestamp.tv_sec << "." << timestamp.tv_usec << ": "
+                 << status.getMessage();
+
       continue;
     }
 

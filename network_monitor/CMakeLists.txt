@@ -34,6 +34,12 @@ function(main)
 
     src/packet.h
     src/packet.cpp
+
+    src/dnsrequest.h
+    src/dnsrequest.cpp
+
+    src/packetreader.h
+    src/packetreader.cpp
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})

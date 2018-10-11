@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "dnsrequest.h"
+
 #include <pubsub/publisherregistry.h>
 
 #include <memory>
@@ -27,7 +29,10 @@ namespace trailofbits {
 class DNSEventsPublisher;
 
 /// A reference to a DNSEventsPublisher object
-struct DNSEventSubscriptionContext final {};
+struct DNSEventSubscriptionContext final {
+  /// Truncated requests, waiting to be completed
+  std::map<std::uint16_t, DNSRequestRef> truncated_requests;
+};
 
 /// Packet data
 using PacketData = std::vector<std::uint8_t>;

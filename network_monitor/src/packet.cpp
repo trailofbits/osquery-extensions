@@ -37,8 +37,6 @@ struct Packet::PrivateData final {
 
   Protocol protocol;
   boost::variant<udphdr, tcphdr> protocol_header;
-
-  std::uint8_t* packet_payload_ptr{nullptr};
 };
 
 Packet::Packet(int link_type,
@@ -48,11 +46,8 @@ Packet::Packet(int link_type,
   d->link_type = link_type;
   d->capture_timestamp = capture_timestamp;
 
-  d->packet_data = std::move(packet_data);
-  packet_data.clear();
-
-  auto packet_ptr = d->packet_data.data();
-  auto packet_end_ptr = packet_ptr + d->packet_data.size();
+  auto packet_ptr = packet_data.data();
+  auto packet_end_ptr = packet_ptr + packet_data.size();
 
   int type = 0;
   if (link_type == DLT_IPV4) {
@@ -62,7 +57,7 @@ Packet::Packet(int link_type,
     type = ETH_P_IPV6;
 
   } else if (link_type == DLT_EN10MB) {
-    auto ptr = reinterpret_cast<const std::uint8_t*>(d->packet_data.data() +
+    auto ptr = reinterpret_cast<const std::uint8_t*>(packet_data.data() +
                                                      ETH_HLEN - 2);
     if (ptr >= packet_end_ptr) {
       throw osquery::Status(1, "The packet seems to be broken");
@@ -135,7 +130,7 @@ Packet::Packet(int link_type,
     throw osquery::Status(1, "Invalid protocol");
   }
 
-  d->packet_payload_ptr = packet_ptr;
+  d->packet_data.assign(packet_ptr, packet_end_ptr);
 }
 
 osquery::Status Packet::create(PacketRef& ref,
@@ -244,5 +239,9 @@ std::uint16_t Packet::destinationPort() const {
     return ntohs(header.dest);
   }
   }
+}
+
+const std::vector<std::uint8_t>& Packet::data() const {
+  return d->packet_data;
 }
 } // namespace trailofbits

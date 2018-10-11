@@ -84,5 +84,8 @@ class Packet final {
 
   /// Returns the destination port
   std::uint16_t destinationPort() const;
+
+  /// Returns the packet data
+  const std::vector<std::uint8_t>& data() const;
 };
 } // namespace trailofbits
