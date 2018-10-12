@@ -51,9 +51,16 @@ class DNSRequest final {
   /// Private constructor; use ::create() instead
   DNSRequest(PacketRef packet_ref);
 
+  /// Attempts to parse the resource records
+  void parseResourceRecords();
+
  public:
   /// Crates a new DNSRequest object from the given packet
   static osquery::Status create(DNSRequestRef& ref, PacketRef packet_ref);
+
+  /// Appends a new packet to this request in order to complete it. Only
+  /// works if the reequest is truncated and the identifiers match
+  osquery::Status appendPacket(PacketRef packet_ref);
 
   /// Returns the DNS request identifier, used to join fragmented requests
   /// and match answer/response
@@ -93,6 +100,21 @@ class DNSRequest final {
 
   /// The amount of resource records in the additional records section
   std::uint16_t additionalRecordCount() const;
+
+  /// Returns the IP protocol
+  IPProtocol ipProtocol() const;
+
+  /// Eithert TCP or UDP
+  Protocol protocol() const;
+
+  /// Returns the timestamp
+  std::time_t timestamp() const;
+
+  /// Returns the source address
+  IPAddress sourceAddress() const;
+
+  /// Returns the destination address
+  IPAddress destinationAddress() const;
 
   /// Attempts to extract the DNS request identifier from the given packet
   static osquery::Status extractIdentifierFromPacket(std::uint16_t& identifier,

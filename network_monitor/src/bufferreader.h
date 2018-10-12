@@ -20,11 +20,9 @@
 
 #include <osquery/status.h>
 
-#include "packet.h"
-
 namespace trailofbits {
-/// This class is used to emit exceptions when a read on a Packet fails
-class PacketReaderException final : public std::exception {
+/// This class is used to emit exceptions when a read fails
+class BufferReaderException final : public std::exception {
   struct PrivateData;
 
   /// Private class data
@@ -32,9 +30,7 @@ class PacketReaderException final : public std::exception {
 
  public:
   /// Constructor
-  PacketReaderException(std::time_t packet_timestamp,
-                        std::size_t read_offset,
-                        std::size_t read_size);
+  BufferReaderException(std::size_t read_offset, std::size_t read_size);
 
   /// Returns the error description
   virtual const char* what() const noexcept override;
@@ -46,27 +42,36 @@ class PacketReaderException final : public std::exception {
   std::size_t size() const;
 };
 
-class PacketReader;
+class BufferReader;
 
-/// A reference to a PacketReader object
-using PacketReaderRef = std::unique_ptr<PacketReader>;
+/// A reference to a BufferReader object
+using BufferReaderRef = std::unique_ptr<BufferReader>;
 
-/// A helper class used to securely read data from a Packet
-class PacketReader final {
+/// A helper class used to securely read data from an std::vector<std::uint8_t>
+/// object
+class BufferReader final {
   struct PrivateData;
 
   /// Private class data
   std::unique_ptr<PrivateData> d;
 
   /// Private constructor; use ::create() instead
-  PacketReader(PacketRef& packet_ref);
+  BufferReader(const std::vector<std::uint8_t>& buffer);
+
+  /// Makes sure we will never receive temporaries
+  BufferReader(const std::vector<std::uint8_t>&&) = delete;
 
  public:
   /// Factory method
-  static osquery::Status create(PacketReaderRef& ref, PacketRef packet_ref);
+  static osquery::Status create(BufferReaderRef& ref,
+                                const std::vector<std::uint8_t>& buffer);
+
+  /// Makes sure we will never receive temporaries
+  static osquery::Status create(BufferReaderRef& ref,
+                                const std::vector<std::uint8_t>&&) = delete;
 
   /// Destructor
-  ~PacketReader();
+  ~BufferReader();
 
   /// Sets the buffer offset to the given value
   void setOffset(std::size_t offset);
@@ -104,9 +109,9 @@ class PacketReader final {
   }
 
   /// Disable the copy constructor
-  PacketReader(const PacketReader& other) = delete;
+  BufferReader(const BufferReader& other) = delete;
 
   /// Disable the assignment operator
-  PacketReader& operator=(const PacketReader& other) = delete;
+  BufferReader& operator=(const BufferReader& other) = delete;
 };
 } // namespace trailofbits

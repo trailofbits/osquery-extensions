@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 
-#include "packetreader.h"
+#include "bufferreader.h"
 
 #include <stack>
 
 namespace trailofbits {
-/// Private class data for the PacketReaderException class
-struct PacketReaderException::PrivateData final {
-  /// Packet timestamp
-  std::time_t packet_timestamp{0U};
-
+/// Private class data for the BufferReaderException class
+struct BufferReaderException::PrivateData final {
   /// Offset at which the operation has failed
   std::size_t read_offset{0U};
 
@@ -35,36 +32,38 @@ struct PacketReaderException::PrivateData final {
   std::string error_message;
 };
 
-PacketReaderException::PacketReaderException(std::time_t packet_timestamp,
-                                             std::size_t read_offset,
+BufferReaderException::BufferReaderException(std::size_t read_offset,
                                              std::size_t read_size)
     : d(new PrivateData) {
-  d->packet_timestamp = packet_timestamp;
   d->read_offset = read_offset;
   d->read_size = read_size;
 
   std::stringstream buffer;
-  buffer << "Read error on packet '" << packet_timestamp << "' at offset "
-         << read_offset << " when attempting to read " << read_size << " bytes";
+  buffer << "Read error at offset " << read_offset
+         << " when attempting to read " << read_size << " bytes";
+
   d->error_message = buffer.str();
 }
 
-const char* PacketReaderException::what() const noexcept {
+const char* BufferReaderException::what() const noexcept {
   return d->error_message.c_str();
 }
 
-std::size_t PacketReaderException::offset() const {
+std::size_t BufferReaderException::offset() const {
   return d->read_offset;
 }
 
-std::size_t PacketReaderException::size() const {
+std::size_t BufferReaderException::size() const {
   return d->read_size;
 }
 
 /// Private class data for the PacketReader class
-struct PacketReader::PrivateData final {
+struct BufferReader::PrivateData final {
+  /// Constructor, used to grab the buffer reference
+  PrivateData(const std::vector<std::uint8_t>& buf) : buffer(buf) {}
+
   /// Data source
-  PacketRef packet_ref;
+  const std::vector<std::uint8_t>& buffer;
 
   /// Read offset
   std::size_t read_offset{0U};
@@ -73,16 +72,15 @@ struct PacketReader::PrivateData final {
   std::stack<std::size_t> offset_stack;
 };
 
-PacketReader::PacketReader(PacketRef& packet_ref) : d(new PrivateData) {
-  d->packet_ref = packet_ref;
-}
+BufferReader::BufferReader(const std::vector<std::uint8_t>& buffer)
+    : d(new PrivateData(buffer)) {}
 
-osquery::Status PacketReader::create(PacketReaderRef& ref,
-                                     PacketRef packet_ref) {
+osquery::Status BufferReader::create(BufferReaderRef& ref,
+                                     const std::vector<std::uint8_t>& buffer) {
   ref.reset();
 
   try {
-    auto ptr = new PacketReader(packet_ref);
+    auto ptr = new BufferReader(buffer);
     ref.reset(ptr);
 
     return osquery::Status(0);
@@ -95,21 +93,21 @@ osquery::Status PacketReader::create(PacketReaderRef& ref,
   }
 }
 
-PacketReader::~PacketReader() {}
+BufferReader::~BufferReader() {}
 
-void PacketReader::setOffset(std::size_t offset) {
+void BufferReader::setOffset(std::size_t offset) {
   d->read_offset = offset;
 }
 
-std::size_t PacketReader::offset() const {
+std::size_t BufferReader::offset() const {
   return d->read_offset;
 }
 
-void PacketReader::pushOffset() {
+void BufferReader::pushOffset() {
   d->offset_stack.push(d->read_offset);
 }
 
-void PacketReader::popOffset() {
+void BufferReader::popOffset() {
   if (d->offset_stack.empty()) {
     return;
   }
@@ -118,27 +116,24 @@ void PacketReader::popOffset() {
   d->offset_stack.pop();
 }
 
-void PacketReader::readBuffer(std::uint8_t* buffer, std::size_t size) {
+void BufferReader::readBuffer(std::uint8_t* buffer, std::size_t size) {
   if (buffer == nullptr) {
-    throw PacketReaderException(
-        d->packet_ref->timestamp(), d->read_offset, size);
+    throw BufferReaderException(d->read_offset, size);
   }
 
   if (size == 0) {
     return;
   }
 
-  const auto& source_buffer = d->packet_ref->data();
-  if (d->read_offset + size >= source_buffer.size()) {
-    throw PacketReaderException(
-        d->packet_ref->timestamp(), d->read_offset, size);
+  if (d->read_offset + size >= d->buffer.size()) {
+    throw BufferReaderException(d->read_offset, size);
   }
 
-  std::memcpy(buffer, source_buffer.data() + d->read_offset, size);
+  std::memcpy(buffer, d->buffer.data() + d->read_offset, size);
   d->read_offset += size;
 }
 
-std::string PacketReader::pascalString() {
+std::string BufferReader::pascalString() {
   std::uint8_t string_length;
   read(string_length);
 
@@ -150,7 +145,7 @@ std::string PacketReader::pascalString() {
   return buffer;
 }
 
-std::string PacketReader::nullTerminatedString() {
+std::string BufferReader::nullTerminatedString() {
   std::string buffer;
 
   while (true) {

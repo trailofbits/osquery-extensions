@@ -244,4 +244,27 @@ std::uint16_t Packet::destinationPort() const {
 const std::vector<std::uint8_t>& Packet::data() const {
   return d->packet_data;
 }
+
+bool operator==(const IPAddress& l, const IPAddress& r) {
+  if (l.ip_protocol != r.ip_protocol) {
+    return false;
+  }
+
+  if (l.ip_protocol == IPProtocol::IPv4) {
+    auto first_address = boost::get<u_int32_t>(l.address);
+    auto second_address = boost::get<u_int32_t>(r.address);
+    return first_address == second_address;
+
+  } else {
+    auto first_address = boost::get<in6_addr>(l.address);
+    auto second_address = boost::get<in6_addr>(r.address);
+
+    auto res = std::memcmp(first_address.s6_addr, second_address.s6_addr, 16U);
+    return res == 0;
+  }
+}
+
+bool operator!=(const IPAddress& l, const IPAddress& r) {
+  return !(l == r);
+}
 } // namespace trailofbits

@@ -15,7 +15,7 @@
  */
 
 #include "dnsrequest.h"
-#include "packetreader.h"
+#include "bufferreader.h"
 
 #include <iomanip>
 #include <iostream>
@@ -24,7 +24,6 @@
 
 namespace trailofbits {
 namespace {
-
 /// The DNS request header
 struct DNSRequestHeader final {
   /// The request identifier
@@ -77,9 +76,19 @@ struct DNSRequestHeader final {
   std::uint16_t arcount;
 };
 
+/// This is used to keep track of the boundaries of each packet we have
+/// added to the buffer
+struct DNSRequestSection final {
+  /// Where the section starts in the data buffer
+  std::size_t base_offset;
+
+  /// The section size
+  std::size_t size;
+};
+
 /// Reads the request header
-osquery::Status readRequestHeader(PacketReaderRef& reader,
-                                  DNSRequestHeader& header) {
+osquery::Status readRequestHeader(DNSRequestHeader& header,
+                                  BufferReaderRef& reader) {
   try {
     header = {};
 
@@ -135,7 +144,7 @@ osquery::Status readRequestHeader(PacketReaderRef& reader,
 
     return osquery::Status(0);
 
-  } catch (const PacketReaderException& e) {
+  } catch (const BufferReaderException& e) {
     return osquery::Status(1, e.what());
   }
 }
@@ -143,24 +152,79 @@ osquery::Status readRequestHeader(PacketReaderRef& reader,
 
 /// Private class data
 struct DNSRequest::PrivateData final {
-  /// The raw DNS request header
-  DNSRequestHeader header;
+  /// The data extracted from the initial packet; can be modified by
+  /// appending additional packets (only in case the request has been
+  /// truncated)
+  std::vector<std::uint8_t> packet_data;
+
+  /// The request header; we may have more than one if the request
+  /// was truncated
+  std::vector<DNSRequestHeader> header_list;
+
+  /// The section list; each new datagram is a section
+  std::vector<DNSRequestSection> section_list;
+
+  /// Source address
+  IPAddress source_address;
+
+  /// Destination address
+  IPAddress destination_address;
+
+  /// Source port
+  std::uint16_t source_port{0U};
+
+  /// Destination port
+  std::uint16_t destination_port{0U};
+
+  /// IP Protocol
+  IPProtocol ip_protocol{IPProtocol::IPv4};
+
+  /// Protocol
+  Protocol protocol{Protocol::TCP};
+
+  /// Packet timestamp
+  std::time_t timestamp{0U};
 };
 
-DNSRequest::DNSRequest(PacketRef packet_ref) {
-  if (packet_ref->data().size() < sizeof(DNSRequestHeader)) {
+DNSRequest::DNSRequest(PacketRef packet_ref) : d(new PrivateData) {
+  // Save the base packet information
+  d->source_address = packet_ref->sourceAddress();
+  d->destination_address = packet_ref->destinationAddress();
+  d->source_port = packet_ref->sourcePort();
+  d->destination_port = packet_ref->destinationPort();
+  d->ip_protocol = packet_ref->ipProtocol();
+  d->protocol = packet_ref->protocol();
+  d->timestamp = packet_ref->timestamp();
+
+  // Read the first header; then attempt to parse the resource records
+  // if the request has not been truncated
+  d->packet_data = packet_ref->data();
+
+  if (d->packet_data.size() < sizeof(DNSRequestHeader)) {
     throw osquery::Status(1, "Invalid DNS header: buffer is too small");
   }
 
-  PacketReaderRef reader;
-  auto status = PacketReader::create(reader, packet_ref);
+  BufferReaderRef reader;
+  auto status = BufferReader::create(reader, d->packet_data);
   if (!status.ok()) {
     throw status;
   }
 
-  status = readRequestHeader(reader, d->header);
+  DNSRequestHeader header;
+  status = readRequestHeader(header, reader);
   if (!status.ok()) {
     throw status;
+  }
+
+  d->header_list.push_back(header);
+  d->section_list.push_back({0U, d->packet_data.size()});
+
+  parseResourceRecords();
+}
+
+void DNSRequest::parseResourceRecords() {
+  if (isTruncated()) {
+    return;
   }
 }
 
@@ -181,60 +245,156 @@ osquery::Status DNSRequest::create(DNSRequestRef& ref, PacketRef packet_ref) {
   }
 }
 
+osquery::Status DNSRequest::appendPacket(PacketRef packet_ref) {
+  if (!isTruncated()) {
+    return osquery::Status(1, "The request is not truncated");
+  }
+
+  if (sourceAddress() != packet_ref->sourceAddress()) {
+    return osquery::Status(
+        1, "The packet being appended has a different source address");
+  }
+
+  if (destinationAddress() != packet_ref->destinationAddress()) {
+    return osquery::Status(
+        1, "The packet being appended has a different destination address");
+  }
+
+  const auto& new_packet_data = packet_ref->data();
+
+  auto last_section_index = d->section_list.size() - 1U;
+  const auto& last_section = d->section_list.at(last_section_index);
+
+  bool skip_packet = false;
+  if (last_section.size == new_packet_data.size()) {
+    skip_packet = std::memcmp(d->packet_data.data() + last_section.base_offset,
+                              new_packet_data.data(),
+                              last_section.size) == 0;
+  }
+
+  if (skip_packet) {
+    VLOG(1) << "Skipping duplicated packet";
+    return osquery::Status(0);
+  }
+
+  BufferReaderRef reader_ref;
+  auto status = BufferReader::create(reader_ref, new_packet_data);
+  if (!status.ok()) {
+    return status;
+  }
+
+  DNSRequestHeader new_packet_header;
+  status = readRequestHeader(new_packet_header, reader_ref);
+  if (!status.ok()) {
+    return status;
+  }
+
+  const auto& base_header = d->header_list[0];
+  if (base_header.id != new_packet_header.id) {
+    return osquery::Status(
+        1, "The packet being appended has a different request identifier");
+  }
+
+  d->header_list.push_back(new_packet_header);
+
+  DNSRequestSection new_section = {d->packet_data.size() - 1,
+                                   new_packet_data.size()};
+  d->section_list.push_back(new_section);
+
+  d->packet_data.reserve(d->packet_data.size() + new_packet_data.size());
+  d->packet_data.insert(
+      d->packet_data.end(), new_packet_data.begin(), new_packet_data.end());
+
+  parseResourceRecords();
+  return osquery::Status(0);
+}
+
 std::uint16_t DNSRequest::requestIdentifier() const {
-  return d->header.id;
+  const auto& base_header = d->header_list[0];
+  return base_header.id;
 }
 
 bool DNSRequest::isQuestion() const {
-  return d->header.qr;
+  const auto& base_header = d->header_list[0];
+  return base_header.qr;
 }
 
 DNSRequestOpcode DNSRequest::requestOpcode() const {
-  return d->header.opcode;
+  const auto& base_header = d->header_list[0];
+  return base_header.opcode;
 }
 
 bool DNSRequest::isAuthoritativeAnswer() const {
-  return d->header.aa;
+  const auto& base_header = d->header_list[0];
+  return base_header.aa;
 }
 
 bool DNSRequest::isTruncated() const {
-  return d->header.tc;
+  auto last_header_index = d->header_list.size() - 1;
+  return d->header_list.at(last_header_index).tc;
 }
 
 bool DNSRequest::recursionRequested() const {
-  return d->header.rd;
+  const auto& base_header = d->header_list[0];
+  return base_header.rd;
 }
 
 bool DNSRequest::recursionAvailable() const {
-  return d->header.ra;
+  const auto& base_header = d->header_list[0];
+  return base_header.ra;
 }
 
 DNSResponseCode DNSRequest::responseCode() const {
-  return d->header.rcode;
+  const auto& base_header = d->header_list[0];
+  return base_header.rcode;
 }
 
 std::uint16_t DNSRequest::questionCount() const {
-  return d->header.qdcount;
+  const auto& base_header = d->header_list[0];
+  return base_header.qdcount;
 }
 
 std::uint16_t DNSRequest::answerCount() const {
-  return d->header.ancount;
+  const auto& base_header = d->header_list[0];
+  return base_header.ancount;
 }
 
 std::uint16_t DNSRequest::authorityRecordCount() const {
-  return d->header.nscount;
+  const auto& base_header = d->header_list[0];
+  return base_header.nscount;
 }
 
 std::uint16_t DNSRequest::additionalRecordCount() const {
-  return d->header.arcount;
+  const auto& base_header = d->header_list[0];
+  return base_header.arcount;
+}
+
+IPProtocol DNSRequest::ipProtocol() const {
+  return d->ip_protocol;
+}
+
+Protocol DNSRequest::protocol() const {
+  return d->protocol;
+}
+
+std::time_t DNSRequest::timestamp() const {
+  return d->timestamp;
+}
+
+IPAddress DNSRequest::sourceAddress() const {
+  return d->source_address;
+}
+
+IPAddress DNSRequest::destinationAddress() const {
+  return d->destination_address;
 }
 
 osquery::Status DNSRequest::extractIdentifierFromPacket(
     std::uint16_t& identifier, PacketRef packet_ref) {
   identifier = 0U;
 
-  PacketReaderRef reader;
-  auto status = PacketReader::create(reader, packet_ref);
+  BufferReaderRef reader;
+  auto status = BufferReader::create(reader, packet_ref->data());
   if (!status.ok()) {
     return status;
   }
@@ -243,7 +403,7 @@ osquery::Status DNSRequest::extractIdentifierFromPacket(
     reader->read(identifier);
     return osquery::Status(0);
 
-  } catch (const PacketReaderException& e) {
+  } catch (const BufferReaderException& e) {
     return osquery::Status(1, e.what());
   }
 }

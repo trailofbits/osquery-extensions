@@ -45,6 +45,12 @@ struct IPAddress final {
   boost::variant<u_int32_t, in6_addr> address;
 };
 
+/// Allow the user to easily compare IPAddress structures
+bool operator==(const IPAddress& l, const IPAddress& r);
+
+/// Allow the user to easily compare IPAddress structures
+bool operator!=(const IPAddress& l, const IPAddress& r);
+
 /// A packet object
 class Packet final {
   struct PrivateData;

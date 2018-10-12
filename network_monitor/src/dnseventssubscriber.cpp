@@ -85,6 +85,7 @@ osquery::Status DNSEventsSubscriber::configure(
     const json11::Json& configuration) noexcept {
   static_cast<void>(subscription_context);
   static_cast<void>(configuration);
+
   return osquery::Status(0);
 }
 
@@ -92,6 +93,8 @@ osquery::Status DNSEventsSubscriber::callback(
     osquery::QueryData& new_events,
     DNSEventsPublisher::SubscriptionContextRef subscription_context,
     DNSEventsPublisher::EventContextRef event_context) {
+  std::vector<DNSRequestRef> completed_request_list;
+
   for (const auto& p : event_context->packet_list) {
     const auto& timestamp = p.first;
     const auto& packet_data = p.second;
@@ -108,8 +111,44 @@ osquery::Status DNSEventsSubscriber::callback(
       continue;
     }
 
-    DNSRequestRef dns_request;
-    status = DNSRequest::create(dns_request, packet_ref);
+    std::uint16_t request_id;
+    status = DNSRequest::extractIdentifierFromPacket(request_id, packet_ref);
+    if (!status.ok()) {
+      LOG(ERROR)
+          << "Failed to acquire the DNS request id for the packet at timestamp "
+          << timestamp.tv_sec << "." << timestamp.tv_usec << ": "
+          << status.getMessage();
+
+      continue;
+    }
+
+    auto truncated_requests_it =
+        subscription_context->truncated_requests.find(request_id);
+    if (truncated_requests_it !=
+        subscription_context->truncated_requests.end()) {
+      auto dns_request_ref = truncated_requests_it->second;
+      subscription_context->truncated_requests.erase(truncated_requests_it);
+
+      status = dns_request_ref->appendPacket(packet_ref);
+      if (!status.ok()) {
+        LOG(ERROR) << "Failed to handle truncated the DNS request with id "
+                   << request_id << " with packet timestamp "
+                   << timestamp.tv_sec << "." << timestamp.tv_usec << ": "
+                   << status.getMessage();
+
+        continue;
+      }
+
+      if (dns_request_ref->isTruncated()) {
+        subscription_context->truncated_requests.insert(
+            {request_id, dns_request_ref});
+      } else {
+        completed_request_list.push_back(dns_request_ref);
+      }
+    }
+
+    DNSRequestRef dns_request_ref;
+    status = DNSRequest::create(dns_request_ref, packet_ref);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to parse the DNS request at timestamp "
                  << timestamp.tv_sec << "." << timestamp.tv_usec << ": "
@@ -118,16 +157,26 @@ osquery::Status DNSEventsSubscriber::callback(
       continue;
     }
 
-    auto source_address = packet_ref->sourceAddress();
-    auto destination_address = packet_ref->destinationAddress();
+    if (dns_request_ref->isTruncated()) {
+      subscription_context->truncated_requests.insert(
+          {dns_request_ref->requestIdentifier(), dns_request_ref});
+    } else {
+      completed_request_list.push_back(dns_request_ref);
+    }
+  }
+
+  for (const auto& dns_request_ref : completed_request_list) {
+    auto source_address = dns_request_ref->sourceAddress();
+    auto destination_address = dns_request_ref->destinationAddress();
 
     osquery::Row row = {};
-    row["event_time"] = std::to_string(packet_ref->timestamp());
+    row["event_time"] = std::to_string(dns_request_ref->timestamp());
 
     row["ip_protocol"] =
-        (packet_ref->ipProtocol() == IPProtocol::IPv4) ? "ipv4" : "ipv6";
+        (dns_request_ref->ipProtocol() == IPProtocol::IPv4) ? "ipv4" : "ipv6";
 
-    row["protocol"] = (packet_ref->protocol() == Protocol::TCP) ? "tcp" : "udp";
+    row["protocol"] =
+        (dns_request_ref->protocol() == Protocol::TCP) ? "tcp" : "udp";
 
     row["source_address"] = ipAddressToString(source_address);
     row["destination_address"] = ipAddressToString(destination_address);
