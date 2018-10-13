@@ -31,15 +31,6 @@ function(main)
 
     src/pcap_utils.h
     src/pcap_utils.cpp
-
-    src/packet.h
-    src/packet.cpp
-
-    src/dnsrequest.h
-    src/dnsrequest.cpp
-
-    src/bufferreader.h
-    src/bufferreader.cpp
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})
@@ -51,9 +42,10 @@ function(main)
   # Reference our pubsub framework
   list(APPEND libraries pubsub)
 
-  # Import libpcap
+  # Import Pcap++
   ImportDependency("pcap")
-  list(APPEND libraries pcap)
+  ImportDependency("Pcap++")
+  list(APPEND libraries Pcap++)
 
   target_link_libraries("${PROJECT_NAME}" ${libraries})
 endfunction()

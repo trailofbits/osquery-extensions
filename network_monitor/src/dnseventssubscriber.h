@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dnseventspublisher.h"
+
 #include <pubsub/subscriberregistry.h>
 
 namespace trailofbits {

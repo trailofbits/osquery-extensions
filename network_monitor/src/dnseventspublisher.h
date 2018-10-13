@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "dnsrequest.h"
-
 #include <pubsub/publisherregistry.h>
+
+#include <TcpReassembly.h>
 
 #include <memory>
 #include <string>
@@ -29,10 +29,7 @@ namespace trailofbits {
 class DNSEventsPublisher;
 
 /// A reference to a DNSEventsPublisher object
-struct DNSEventSubscriptionContext final {
-  /// Truncated requests, waiting to be completed
-  std::map<std::uint16_t, DNSRequestRef> truncated_requests;
-};
+struct DNSEventSubscriptionContext final {};
 
 /// Packet data
 using PacketData = std::vector<std::uint8_t>;
@@ -53,19 +50,15 @@ struct TimevalComparator final {
 using PacketList = std::map<struct timeval, PacketData, TimevalComparator>;
 
 /// The event object emitted by this publisher
-struct DNSEventData final {
-  /// Link type
-  int link_type{0};
-
-  /// A list of packets
-  PacketList packet_list;
-};
+struct DNSEventData final {};
 
 /// A network sniffer based on libcap
 class DNSEventsPublisher final
     : public BaseEventPublisher<DNSEventSubscriptionContext, DNSEventData> {
+ public:
   struct PrivateData;
 
+ private:
   /// Private class data
   std::unique_ptr<PrivateData> d;
 
@@ -96,6 +89,16 @@ class DNSEventsPublisher final
 
   /// Worker method; should perform some work and then return
   osquery::Status run() noexcept override;
+
+  /// Automatically called by the TCP reassembler when new data is available
+  void onTcpMessageReady(int side, pcpp::TcpStreamData tcp_data);
+
+  /// Automatically called by the TCP reassembler when a connection is started
+  void onTcpConnectionStart(pcpp::ConnectionData connection_data);
+
+  /// Automatically called by the TCP reassembler when a connection ends
+  void onTcpConnectionEnd(pcpp::ConnectionData connection_data,
+                          pcpp::TcpReassembly::ConnectionEndReason reason);
 
   /// Disable the copy constructor
   DNSEventsPublisher(const DNSEventsPublisher& other) = delete;
