@@ -18,6 +18,7 @@
 
 #include <pubsub/publisherregistry.h>
 
+#include <DnsLayer.h>
 #include <TcpReassembly.h>
 
 #include <memory>
@@ -31,23 +32,70 @@ class DNSEventsPublisher;
 /// A reference to a DNSEventsPublisher object
 struct DNSEventSubscriptionContext final {};
 
-/// Packet data
-using PacketData = std::vector<std::uint8_t>;
+/// A single DNS event
+struct DnsEvent final {
+  /// Request type, taken from the qr bit of the header
+  enum class Type { Query, Response };
 
-/// This comparator allows us to use the `struct timeval` type as a key
-/// for ordered containers
-struct TimevalComparator final {
-  bool operator()(const struct timeval& l, const struct timeval& r) const {
-    if (l.tv_sec != r.tv_sec) {
-      return l.tv_sec < r.tv_sec;
-    }
+  /// Describes a single question in the DNS request
+  struct Question final {
+    /// Record type (i.e.: A, NS, CNAME, etc...)
+    pcpp::DnsType record_type;
 
-    return l.tv_usec < r.tv_usec;
-  }
+    /// DNS class (i.e.: IN, CH, etc...)
+    pcpp::DnsClass dns_class;
+
+    /// The domain name
+    std::string name;
+  };
+
+  /// A list of questions sent to the DNS server
+  using QuestionList = std::vector<Question>;
+
+  /// Answer data
+  struct Answer final {
+    /// The time to live for this record
+    std::uint32_t ttl;
+
+    /// The record data
+    std::string record_data;
+
+    /// The record type (i.e.: A, NS or CNAME)
+    pcpp::DnsType record_type;
+
+    /// The class for this record (such as IN, CH or ANY)
+    pcpp::DnsClass record_class;
+
+    /// The record name
+    std::string record_name;
+  };
+
+  /// A list of answers received from the DNS server
+  using AnswerList = std::vector<Answer>;
+
+  /// Request type; either a query or a response
+  Type type{Type::Query};
+
+  /// List of questions sent or received (copied from the client request) from
+  /// the DNS server
+  QuestionList question;
+
+  /// List of answers received from the DNS server
+  AnswerList answer;
+
+  /// Request identifier
+  std::uint16_t id;
+
+  /// Protocol type; either UDP or TCP
+  pcpp::ProtocolType protocol{pcpp::UDP};
+
+  /// True if the request was truncated; only valid when the protocol is set to
+  /// UDP
+  bool truncated{false};
 };
 
-/// A timestamp-sorted list of packets
-using PacketList = std::map<struct timeval, PacketData, TimevalComparator>;
+/// A list of DNS events
+using DnsEventList = std::vector<DnsEvent>;
 
 /// The event object emitted by this publisher
 struct DNSEventData final {};
