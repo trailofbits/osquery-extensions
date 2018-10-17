@@ -17,6 +17,9 @@
 #include "dnseventspublisher.h"
 #include "pcap_utils.h"
 
+#include <IPv4Layer.h>
+#include <IPv6Layer.h>
+
 namespace trailofbits {
 namespace {
 /// Capture buffer
@@ -44,6 +47,9 @@ struct TcpConversation final {
 
   /// Data sent
   ByteVector sent_data;
+
+  /// When the conversation was started
+  timeval event_time{};
 };
 
 /// The identifier is used by the TCP reassembler to uniquely identify a
@@ -145,9 +151,11 @@ DnsEvent generateDnsEvent(pcpp::ProtocolType protocol,
   dns_event.id = dns_header.transactionID;
   dns_event.protocol = protocol;
   dns_event.truncated = dns_header.truncation;
+  dns_event.type = (dns_header.queryOrResponse == 0) ? DnsEvent::Type::Query
+                                                     : DnsEvent::Type::Response;
 
   dns_event.question = generateDnsQuestionList(dns_layer);
-  if (dns_header.queryOrResponse) {
+  if (dns_header.queryOrResponse == 0) {
     return dns_event;
   }
 
@@ -159,34 +167,44 @@ DnsEvent generateDnsEvent(pcpp::ProtocolType protocol,
 /// Notes: we can't use const since Pcap++ expects writable buffers
 osquery::Status generateDnsEventFromTCPData(DnsEventList& dns_event_list,
                                             ByteVector& tcp_stream) {
-  dns_event_list = {};
+  try {
+    dns_event_list = {};
 
-  auto buffer_ptr = tcp_stream.data();
-  auto buffer_end = buffer_ptr + tcp_stream.size();
+    auto buffer_ptr = tcp_stream.data();
+    auto buffer_end = buffer_ptr + tcp_stream.size();
 
-  while (buffer_ptr < buffer_end) {
-    if (buffer_ptr + 2U >= buffer_end) {
-      return osquery::Status(1, "Missing request size in TCP stream");
+    while (buffer_ptr < buffer_end) {
+      if (buffer_ptr + 2U > buffer_end) {
+        return osquery::Status(1, "Missing request size in TCP stream");
+      }
+
+      auto chunk_size = *reinterpret_cast<const std::uint16_t*>(buffer_ptr);
+      chunk_size = htons(chunk_size);
+
+      auto chunk_start = buffer_ptr + 2U;
+      auto chunk_end = chunk_start + chunk_size;
+
+      if (chunk_end > buffer_end) {
+        return osquery::Status(1, "Invalid request size in TCP stream");
+      }
+
+      // The DnsLayer wil always attempt to free the buffer
+      auto* temp_buffer = new std::uint8_t[chunk_size];
+      std::memcpy(temp_buffer, chunk_start, chunk_size);
+
+      pcpp::DnsLayer dns_layer(temp_buffer, chunk_size, nullptr, nullptr);
+
+      auto dns_event = generateDnsEvent(pcpp::TCP, &dns_layer);
+      dns_event_list.push_back(dns_event);
+
+      buffer_ptr = chunk_end;
     }
 
-    const auto chunk_size = *reinterpret_cast<const std::uint16_t*>(buffer_ptr);
+    return osquery::Status(0);
 
-    auto chunk_start = buffer_ptr + 2U;
-    auto chunk_end = chunk_start + chunk_size;
-
-    if (chunk_end >= buffer_end) {
-      return osquery::Status(1, "Invalid request size in TCP stream");
-    }
-
-    pcpp::DnsLayer dns_layer(chunk_start, chunk_size, nullptr, nullptr);
-
-    auto dns_event = generateDnsEvent(pcpp::TCP, &dns_layer);
-    dns_event_list.push_back(dns_event);
-
-    buffer_ptr = chunk_end;
+  } catch (const std::bad_alloc&) {
+    return osquery::Status(1, "Memory allocation failure");
   }
-
-  return osquery::Status(0);
 }
 } // namespace
 
@@ -338,6 +356,7 @@ osquery::Status DNSEventsPublisher::run() noexcept {
 
     pcap_pkthdr* packet_header = nullptr;
     const std::uint8_t* packet_data_buffer = nullptr;
+
     auto capture_error =
         pcap_next_ex(d->pcap.get(), &packet_header, &packet_data_buffer);
 
@@ -361,10 +380,32 @@ osquery::Status DNSEventsPublisher::run() noexcept {
 
     if (packet.isPacketOfType(pcpp::UDP)) {
       auto dns_layer = packet.getLayerOfType<pcpp::DnsLayer>();
-      if (dns_layer != nullptr) {
-        auto dns_event = generateDnsEvent(pcpp::UDP, dns_layer);
-        dns_event_list.push_back(dns_event);
+      if (dns_layer == nullptr) {
+        continue;
       }
+
+      auto dns_event = generateDnsEvent(pcpp::UDP, dns_layer);
+      dns_event.event_time = packet_header->ts;
+
+      auto ipv4_layer = packet.getLayerOfType<pcpp::IPv4Layer>();
+      if (ipv4_layer != nullptr) {
+        dns_event.source_address = ipv4_layer->getSrcIpAddress().toString();
+        dns_event.destination_address =
+            ipv4_layer->getDstIpAddress().toString();
+
+      } else {
+        auto ipv6_layer = packet.getLayerOfType<pcpp::IPv6Layer>();
+        if (ipv6_layer != nullptr) {
+          dns_event.source_address = ipv6_layer->getSrcIpAddress().toString();
+          dns_event.destination_address =
+              ipv6_layer->getDstIpAddress().toString();
+        } else {
+          LOG(ERROR)
+              << "Failed to determine the source and destination IP addresses";
+        }
+      }
+
+      dns_event_list.push_back(std::move(dns_event));
 
     } else {
       d->tcp_reassembler->reassemblePacket(&raw_packet);
@@ -373,13 +414,21 @@ osquery::Status DNSEventsPublisher::run() noexcept {
 
   for (auto& p : d->completed_tcp_conversation_map) {
     auto& tcp_conversation = p.second;
+    const auto& connection_data = tcp_conversation.connection_data;
 
     DnsEventList new_dns_event_list = {};
     auto status = generateDnsEventFromTCPData(new_dns_event_list,
                                               tcp_conversation.sent_data);
     if (!status.ok()) {
       LOG(ERROR) << status.getMessage();
+
     } else {
+      for (auto& event : new_dns_event_list) {
+        event.source_address = connection_data.srcIP->toString();
+        event.destination_address = connection_data.dstIP->toString();
+        event.event_time = tcp_conversation.event_time;
+      }
+
       dns_event_list.insert(dns_event_list.end(),
                             new_dns_event_list.begin(),
                             new_dns_event_list.end());
@@ -389,7 +438,14 @@ osquery::Status DNSEventsPublisher::run() noexcept {
                                          tcp_conversation.received_data);
     if (!status.ok()) {
       LOG(ERROR) << status.getMessage();
+
     } else {
+      for (auto& event : new_dns_event_list) {
+        event.destination_address = connection_data.srcIP->toString();
+        event.source_address = connection_data.dstIP->toString();
+        event.event_time = tcp_conversation.event_time;
+      }
+
       dns_event_list.insert(dns_event_list.end(),
                             new_dns_event_list.begin(),
                             new_dns_event_list.end());
@@ -404,6 +460,9 @@ osquery::Status DNSEventsPublisher::run() noexcept {
     return status;
   }
 
+  event_context->event_list = std::move(dns_event_list);
+  dns_event_list.clear();
+
   emitEvents(event_context);
   return osquery::Status(0);
 }
@@ -416,7 +475,7 @@ void DNSEventsPublisher::onTcpMessageReady(int side,
   auto& conversation = getPendingTcpConversation(d, conversation_id);
 
   auto& stream_buffer =
-      (side == 0) ? conversation.received_data : conversation.sent_data;
+      (side == 1) ? conversation.received_data : conversation.sent_data;
 
   auto data_length = static_cast<std::size_t>(tcp_data.getDataLength());
   const auto data_begin = tcp_data.getData();
@@ -432,6 +491,8 @@ void DNSEventsPublisher::onTcpConnectionStart(
   auto& conversation = getPendingTcpConversation(d, conversation_id);
 
   conversation.connection_data = connection_data;
+
+  gettimeofday(&conversation.event_time, nullptr);
 }
 
 void DNSEventsPublisher::onTcpConnectionEnd(

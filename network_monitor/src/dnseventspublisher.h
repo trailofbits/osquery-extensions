@@ -34,6 +34,15 @@ struct DNSEventSubscriptionContext final {};
 
 /// A single DNS event
 struct DnsEvent final {
+  /// Event time
+  timeval event_time{};
+
+  /// Source address
+  std::string source_address;
+
+  /// Destination address
+  std::string destination_address;
+
   /// Request type, taken from the qr bit of the header
   enum class Type { Query, Response };
 
@@ -98,7 +107,10 @@ struct DnsEvent final {
 using DnsEventList = std::vector<DnsEvent>;
 
 /// The event object emitted by this publisher
-struct DNSEventData final {};
+struct DNSEventData final {
+  /// A list of DNS events
+  DnsEventList event_list;
+};
 
 /// A network sniffer based on libcap
 class DNSEventsPublisher final
