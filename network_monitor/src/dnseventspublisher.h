@@ -52,10 +52,10 @@ struct DnsEvent final {
     pcpp::DnsType record_type;
 
     /// DNS class (i.e.: IN, CH, etc...)
-    pcpp::DnsClass dns_class;
+    pcpp::DnsClass record_class;
 
     /// The domain name
-    std::string name;
+    std::string record_name;
   };
 
   /// A list of questions sent to the DNS server

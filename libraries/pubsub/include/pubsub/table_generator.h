@@ -9,13 +9,13 @@
   class name ## TablePlugin final : public osquery::TablePlugin { \
    public: \
     name ## TablePlugin() = default; \
-    ~name ## TablePlugin() = default; \
+    virtual ~name ## TablePlugin() override = default; \
     \
-    osquery::QueryData generate(osquery::QueryContext& request) override { \
+    virtual osquery::QueryData generate(osquery::QueryContext&) override { \
       return EventBufferLibrary::instance().getEvents(#name); \
     } \
     \
-    osquery::TableColumns columns() const override { \
+    virtual osquery::TableColumns columns() const override { \
       static const osquery::TableColumns schema = {
 // clang-format on
 
@@ -30,6 +30,9 @@
       return schema; \
     } \
   }; \
-  \
-  REGISTER_EXTERNAL(name ## TablePlugin, "table", #name);
+// clang-format on
+
+// clang-format off
+#define REGISTER_TABLE(name) \
+  REGISTER_EXTERNAL(name ## TablePlugin, "table", #name)
 // clang-format on

@@ -16,8 +16,6 @@
 
 #include "dnseventssubscriber.h"
 
-#include <pubsub/table_generator.h>
-
 namespace trailofbits {
 namespace {
 const char* getDnsRecordType(pcpp::DnsType type) {
@@ -177,7 +175,7 @@ osquery::Status DNSEventsSubscriber::configure(
 
 osquery::Status DNSEventsSubscriber::callback(
     osquery::QueryData& new_events,
-    DNSEventsPublisher::SubscriptionContextRef subscription_context,
+    DNSEventsPublisher::SubscriptionContextRef,
     DNSEventsPublisher::EventContextRef event_context) {
   for (const auto& event : event_context->event_list) {
     osquery::Row row = {};
@@ -201,8 +199,8 @@ osquery::Status DNSEventsSubscriber::callback(
 
       for (const auto& question_item : event.question) {
         row["record_type"] = getDnsRecordType(question_item.record_type);
-        row["record_class"] = getDnsClass(question_item.dns_class);
-        row["record_name"] = question_item.name;
+        row["record_class"] = getDnsClass(question_item.record_class);
+        row["record_name"] = question_item.record_name;
 
         new_events.push_back(row);
       }
@@ -226,29 +224,5 @@ osquery::Status DNSEventsSubscriber::callback(
   return osquery::Status(0);
 }
 
-// clang-format off
-BEGIN_TABLE(dns_events)
-  // Event time, equal to the capture time
-  TABLE_COLUMN(event_time, osquery::TEXT_TYPE)
-
-  // Source and destination hosts
-  TABLE_COLUMN(source_address, osquery::TEXT_TYPE)
-  TABLE_COLUMN(destination_address, osquery::TEXT_TYPE)
-
-  // DNS header information
-  TABLE_COLUMN(protocol, osquery::TEXT_TYPE)
-  TABLE_COLUMN(truncated, osquery::TEXT_TYPE)
-  TABLE_COLUMN(id, osquery::TEXT_TYPE)
-  TABLE_COLUMN(type, osquery::TEXT_TYPE)
-
-  // Columns used by both queries and responses
-  TABLE_COLUMN(record_type, osquery::TEXT_TYPE)
-  TABLE_COLUMN(record_class, osquery::TEXT_TYPE)
-  TABLE_COLUMN(record_name, osquery::TEXT_TYPE)
-
-  // Columns only used by responses
-  TABLE_COLUMN(ttl, osquery::TEXT_TYPE)
-  TABLE_COLUMN(record_data, osquery::TEXT_TYPE)
-END_TABLE(dns_events)
-// clang-format on
+REGISTER_TABLE(dns_events);
 } // namespace trailofbits

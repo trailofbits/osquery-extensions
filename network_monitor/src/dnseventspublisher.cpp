@@ -109,8 +109,8 @@ DnsEvent::QuestionList generateDnsQuestionList(pcpp::DnsLayer* dns_layer) {
     DnsEvent::Question question = {};
 
     question.record_type = query->getDnsType();
-    question.dns_class = query->getDnsClass();
-    question.name = query->getName();
+    question.record_class = query->getDnsClass();
+    question.record_name = query->getName();
 
     question_list.push_back(question);
   }
