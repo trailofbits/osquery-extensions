@@ -56,8 +56,8 @@ struct NetworkDeviceInformation final {
 /// Creates a new pcap handle
 osquery::Status createPcap(PcapRef& ref,
                            const std::string& device_name,
-                           int snapshot_length,
-                           int packet_buffer_timeout);
+                           int capture_buffer_size,
+                           int packet_capture_timeout);
 
 /// Returns the device information for the specified network interface
 osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,

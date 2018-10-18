@@ -23,18 +23,27 @@
 namespace trailofbits {
 osquery::Status createPcap(PcapRef& ref,
                            const std::string& device_name,
-                           int snapshot_length,
-                           int packet_buffer_timeout) {
+                           int capture_buffer_size,
+                           int packet_capture_timeout) {
   ref.reset();
 
   char error_message[PCAP_ERRBUF_SIZE] = {};
-  auto ptr = pcap_open_live(device_name.c_str(),
-                            snapshot_length,
-                            0,
-                            packet_buffer_timeout,
-                            error_message);
+
+  auto ptr = pcap_create(device_name.c_str(), error_message);
   if (ptr == nullptr) {
     return osquery::Status(1, error_message);
+  }
+
+  if (pcap_set_timeout(ptr, packet_capture_timeout) != 0) {
+    return osquery::Status(1, "Failed to set the capture timeout");
+  }
+
+  if (pcap_set_buffer_size(ptr, capture_buffer_size) != 0) {
+    return osquery::Status(1, "Failed to set the capture buffer size");
+  }
+
+  if (pcap_activate(ptr) < 0) {
+    return osquery::Status(1, "Failed to activate the pcap handle");
   }
 
   ref.reset(ptr);

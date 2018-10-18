@@ -22,11 +22,11 @@
 
 namespace trailofbits {
 namespace {
-/// Capture buffer
-const int kSnapshotLength = 4096;
+/// Capture buffer size
+const int kCaptureBufferSize = 4096;
 
-/// Capcture timeout, used when waiting for the next packet
-const int kPacketBufferTimeout = 1000;
+/// Capture timeout, used when waiting for the next packet to arrive
+const int kPacketCaptureTimeout = 5000;
 
 /// The eBPF program used to filter the packets
 const std::string kFilterRules = "port 53 and (tcp or udp)";
@@ -253,7 +253,7 @@ osquery::Status DNSEventsPublisher::configure(
 
   auto interface_name = interface_name_obj.string_value();
   auto status = createPcap(
-      d->pcap, interface_name, kSnapshotLength, kPacketBufferTimeout);
+      d->pcap, interface_name, kCaptureBufferSize, kPacketCaptureTimeout);
 
   if (!status.ok()) {
     return status;
