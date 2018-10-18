@@ -16,7 +16,7 @@
 
 #include <pubsub/eventbufferlibrary.h>
 
-#include <iostream>
+#include <osquery/logger.h>
 
 #include <boost/circular_buffer.hpp>
 #include <boost/thread/shared_mutex.hpp>
@@ -26,22 +26,22 @@ namespace {
 /// This is the maximum amount of rows that will be saved in each buffer
 const std::size_t kCircularBufferSize = 4096U;
 
-///
+/// The buffer used to store rows
 using CircularBuffer = boost::circular_buffer<osquery::Row>;
 
-///
+/// An event buffer object
 struct EventBuffer final {
   CircularBuffer data;
   std::mutex mutex;
 };
 
-///
+/// A reference to an event buffer object
 using EventBufferRef = std::shared_ptr<EventBuffer>;
 
-///
+/// A map of event buffer objects, organized by publisher name
 using EventBufferMap = std::unordered_map<std::string, EventBufferRef>;
 
-///
+/// Returns a named buffer object
 EventBufferRef getEventBuffer(const std::string& buffer_name,
                               EventBufferMap& buffer_map,
                               boost::shared_timed_mutex& mutex) {
@@ -88,8 +88,9 @@ void EventBufferLibrary::saveEvents(EventBatch& events,
   auto event_buffer_ref =
       getEventBuffer(buffer_name, d->buffer_map, d->buffer_map_mutex);
   if (!event_buffer_ref) {
-    std::cerr << "Failed to acquire the event buffer named \"" << buffer_name
-              << "\"\n";
+    LOG(ERROR) << "Failed to acquire the event buffer named \"" << buffer_name
+               << "\"\n";
+
     return;
   }
 
@@ -104,8 +105,9 @@ EventBatch EventBufferLibrary::getEvents(const std::string& buffer_name) {
   auto event_buffer_ref =
       getEventBuffer(buffer_name, d->buffer_map, d->buffer_map_mutex);
   if (!event_buffer_ref) {
-    std::cerr << "Failed to acquire the event buffer named \"" << buffer_name
-              << "\"\n";
+    LOG(ERROR) << "Failed to acquire the event buffer named \"" << buffer_name
+               << "\"\n";
+
     return {};
   }
 

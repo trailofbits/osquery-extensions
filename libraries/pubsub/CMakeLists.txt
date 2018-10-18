@@ -25,6 +25,7 @@ function(pubsubMain)
   set(source_files
     src/publisherregistry.cpp
     src/subscriberregistry.cpp
+    src/servicemanager.cpp
 
     src/eventbufferlibrary.cpp
     src/publisherscheduler.cpp
@@ -32,6 +33,8 @@ function(pubsubMain)
   )
 
   set(public_include_files
+    "${public_include_folder}/pubsub/servicemanager.h"
+
     "${public_include_folder}/pubsub/ieventpublisher.h"
     "${public_include_folder}/pubsub/ieventsubscriber.h"
 

@@ -16,6 +16,7 @@
 
 #include <pubsub/publisherregistry.h>
 #include <pubsub/publisherscheduler.h>
+#include <pubsub/servicemanager.h>
 #include <pubsub/subscriberregistry.h>
 
 #include <osquery/sdk.h>
@@ -69,6 +70,7 @@ int main(int argc, char* argv[]) {
   }
 
   runner.waitForShutdown();
+  trailofbits::ServiceManager::instance().stop();
 
   scheduler->stop();
   scheduler.reset();
