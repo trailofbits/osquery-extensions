@@ -17,6 +17,32 @@
 #include "dnseventssubscriber.h"
 
 namespace trailofbits {
+// clang-format off
+BEGIN_TABLE(dns_events)
+  // Event time, equal to the capture time
+  TABLE_COLUMN(event_time, osquery::TEXT_TYPE)
+
+  // Source and destination hosts
+  TABLE_COLUMN(source_address, osquery::TEXT_TYPE)
+  TABLE_COLUMN(destination_address, osquery::TEXT_TYPE)
+
+  // DNS header information
+  TABLE_COLUMN(protocol, osquery::TEXT_TYPE)
+  TABLE_COLUMN(truncated, osquery::TEXT_TYPE)
+  TABLE_COLUMN(id, osquery::TEXT_TYPE)
+  TABLE_COLUMN(type, osquery::TEXT_TYPE)
+
+  // Columns used by both queries and responses
+  TABLE_COLUMN(record_type, osquery::TEXT_TYPE)
+  TABLE_COLUMN(record_class, osquery::TEXT_TYPE)
+  TABLE_COLUMN(record_name, osquery::TEXT_TYPE)
+
+  // Columns only used by responses
+  TABLE_COLUMN(ttl, osquery::TEXT_TYPE)
+  TABLE_COLUMN(record_data, osquery::TEXT_TYPE)
+END_TABLE(dns_events)
+// clang-format on
+
 namespace {
 const char* getDnsRecordType(pcpp::DnsType type) {
   switch (type) {
@@ -223,6 +249,4 @@ osquery::Status DNSEventsSubscriber::callback(
 
   return osquery::Status(0);
 }
-
-REGISTER_TABLE(dns_events);
 } // namespace trailofbits

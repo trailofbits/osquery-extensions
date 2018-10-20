@@ -9,7 +9,7 @@
   class name ## TablePlugin final : public osquery::TablePlugin { \
    public: \
     name ## TablePlugin() = default; \
-    virtual ~name ## TablePlugin() override = default; \
+    virtual ~name ## TablePlugin() override; \
     \
     virtual osquery::QueryData generate(osquery::QueryContext&) override { \
       return EventBufferLibrary::instance().getEvents(#name); \
@@ -30,9 +30,8 @@
       return schema; \
     } \
   }; \
-// clang-format on
-
-// clang-format off
-#define REGISTER_TABLE(name) \
+  \
+  name ## TablePlugin::~name ## TablePlugin() {}; \
+  \
   REGISTER_EXTERNAL(name ## TablePlugin, "table", #name)
 // clang-format on

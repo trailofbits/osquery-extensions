@@ -62,4 +62,9 @@ osquery::Status createPcap(PcapRef& ref,
 /// Returns the device information for the specified network interface
 osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
                                             const std::string& device_name);
+
+/// Performs a poll() on the given pcap handle, waiting for new packets
+osquery::Status waitForNewPackets(bool& timed_out,
+                                  PcapRef& ref,
+                                  std::size_t msecs);
 } // namespace trailofbits

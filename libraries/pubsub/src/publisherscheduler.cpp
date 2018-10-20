@@ -19,9 +19,10 @@
 #include <pubsub/subscriberregistry.h>
 
 #include <atomic>
-#include <iostream>
 #include <thread>
 #include <unordered_map>
+
+#include <osquery/logger.h>
 
 namespace trailofbits {
 namespace {
@@ -68,9 +69,9 @@ void publisherThread(PublisherThreadDataRef publisher_thread_data) {
         auto publisher_name =
             PublisherRegistry::instance().publisherName(publisher_ref);
 
-        std::cerr << "Publisher \"" << publisher_name
-                  << "\" failed the configuration: " << s.getMessage()
-                  << ". Halting...\n";
+        LOG(ERROR) << "Publisher \"" << publisher_name
+                   << "\" failed the configuration: " << s.getMessage()
+                   << ". Halting...\n";
         break;
       }
 
@@ -82,9 +83,9 @@ void publisherThread(PublisherThreadDataRef publisher_thread_data) {
       auto publisher_name =
           PublisherRegistry::instance().publisherName(publisher_ref);
 
-      std::cerr << "Publisher \"" << publisher_name
-                << "\" reported an error: " << s.getMessage()
-                << ". Halting...\n";
+      LOG(ERROR) << "Publisher \"" << publisher_name
+                 << "\" reported an error: " << s.getMessage()
+                 << ". Halting...\n";
       break;
     }
   }

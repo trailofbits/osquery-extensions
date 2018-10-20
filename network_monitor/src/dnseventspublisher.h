@@ -17,18 +17,11 @@
 #pragma once
 
 #include <pubsub/publisherregistry.h>
+#include <pubsub/servicemanager.h>
 
 #include <DnsLayer.h>
-#include <TcpReassembly.h>
-
-#include <memory>
-#include <string>
-
-#include <sys/time.h>
 
 namespace trailofbits {
-class DNSEventsPublisher;
-
 /// A reference to a DNSEventsPublisher object
 struct DNSEventSubscriptionContext final {};
 
@@ -115,10 +108,8 @@ struct DNSEventData final {
 /// A network sniffer based on libcap
 class DNSEventsPublisher final
     : public BaseEventPublisher<DNSEventSubscriptionContext, DNSEventData> {
- public:
   struct PrivateData;
 
- private:
   /// Private class data
   std::unique_ptr<PrivateData> d;
 
@@ -135,7 +126,7 @@ class DNSEventsPublisher final
   }
 
   /// Destructor
-  virtual ~DNSEventsPublisher() = default;
+  virtual ~DNSEventsPublisher() override = default;
 
   /// One-time initialization
   osquery::Status initialize() noexcept override;
@@ -149,16 +140,6 @@ class DNSEventsPublisher final
 
   /// Worker method; should perform some work and then return
   osquery::Status run() noexcept override;
-
-  /// Automatically called by the TCP reassembler when new data is available
-  void onTcpMessageReady(int side, pcpp::TcpStreamData tcp_data);
-
-  /// Automatically called by the TCP reassembler when a connection is started
-  void onTcpConnectionStart(pcpp::ConnectionData connection_data);
-
-  /// Automatically called by the TCP reassembler when a connection ends
-  void onTcpConnectionEnd(pcpp::ConnectionData connection_data,
-                          pcpp::TcpReassembly::ConnectionEndReason reason);
 
   /// Disable the copy constructor
   DNSEventsPublisher(const DNSEventsPublisher& other) = delete;

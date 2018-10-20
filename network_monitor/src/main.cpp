@@ -19,6 +19,9 @@
 #include <pubsub/servicemanager.h>
 #include <pubsub/subscriberregistry.h>
 
+#include <osquery/database.h>
+#include <osquery/dispatcher.h>
+#include <osquery/events.h>
 #include <osquery/sdk.h>
 
 #include <iostream>
@@ -27,7 +30,15 @@ const std::string kConfigurationFile =
     "/var/osquery/extensions/com/trailofbits/network_monitor.json";
 
 int main(int argc, char* argv[]) {
-  auto status = trailofbits::SubscriberRegistry::instance().initialize();
+  osquery::Initializer runner(argc, argv, osquery::ToolType::EXTENSION);
+
+  auto status = osquery::startExtension("network_monitor", "1.0.0");
+  if (!status.ok()) {
+    LOG(ERROR) << status.getMessage();
+    runner.requestShutdown(status.getCode());
+  }
+
+  status = trailofbits::SubscriberRegistry::instance().initialize();
   if (!status.ok()) {
     std::cerr << "Failed to initialize the publishers/subscribers: "
               << status.getMessage() << "\n";
@@ -55,13 +66,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  osquery::Initializer runner(argc, argv, osquery::ToolType::EXTENSION);
-  status = osquery::startExtension("network_monitor", "1.0.0");
-  if (!status.ok()) {
-    LOG(ERROR) << status.getMessage();
-    runner.requestShutdown(status.getCode());
-  }
-
   status = scheduler->start(configuration_file);
   if (!status.ok()) {
     std::cerr << "The scheduler returned an error: " << status.getMessage()
@@ -69,17 +73,20 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  runner.waitForShutdown();
-  trailofbits::ServiceManager::instance().stop();
+  // We can't use the runner.waitForShutdown() method because it calls exit()
+  osquery::Dispatcher::joinServices();
+  osquery::EventFactory::end(true);
+  GFLAGS_NAMESPACE::ShutDownCommandLineFlags();
+  osquery::DatabasePlugin::shutdown();
 
   scheduler->stop();
   scheduler.reset();
+  trailofbits::ServiceManager::instance().stop();
 
   status = trailofbits::SubscriberRegistry::instance().release();
   if (!status.ok()) {
-    std::cerr << "Publishers/subscribers cleanup failed: "
-              << status.getMessage() << "\n";
-    return 1;
+    LOG(ERROR) << "Publishers/subscribers cleanup failed: "
+               << status.getMessage() << "\n";
   }
 
   return 0;

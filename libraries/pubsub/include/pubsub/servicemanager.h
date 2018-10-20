@@ -61,9 +61,12 @@ class ServiceManager final {
 
   /// Creates a new service
   template <typename T, typename... Args>
-  osquery::Status createService(Args&&... args) {
-    static_assert(std::is_base_of<T, IService>::value,
+  osquery::Status createService(std::shared_ptr<T>& service_ref,
+                                Args&&... args) {
+    static_assert(std::is_base_of<IService, T>::value,
                   "The specified type is not a derived class of IService");
+
+    service_ref.reset();
 
     if (terminate) {
       return osquery::Status(
@@ -71,7 +74,6 @@ class ServiceManager final {
     }
 
     std::lock_guard<std::mutex> lock(service_list_mutex);
-    std::shared_ptr<T> service_ref;
 
     try {
       service_ref = std::make_shared<T>(std::forward<Args>(args)...);
@@ -83,7 +85,7 @@ class ServiceManager final {
       }
 
       auto thread_ref =
-          std::make_shared<std::thread>(std::bind(&T::run, &service_ref.get()));
+          std::make_shared<std::thread>(std::bind(&T::run, &(*service_ref)));
 
       service_list.push_back({service_ref, thread_ref});
 

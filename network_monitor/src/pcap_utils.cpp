@@ -17,7 +17,7 @@
 #include "pcap_utils.h"
 
 #include <arpa/inet.h>
-#include <iostream>
+#include <poll.h>
 #include <sys/socket.h>
 
 namespace trailofbits {
@@ -138,6 +138,43 @@ osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
   }
 
   pcap_freealldevs(interface_list);
+  return osquery::Status(0);
+}
+
+osquery::Status waitForNewPackets(bool& timed_out,
+                                  PcapRef& ref,
+                                  std::size_t msecs) {
+  timed_out = false;
+
+  auto pcap_fd = pcap_get_selectable_fd(ref.get());
+  if (pcap_fd == -1) {
+    return osquery::Status(1, "Not supported on this platform");
+  }
+
+  pollfd fds[] = {{pcap_fd, POLLIN, 0}};
+
+  int poll_status = ::poll(fds, 1, static_cast<int>(msecs));
+  if (poll_status == 0) {
+    timed_out = true;
+    return osquery::Status(0);
+  }
+
+  if (poll_status < 0) {
+    timed_out = true;
+
+    if (errno != EINTR) {
+      return osquery::Status(
+          1, "poll() failed with error " + std::to_string(errno));
+    } else {
+      return osquery::Status(0);
+    }
+  }
+
+  if ((fds[0].revents & POLLIN) == 0) {
+    timed_out = true;
+    return osquery::Status(0);
+  }
+
   return osquery::Status(0);
 }
 } // namespace trailofbits
