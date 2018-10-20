@@ -242,6 +242,7 @@ osquery::Status DNSEventsPublisher::run() noexcept {
     const auto& packet_data = udp_request.second;
 
     auto packet_data_length = static_cast<int>(packet_data.size());
+
     pcpp::RawPacket raw_packet(
         packet_data.data(), packet_data_length, timestamp, false, link_type);
 

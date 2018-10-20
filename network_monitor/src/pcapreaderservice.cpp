@@ -290,9 +290,8 @@ void PcapReaderService::run() {
 
       if (packet.isPacketOfType(pcpp::UDP)) {
         ByteVector udp_request_data(packet_header->len);
-        std::copy(packet_data_buffer,
-                  packet_data_buffer + packet_header->len,
-                  std::back_inserter(udp_request_data));
+        udp_request_data.assign(packet_data_buffer,
+                                packet_data_buffer + packet_header->len);
 
         auto udp_request =
             std::make_pair(packet_header->ts, std::move(udp_request_data));
