@@ -57,7 +57,7 @@ function(main)
   )
 
   # Only enable table tests on Linux and macOS
-  if(UNIX)
+  if(UNIX AND NOT DEFINED SKIP_TESTS)
     set(project_test_files
 
       tests/main.cpp

@@ -290,10 +290,13 @@ osquery::Status DNSEventsPublisher::initialize() noexcept {
 }
 
 osquery::Status DNSEventsPublisher::release() noexcept {
+  ServiceManager::instance().destroyService(d->pcap_reader_service);
+  d->pcap_reader_service.reset();
+
   return osquery::Status(0);
 }
 
-osquery::Status DNSEventsPublisher::configure(
+osquery::Status DNSEventsPublisher::onConfigurationChangeStart(
     const json11::Json& configuration) noexcept {
   if (!configuration.is_object()) {
     return osquery::Status::failure("Invalid configuration");
@@ -325,7 +328,19 @@ osquery::Status DNSEventsPublisher::configure(
   return osquery::Status(0);
 }
 
-osquery::Status DNSEventsPublisher::run() noexcept {
+osquery::Status DNSEventsPublisher::onConfigurationChangeEnd(
+    const json11::Json&) noexcept {
+  return osquery::Status(0);
+}
+
+osquery::Status DNSEventsPublisher::onSubscriberConfigurationChange(
+    const json11::Json& configuration,
+    SubscriberType& subscriber,
+    SubscriptionContextRef subscription_context) noexcept {
+  return osquery::Status(0);
+}
+
+osquery::Status DNSEventsPublisher::updatePublisher() noexcept {
   UDPRequestList udp_request_list;
   TcpConversationMap completed_tcp_conversation_map;
   pcpp::LinkLayerType link_type{pcpp::LINKTYPE_NULL};
@@ -376,7 +391,6 @@ osquery::Status DNSEventsPublisher::run() noexcept {
     auto ipv4_layer = packet.getLayerOfType<pcpp::IPv4Layer>();
     if (ipv4_layer != nullptr) {
       dns_event.source_address = ipv4_layer->getSrcIpAddress().toString();
-
       dns_event.destination_address = ipv4_layer->getDstIpAddress().toString();
 
     } else {
@@ -403,7 +417,13 @@ osquery::Status DNSEventsPublisher::run() noexcept {
                                           tcp_conversation);
   }
 
-  emitEvents(event_context);
+  broadcastEvent(event_context);
+  return osquery::Status(0);
+}
+
+osquery::Status DNSEventsPublisher::updateSubscriber(
+    IEventSubscriberRef subscriber,
+    SubscriptionContextRef subscription_context) noexcept {
   return osquery::Status(0);
 }
 } // namespace trailofbits

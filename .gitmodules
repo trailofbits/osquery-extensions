@@ -11,3 +11,12 @@
 [submodule "opt_dependencies/Pcap++/src"]
 	path = opt_dependencies/Pcap++/src
 	url = https://github.com/seladb/PcapPlusPlus.git
+[submodule "opt_dependencies/bpftrace/libraries/bcc/src"]
+	path = opt_dependencies/bcc/src
+	url = https://github.com/iovisor/bcc.git
+[submodule "opt_dependencies/bpftrace/libraries/elfutils/src"]
+	path = opt_dependencies/elf/src
+	url = git://sourceware.org/git/elfutils.git
+[submodule "opt_dependencies/bpftrace/libraries/zlib/src"]
+	path = opt_dependencies/zlib/src
+	url = https://github.com/madler/zlib.git

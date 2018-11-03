@@ -30,22 +30,50 @@ ServiceManager& ServiceManager::instance() {
 
 ServiceManager::~ServiceManager() {}
 
+void ServiceManager::destroyService(IServiceRef service) {
+  std::lock_guard<std::mutex> lock(service_list_mutex);
+
+  auto it = service_list.find(service);
+  if (it == service_list.end()) {
+    LOG(ERROR) << "Trying to stop a service that does not exist. Ignoring...";
+    return;
+  }
+
+  auto& service_ref = it->first;
+  service_ref->stop();
+
+  auto& thread_ref = it->second;
+  thread_ref->join();
+
+  service_ref->release();
+
+  service_list.erase(it);
+}
+
 void ServiceManager::stop() {
   std::lock_guard<std::mutex> lock(service_list_mutex);
 
-  terminate = true;
+  shutting_down = true;
 
-  for (auto& service_descriptor : service_list) {
-    service_descriptor.thread_ref->join();
-    service_descriptor.service_ref->release();
+  for (auto& p : service_list) {
+    auto& service_ref = p.first;
+    service_ref->stop();
+
+    auto& thread_ref = p.second;
+    thread_ref->join();
+
+    service_ref->release();
   }
 
   service_list.clear();
 }
 
+void IService::stop() {
+  terminate = true;
+}
+
 bool IService::shouldTerminate() const {
-  assert(terminate != nullptr && "IService::terminate set to nullptr");
-  return terminate->load();
+  return terminate.load();
 }
 
 osquery::Status IService::initialize() {

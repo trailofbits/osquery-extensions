@@ -84,18 +84,20 @@ function(main)
   target_include_directories("${PROJECT_NAME}" PUBLIC "${project_public_include_folder}")
   target_link_libraries("${PROJECT_NAME}" PUBLIC extutils)
 
-  AddTest("${PROJECT_NAME}" test_target_name ${project_test_files})
-  target_include_directories("${test_target_name}" PRIVATE
-    "${project_public_include_folder}"
-    "${project_test_include_dirs}"
-  )
+  if(NOT DEFINED SKIP_TESTS)
+    AddTest("${PROJECT_NAME}" test_target_name ${project_test_files})
+    target_include_directories("${test_target_name}" PRIVATE
+      "${project_public_include_folder}"
+      "${project_test_include_dirs}"
+    )
 
-  target_link_libraries("${test_target_name}" PRIVATE extutils)
+    target_link_libraries("${test_target_name}" PRIVATE extutils)
 
-  if(UNIX)
-    target_link_libraries("${test_target_name}" PRIVATE boost_system-mt boost_filesystem-mt)
-  else()
-    target_link_libraries("${test_target_name}" PRIVATE libboost_system-mt-s libboost_filesystem-mt-s)
+    if(UNIX)
+      target_link_libraries("${test_target_name}" PRIVATE boost_system-mt boost_filesystem-mt)
+    else()
+      target_link_libraries("${test_target_name}" PRIVATE libboost_system-mt-s libboost_filesystem-mt-s)
+    endif()
   endif()
 endfunction()
 

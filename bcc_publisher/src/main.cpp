@@ -24,15 +24,36 @@
 #include <osquery/events.h>
 #include <osquery/sdk.h>
 
+#include <sys/resource.h>
+#include <sys/time.h>
+
 #include <iostream>
 
 const std::string kConfigurationFile =
-    "/var/osquery/extensions/com/trailofbits/network_monitor.json";
+    "/var/osquery/extensions/com/trailofbits/bcc_publisher.json";
+
+static void enforce_infinite_rlimit() {
+  struct rlimit rl = {};
+  if (getrlimit(RLIMIT_MEMLOCK, &rl) != 0) {
+    std::cerr << "Warning: couldn't set RLIMIT for BCC. "
+              << "If your program is not loading, you can try "
+              << "\"ulimit -l 8192\" to fix the problem" << std::endl;
+    return;
+  }
+  rl.rlim_max = RLIM_INFINITY;
+  rl.rlim_cur = rl.rlim_max;
+  if (setrlimit(RLIMIT_MEMLOCK, &rl) != 0)
+    std::cerr << "Warning: couldn't set RLIMIT for BCC. "
+              << "If your program is not loading, you can try "
+              << "\"ulimit -l 8192\" to fix the problem" << std::endl;
+}
 
 int main(int argc, char* argv[]) {
+  enforce_infinite_rlimit();
+
   osquery::Initializer runner(argc, argv, osquery::ToolType::EXTENSION);
 
-  auto status = osquery::startExtension("network_monitor", "1.0.0");
+  auto status = osquery::startExtension("bcc_publisher", "1.0.0");
   if (!status.ok()) {
     LOG(ERROR) << status.getMessage();
     runner.requestShutdown(status.getCode());
