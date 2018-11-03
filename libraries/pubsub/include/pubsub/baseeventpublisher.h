@@ -23,9 +23,10 @@
 
 #include <boost/thread/shared_mutex.hpp>
 
-#include <iostream>
 #include <memory>
 #include <unordered_map>
+
+#include <osquery/logger.h>
 
 namespace trailofbits {
 /// This is the base class used to build new publishers and provides somes
@@ -39,21 +40,64 @@ class BaseEventPublisher : public IEventPublisher {
   /// This type contains new events waiting to be processed
   using EventContextRef = std::shared_ptr<EventContext>;
 
- private:
+ protected:
   /// The expected subscriber class type
   using SubscriberType = BaseEventSubscriber<
       BaseEventPublisher<SubscriptionContext, EventContext>>;
 
+  /// A list of subscribers
+  using SubscriberList =
+      std::unordered_map<IEventSubscriberRef, SubscriptionContextRef>;
+
+ private:
   /// The list of subscribers interested in the events emitted by this publisher
-  std::unordered_map<IEventSubscriberRef, SubscriptionContextRef>
-      subscriber_list;
+  SubscriberList subscriber_list;
 
   /// This mutex protects the subscriber map
   boost::shared_timed_mutex subscriber_map_mutex;
 
  public:
-  virtual void configureSubscribers(
+  /// Called each time the configuration changes (optional)
+  virtual osquery::Status configure(
       const json11::Json& configuration) noexcept override {
+    boost::upgrade_lock<decltype(subscriber_map_mutex)> lock(
+        subscriber_map_mutex);
+
+    auto status = onConfigurationChangeStart(configuration);
+    if (!status.ok()) {
+      return status;
+    }
+
+    for (const auto& p : subscriber_list) {
+      auto& subscriber_ref = p.first;
+      auto& context_ref = p.second;
+
+      auto subscriber_ptr = static_cast<SubscriberType*>(subscriber_ref.get());
+      status = subscriber_ptr->configure(context_ref, configuration);
+      if (!status.ok()) {
+        LOG(ERROR) << "Subscriber returned error: " << status.getMessage();
+      }
+
+      status = onSubscriberConfigurationChange(
+          configuration, *subscriber_ptr, context_ref);
+      if (!status.ok()) {
+        LOG(ERROR) << "Publisher returned error: " << status.getMessage();
+        return status;
+      }
+    }
+
+    return onConfigurationChangeEnd(configuration);
+  }
+
+  ///
+  virtual osquery::Status onSubscriberConfigurationChange(
+      const json11::Json& configuration,
+      SubscriberType& subscriber,
+      SubscriptionContextRef subscription_context) noexcept = 0;
+
+  /// Utility function used by the actual publisher implementation to emit
+  /// new events to all publishers
+  osquery::Status updateSubscribers() noexcept override {
     boost::upgrade_lock<decltype(subscriber_map_mutex)> lock(
         subscriber_map_mutex);
 
@@ -61,14 +105,18 @@ class BaseEventPublisher : public IEventPublisher {
       auto& subscriber_ref = p.first;
       auto& context_ref = p.second;
 
-      auto subscriber_ptr = static_cast<SubscriberType*>(subscriber_ref.get());
-      auto status = subscriber_ptr->configure(context_ref, configuration);
-      if (!status.ok()) {
-        std::cerr << "Subscriber returned error: " << status.getMessage()
-                  << "\n";
+      auto s = updateSubscriber(subscriber_ref, context_ref);
+      if (!s.ok()) {
+        return s;
       }
     }
+
+    return osquery::Status(0);
   }
+
+  virtual osquery::Status updateSubscriber(
+      IEventSubscriberRef subscriber,
+      SubscriptionContextRef subscription_context) noexcept = 0;
 
   /// This method is used by subscribers to register to new event data
   /// from this publisher
@@ -131,8 +179,8 @@ class BaseEventPublisher : public IEventPublisher {
   }
 
   /// Utility function used by the actual publisher implementation to emit
-  /// new events
-  void emitEvents(EventContextRef event_context) {
+  /// new events to all publishers
+  void broadcastEvent(EventContextRef event_context) {
     boost::upgrade_lock<decltype(subscriber_map_mutex)> lock(
         subscriber_map_mutex);
 
@@ -147,8 +195,7 @@ class BaseEventPublisher : public IEventPublisher {
           subscriber_ptr->callback(new_events, context_ref, event_context);
 
       if (!status.ok()) {
-        std::cerr << "Subscriber returned error: " << status.getMessage()
-                  << "\n";
+        LOG(ERROR) << "Subscriber returned error: " << status.getMessage();
       }
 
       if (!new_events.empty()) {
@@ -156,10 +203,37 @@ class BaseEventPublisher : public IEventPublisher {
             SubscriberRegistry::instance().subscriberName(subscriber_ref);
 
         if (buffer_name.empty()) {
-          std::cerr << "Failed to acquire the subscriber name\n";
+          LOG(ERROR) << "Failed to acquire the subscriber name";
           continue;
         }
 
+        EventBufferLibrary::instance().saveEvents(new_events, buffer_name);
+      }
+    }
+  }
+
+  /// Utility function used by the actual publisher implementation to emit
+  /// new events to all publishers
+  void emitEvents(IEventSubscriberRef subscriber,
+                  SubscriptionContextRef subscription_context,
+                  EventContextRef event_context) {
+    osquery::QueryData new_events = {};
+
+    auto subscriber_ptr = static_cast<SubscriberType*>(subscriber.get());
+    auto status = subscriber_ptr->callback(
+        new_events, subscription_context, event_context);
+
+    if (!status.ok()) {
+      LOG(ERROR) << "Subscriber returned error: " << status.getMessage();
+    }
+
+    if (!new_events.empty()) {
+      auto buffer_name =
+          SubscriberRegistry::instance().subscriberName(subscriber);
+
+      if (buffer_name.empty()) {
+        LOG(ERROR) << "Failed to acquire the subscriber name";
+      } else {
         EventBufferLibrary::instance().saveEvents(new_events, buffer_name);
       }
     }

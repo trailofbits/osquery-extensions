@@ -23,6 +23,14 @@ set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(ENV{OSQUERY_EXTENSION_GROUP_NAME} "trailofbits_osquery_extensions")
 set(ENV{OSQUERY_EXTENSION_GROUP_VERSION} "1.2")
 
+if(NOT "$ENV{DEBUG}" STREQUAL "")
+  set(CMAKE_BUILD_TYPE Debug)
+else()
+  set(CMAKE_BUILD_TYPE RelWithDebInfo)
+endif()
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 function(trailofbitsExtensionsMain)
   message(STATUS "================================")
   message(STATUS "Trail of Bits osquery extensions")
@@ -56,6 +64,10 @@ function(ImportLibraries)
 endfunction()
 
 function(ImportDependency dependency_name)
+  if(TARGET "${dependency_name}")
+    return()
+  endif()
+
   set(dependency_path "${TOB_EXTENSIONS_ROOT}/opt_dependencies/${dependency_name}")
   message("Importing dependency '${dependency_name}' from '${dependency_path}'")
 
@@ -122,6 +134,10 @@ function(IsFolderEnabled relative_path)
 endfunction()
 
 function(AddTest test_name out_executable_target_name)
+  if(DEFINED SKIP_TESTS)
+    return()
+  endif()
+
   set(target_name "tobExtTests_${test_name}")
   add_executable("${target_name}" EXCLUDE_FROM_ALL ${ARGN})
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Trail of Bits, Inc.
+ * Copyright (c) 2019-present Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,25 +24,49 @@
 #include <osquery/events.h>
 #include <osquery/sdk.h>
 
+#include <sys/resource.h>
+#include <sys/time.h>
+
 #include <iostream>
 
 const std::string kConfigurationFile =
-    "/var/osquery/extensions/com/trailofbits/network_monitor.json";
+    "/var/osquery/extensions/com/trailofbits/ebpf.json";
+
+bool configureInfiniteRlimit() {
+  struct rlimit rl = {};
+  if (getrlimit(RLIMIT_MEMLOCK, &rl) != 0) {
+    return false;
+  }
+
+  rl.rlim_max = RLIM_INFINITY;
+  rl.rlim_cur = rl.rlim_max;
+
+  if (setrlimit(RLIMIT_MEMLOCK, &rl) != 0) {
+    return false;
+  }
+
+  return true;
+}
 
 int main(int argc, char* argv[]) {
+  if (!configureInfiniteRlimit()) {
+    std::cerr << "Failed to configure the rlimit\n";
+    return 1;
+  }
+
   osquery::Initializer runner(argc, argv, osquery::ToolType::EXTENSION);
 
-  auto status = osquery::startExtension("network_monitor", "1.0.0");
+  auto status = trailofbits::SubscriberRegistry::instance().initialize();
+  if (!status.ok()) {
+    std::cerr << "Pubsub initialization error: " << status.getMessage() << "\n";
+
+    return 1;
+  }
+
+  status = osquery::startExtension("ebpf", "1.0.0");
   if (!status.ok()) {
     LOG(ERROR) << status.getMessage();
     runner.requestShutdown(status.getCode());
-  }
-
-  status = trailofbits::SubscriberRegistry::instance().initialize();
-  if (!status.ok()) {
-    std::cerr << "Failed to initialize the publishers/subscribers: "
-              << status.getMessage() << "\n";
-    return 1;
   }
 
   auto active_publishers =
@@ -55,6 +79,7 @@ int main(int argc, char* argv[]) {
   if (!status.ok()) {
     std::cerr << "Failed to create the publisher scheduler: "
               << status.getMessage() << "\n";
+
     return 1;
   }
 

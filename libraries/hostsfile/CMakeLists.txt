@@ -31,24 +31,26 @@ function(main)
   target_include_directories("${PROJECT_NAME}" PUBLIC "${project_public_include_folder}")
   target_link_libraries("${PROJECT_NAME}" PUBLIC extutils)
 
-  set(
-    project_test_files
+  if(NOT DEFINED SKIP_TESTS)
+    set(
+      project_test_files
 
-    tests/main.cpp
+      tests/main.cpp
 
-    src/hostsfile.h
-    src/hostsfile.cpp
-    tests/hostsfile.cpp
-  )
+      src/hostsfile.h
+      src/hostsfile.cpp
+      tests/hostsfile.cpp
+    )
 
-  AddTest("${PROJECT_NAME}" test_target_name ${project_test_files})
+    AddTest("${PROJECT_NAME}" test_target_name ${project_test_files})
 
-  target_include_directories("${test_target_name}" PRIVATE
-    "${project_public_include_folder}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
-  )
+    target_include_directories("${test_target_name}" PRIVATE
+      "${project_public_include_folder}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
 
-  target_link_libraries("${test_target_name}" PRIVATE extutils)
+    target_link_libraries("${test_target_name}" PRIVATE extutils)
+  endif()
 endfunction()
 
 main()

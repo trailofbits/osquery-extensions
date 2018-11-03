@@ -16,6 +16,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <mutex>
 #include <unordered_map>
 
 #include <pubsub/configurationfile.h>

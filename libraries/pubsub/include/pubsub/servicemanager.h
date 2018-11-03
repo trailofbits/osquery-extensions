@@ -23,6 +23,8 @@
 #include <osquery/sdk.h>
 #include <osquery/status.h>
 
+#include <json11.hpp>
+
 namespace trailofbits {
 class IService;
 
@@ -32,19 +34,13 @@ using IServiceRef = std::shared_ptr<IService>;
 /// A reference to a std::thread object
 using ThreadRef = std::shared_ptr<std::thread>;
 
-/// Contains a service object and its thread
-struct ServiceDescriptor final {
-  IServiceRef service_ref;
-  ThreadRef thread_ref;
-};
-
 /// This singleton is used to manage services
 class ServiceManager final {
-  /// True if the services must terminate
-  std::atomic_bool terminate{false};
+  /// True when the service manager is shutting down
+  std::atomic_bool shutting_down{false};
 
   /// The list of services that have been created
-  std::vector<ServiceDescriptor> service_list;
+  std::unordered_map<IServiceRef, ThreadRef> service_list;
 
   /// Service list mutex
   std::mutex service_list_mutex;
@@ -68,7 +64,7 @@ class ServiceManager final {
 
     service_ref.reset();
 
-    if (terminate) {
+    if (shutting_down) {
       return osquery::Status(
           1, "Service creation failed: the service manager is shutting down");
     }
@@ -77,8 +73,6 @@ class ServiceManager final {
 
     try {
       service_ref = std::make_shared<T>(std::forward<Args>(args)...);
-      service_ref->terminate = &terminate;
-
       auto status = service_ref->initialize();
       if (!status) {
         return status;
@@ -87,8 +81,7 @@ class ServiceManager final {
       auto thread_ref =
           std::make_shared<std::thread>(std::bind(&T::run, &(*service_ref)));
 
-      service_list.push_back({service_ref, thread_ref});
-
+      service_list.insert({service_ref, thread_ref});
       return osquery::Status(0);
 
     } catch (const std::bad_alloc&) {
@@ -99,6 +92,9 @@ class ServiceManager final {
       return osquery::Status(1, "Memory allocation failure");
     }
   }
+
+  /// Destroys the specified service
+  void destroyService(IServiceRef service);
 
   /// Stops all services
   void stop();
@@ -113,9 +109,12 @@ class ServiceManager final {
 /// Base class for services
 class IService {
   /// True if the service should terminate
-  std::atomic_bool* terminate{nullptr};
+  std::atomic_bool terminate{false};
 
  protected:
+  /// Tells this service that it should terminate as soon as possible
+  void stop();
+
   /// Returns true if the service should terminate
   bool shouldTerminate() const;
 

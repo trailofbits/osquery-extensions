@@ -35,19 +35,26 @@ class IEventPublisher {
   /// One-time initialization
   virtual osquery::Status initialize() noexcept = 0;
 
-  /// Called each time the configuration changes
+  /// Forwards the configuration change to the subscribers
   virtual osquery::Status configure(
       const json11::Json& configuration) noexcept = 0;
 
-  /// Forwards the configuration change to the subscribers
-  virtual void configureSubscribers(
+  ///
+  virtual osquery::Status updateSubscribers() noexcept = 0;
+
+  /// Called each time the configuration changes
+  virtual osquery::Status onConfigurationChangeStart(
+      const json11::Json& configuration) noexcept = 0;
+
+  /// Called each time the configuration changes
+  virtual osquery::Status onConfigurationChangeEnd(
       const json11::Json& configuration) noexcept = 0;
 
   /// One-time deinitialization
   virtual osquery::Status release() noexcept = 0;
 
   /// Worker method; should perform some work and then return
-  virtual osquery::Status run() noexcept = 0;
+  virtual osquery::Status updatePublisher() noexcept = 0;
 
   /// Returns the amount of active subscribers
   virtual std::size_t subscriptionCount() noexcept = 0;

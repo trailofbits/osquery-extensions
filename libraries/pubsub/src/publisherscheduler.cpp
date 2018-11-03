@@ -74,11 +74,20 @@ void publisherThread(PublisherThreadDataRef publisher_thread_data) {
                    << ". Halting...\n";
         break;
       }
-
-      publisher_ref->configureSubscribers(configuration_data);
     }
 
-    auto s = publisher_ref->run();
+    auto s = publisher_ref->updatePublisher();
+    if (!s.ok()) {
+      auto publisher_name =
+          PublisherRegistry::instance().publisherName(publisher_ref);
+
+      LOG(ERROR) << "Publisher \"" << publisher_name
+                 << "\" reported an error: " << s.getMessage()
+                 << ". Halting...\n";
+      break;
+    }
+
+    s = publisher_ref->updateSubscribers();
     if (!s.ok()) {
       auto publisher_name =
           PublisherRegistry::instance().publisherName(publisher_ref);

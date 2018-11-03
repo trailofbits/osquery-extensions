@@ -135,11 +135,23 @@ class DNSEventsPublisher final
   osquery::Status release() noexcept override;
 
   /// Called each time the configuration changes
-  osquery::Status configure(
+  osquery::Status onConfigurationChangeStart(
       const json11::Json& configuration) noexcept override;
 
+  osquery::Status onConfigurationChangeEnd(
+      const json11::Json& configuration) noexcept override;
+
+  osquery::Status onSubscriberConfigurationChange(
+      const json11::Json& configuration,
+      SubscriberType& subscriber,
+      SubscriptionContextRef subscription_context) noexcept override;
+
   /// Worker method; should perform some work and then return
-  osquery::Status run() noexcept override;
+  osquery::Status updatePublisher() noexcept override;
+
+  osquery::Status updateSubscriber(
+      IEventSubscriberRef subscriber,
+      SubscriptionContextRef subscription_context) noexcept override;
 
   /// Disable the copy constructor
   DNSEventsPublisher(const DNSEventsPublisher& other) = delete;
