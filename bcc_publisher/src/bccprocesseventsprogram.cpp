@@ -275,8 +275,8 @@ ProcessEventList BCCProcessEventsProgram::getEvents() {
   return new_events;
 }
 
-osquery::Status BCCProcessEventsProgram::readEventHeader(
-    EventHeader& event_header,
+osquery::Status BCCProcessEventsProgram::readSyscallEventHeader(
+    SyscallEvent::Header& event_header,
     int& current_index,
     std::size_t& cpu_index,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
@@ -311,7 +311,7 @@ osquery::Status BCCProcessEventsProgram::readEventHeader(
   }
 }
 
-osquery::Status BCCProcessEventsProgram::readStringEventData(
+osquery::Status BCCProcessEventsProgram::readSyscallEventString(
     std::string& string_data,
     int& current_index,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
@@ -353,15 +353,15 @@ osquery::Status BCCProcessEventsProgram::readStringEventData(
   }
 }
 
-osquery::Status BCCProcessEventsProgram::readExecEventData(
-    Event::ExecData& exec_data,
+osquery::Status BCCProcessEventsProgram::readSyscallEventExecData(
+    SyscallEvent::ExecData& exec_data,
     int& current_index,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     std::size_t cpu_index) {
   exec_data = {};
 
   // Read the filename; this should always be present
-  auto status = readStringEventData(
+  auto status = readSyscallEventString(
       exec_data.filename, current_index, event_data_table, cpu_index);
   if (!status.ok()) {
     return status;
@@ -390,8 +390,8 @@ osquery::Status BCCProcessEventsProgram::readExecEventData(
     }
 
     std::string buffer = {};
-    status =
-        readStringEventData(buffer, current_index, event_data_table, cpu_index);
+    status = readSyscallEventString(
+        buffer, current_index, event_data_table, cpu_index);
 
     if (!status.ok()) {
       return status;
@@ -403,8 +403,8 @@ osquery::Status BCCProcessEventsProgram::readExecEventData(
   return osquery::Status(0);
 }
 
-osquery::Status BCCProcessEventsProgram::readPidVnrEventData(
-    Event::PidVnrData& pidvnr_data,
+osquery::Status BCCProcessEventsProgram::readSyscallEventPidVnrData(
+    SyscallEvent::PidVnrData& pidvnr_data,
     int& current_index,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     std::size_t cpu_index) {
@@ -439,8 +439,8 @@ osquery::Status BCCProcessEventsProgram::readPidVnrEventData(
   return osquery::Status(0);
 }
 
-osquery::Status BCCProcessEventsProgram::readEvent(
-    Event& event,
+osquery::Status BCCProcessEventsProgram::readSyscallEvent(
+    SyscallEvent& event,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     std::uint32_t event_identifier) {
   event = {};
@@ -448,11 +448,11 @@ osquery::Status BCCProcessEventsProgram::readEvent(
   int current_index = 0;
   std::size_t cpu_index = 0U;
 
-  auto status = readEventHeader(event.header,
-                                current_index,
-                                cpu_index,
-                                event_data_table,
-                                event_identifier);
+  auto status = readSyscallEventHeader(event.header,
+                                       current_index,
+                                       cpu_index,
+                                       event_data_table,
+                                       event_identifier);
   if (!status.ok()) {
     return status;
   }
@@ -460,20 +460,20 @@ osquery::Status BCCProcessEventsProgram::readEvent(
   switch (event.header.type) {
   // No processing required for these events; we grab them only to
   // know when we need to care about pid_vnr data
-  case EventHeader::Type::SysEnterClone:
-  case EventHeader::Type::SysExitClone:
-  case EventHeader::Type::SysEnterFork:
-  case EventHeader::Type::SysExitFork:
-  case EventHeader::Type::SysEnterVfork:
-  case EventHeader::Type::SysExitVfork:
+  case SyscallEvent::Header::Type::SysEnterClone:
+  case SyscallEvent::Header::Type::SysExitClone:
+  case SyscallEvent::Header::Type::SysEnterFork:
+  case SyscallEvent::Header::Type::SysExitFork:
+  case SyscallEvent::Header::Type::SysEnterVfork:
+  case SyscallEvent::Header::Type::SysExitVfork:
     status = osquery::Status(0);
     break;
 
   // We expect to find the filename and arguments for the launched program
-  case EventHeader::Type::SysEnterExecve:
-  case EventHeader::Type::SysEnterExecveat: {
-    Event::ExecData exec_data = {};
-    status = readExecEventData(
+  case SyscallEvent::Header::Type::SysEnterExecve:
+  case SyscallEvent::Header::Type::SysEnterExecveat: {
+    SyscallEvent::ExecData exec_data = {};
+    status = readSyscallEventExecData(
         exec_data, current_index, event_data_table, cpu_index);
 
     event.data = exec_data;
@@ -482,9 +482,9 @@ osquery::Status BCCProcessEventsProgram::readEvent(
 
   // We use this event to fill the clone/fork/vfork data with useful
   // namespace information
-  case EventHeader::Type::KprobePidvnr: {
-    Event::PidVnrData pidvnr_data = {};
-    status = readPidVnrEventData(
+  case SyscallEvent::Header::Type::KprobePidvnr: {
+    SyscallEvent::PidVnrData pidvnr_data = {};
+    status = readSyscallEventPidVnrData(
         pidvnr_data, current_index, event_data_table, cpu_index);
 
     event.data = pidvnr_data;
@@ -502,7 +502,7 @@ osquery::Status BCCProcessEventsProgram::readEvent(
 osquery::Status BCCProcessEventsProgram::processRawEvent(
     ProcessEvent& process_event,
     BCCProcessEventsContext& context,
-    const Event& raw_event) {
+    const SyscallEvent& raw_event) {
   process_event = {};
 
   bool entry = false;
@@ -510,31 +510,33 @@ osquery::Status BCCProcessEventsProgram::processRawEvent(
   ForkEventMap* event_map{nullptr};
 
   switch (raw_event.header.type) {
-  case EventHeader::Type::SysEnterClone:
-  case EventHeader::Type::SysExitClone:
-    entry = (raw_event.header.type == EventHeader::Type::SysEnterClone);
+  case SyscallEvent::Header::Type::SysEnterClone:
+  case SyscallEvent::Header::Type::SysExitClone:
+    entry =
+        (raw_event.header.type == SyscallEvent::Header::Type::SysEnterClone);
     event_map = &context.clone_event_map;
     break;
 
-  case EventHeader::Type::SysEnterFork:
-  case EventHeader::Type::SysExitFork:
-    entry = (raw_event.header.type == EventHeader::Type::SysEnterFork);
+  case SyscallEvent::Header::Type::SysEnterFork:
+  case SyscallEvent::Header::Type::SysExitFork:
+    entry = (raw_event.header.type == SyscallEvent::Header::Type::SysEnterFork);
     event_map = &context.fork_event_map;
     break;
 
-  case EventHeader::Type::SysEnterVfork:
-  case EventHeader::Type::SysExitVfork:
-    entry = (raw_event.header.type == EventHeader::Type::SysEnterVfork);
+  case SyscallEvent::Header::Type::SysEnterVfork:
+  case SyscallEvent::Header::Type::SysExitVfork:
+    entry =
+        (raw_event.header.type == SyscallEvent::Header::Type::SysEnterVfork);
     event_map = &context.fork_event_map;
     break;
 
-  case EventHeader::Type::SysEnterExecve:
-  case EventHeader::Type::SysEnterExecveat:
+  case SyscallEvent::Header::Type::SysEnterExecve:
+  case SyscallEvent::Header::Type::SysEnterExecveat:
     entry = true;
     event_map = nullptr;
     break;
 
-  case EventHeader::Type::KprobePidvnr:
+  case SyscallEvent::Header::Type::KprobePidvnr:
     entry = true;
 
     if (context.clone_event_map.count(key) > 0) {
@@ -555,15 +557,17 @@ osquery::Status BCCProcessEventsProgram::processRawEvent(
   }
 
   if (entry) {
-    if (raw_event.header.type == EventHeader::Type::KprobePidvnr) {
+    if (raw_event.header.type == SyscallEvent::Header::Type::KprobePidvnr) {
       // Attach this data to the existing clone/fork/vfork
       auto& parent_raw_event = event_map->at(key);
 
-      auto data = boost::get<Event::PidVnrData>(raw_event.data);
+      auto data = boost::get<SyscallEvent::PidVnrData>(raw_event.data);
       parent_raw_event.data = data;
 
-    } else if (raw_event.header.type == EventHeader::Type::SysEnterExecve ||
-               raw_event.header.type == EventHeader::Type::SysEnterExecveat) {
+    } else if (raw_event.header.type ==
+                   SyscallEvent::Header::Type::SysEnterExecve ||
+               raw_event.header.type ==
+                   SyscallEvent::Header::Type::SysEnterExecveat) {
       // Directly emit a new process event
       process_event.type = ProcessEvent::Type::Exec;
       process_event.timestamp =
@@ -573,7 +577,8 @@ osquery::Status BCCProcessEventsProgram::processRawEvent(
       process_event.uid = raw_event.header.uid;
       process_event.gid = raw_event.header.gid;
 
-      const auto& event_data = boost::get<Event::ExecData>(raw_event.data);
+      const auto& event_data =
+          boost::get<SyscallEvent::ExecData>(raw_event.data);
 
       ProcessEvent::ExecData exec_data;
       exec_data.filename = event_data.filename;
@@ -608,7 +613,8 @@ osquery::Status BCCProcessEventsProgram::processRawEvent(
     process_event.uid = raw_event.header.uid;
     process_event.gid = raw_event.header.gid;
 
-    const auto& event_data = boost::get<Event::PidVnrData>(raw_event.data);
+    const auto& event_data =
+        boost::get<SyscallEvent::PidVnrData>(raw_event.data);
 
     ProcessEvent::ForkData fork_data;
     fork_data.child_pid = event_data.host_pid;
@@ -665,8 +671,9 @@ void BCCProcessEventsProgram::processPerfEvent(
     const std::uint32_t* event_identifiers,
     std::size_t event_identifier_count) {
   for (std::size_t i = 0U; i < event_identifier_count; ++i) {
-    Event event = {};
-    auto status = readEvent(event, event_data_table, event_identifiers[i]);
+    SyscallEvent event = {};
+    auto status =
+        readSyscallEvent(event, event_data_table, event_identifiers[i]);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to read the event header: " << status.getMessage();
       continue;

@@ -28,32 +28,32 @@
 #include <osquery/sdk.h>
 
 namespace trailofbits {
-struct EventHeader final {
-  enum class Type : std::uint32_t {
-    SysEnterClone = EVENTID_SYSENTERCLONE,
-    SysExitClone = EVENTID_SYSEXITCLONE,
+struct SyscallEvent final {
+  struct Header final {
+    enum class Type : std::uint32_t {
+      SysEnterClone = EVENTID_SYSENTERCLONE,
+      SysExitClone = EVENTID_SYSEXITCLONE,
 
-    SysEnterFork = EVENTID_SYSENTERFORK,
-    SysExitFork = EVENTID_SYSEXITFORK,
+      SysEnterFork = EVENTID_SYSENTERFORK,
+      SysExitFork = EVENTID_SYSEXITFORK,
 
-    SysEnterVfork = EVENTID_SYSENTERVFORK,
-    SysExitVfork = EVENTID_SYSEXITVFORK,
+      SysEnterVfork = EVENTID_SYSENTERVFORK,
+      SysExitVfork = EVENTID_SYSEXITVFORK,
 
-    SysEnterExecve = EVENTID_SYSENTEREXECVE,
-    SysEnterExecveat = EVENTID_SYSENTEREXECVEAT,
+      SysEnterExecve = EVENTID_SYSENTEREXECVE,
+      SysEnterExecveat = EVENTID_SYSENTEREXECVEAT,
 
-    KprobePidvnr = EVENTID_PIDVNR
+      KprobePidvnr = EVENTID_PIDVNR
+    };
+
+    Type type;
+    std::uint64_t timestamp;
+    pid_t pid;
+    pid_t tgid;
+    uid_t uid;
+    gid_t gid;
   };
 
-  Type type;
-  std::uint64_t timestamp;
-  pid_t pid;
-  pid_t tgid;
-  uid_t uid;
-  gid_t gid;
-};
-
-struct Event final {
   struct ExecData final {
     std::string filename;
     std::vector<std::string> argv;
@@ -66,11 +66,11 @@ struct Event final {
     std::vector<pid_t> namespaced_pid_list;
   };
 
-  EventHeader header;
+  Header header;
   boost::variant<PidVnrData, ExecData> data;
 };
 
-using ForkEventMap = std::unordered_map<pid_t, Event>;
+using ForkEventMap = std::unordered_map<pid_t, SyscallEvent>;
 
 struct BCCProcessEventsContext final {
   ForkEventMap fork_event_map;
@@ -152,39 +152,39 @@ class BCCProcessEventsProgram final {
     INCREMENT_EVENT_DATA_INDEX(current_index);
   }
 
-  static osquery::Status readEventHeader(
-      EventHeader& event_header,
+  static osquery::Status readSyscallEventHeader(
+      SyscallEvent::Header& event_header,
       int& current_index,
       std::size_t& cpu_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::uint32_t event_identifier);
 
-  static osquery::Status readStringEventData(
+  static osquery::Status readSyscallEventString(
       std::string& string_data,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);
 
-  static osquery::Status readExecEventData(
-      Event::ExecData& exec_data,
+  static osquery::Status readSyscallEventExecData(
+      SyscallEvent::ExecData& exec_data,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);
 
-  static osquery::Status readPidVnrEventData(
-      Event::PidVnrData& pidvnr_data,
+  static osquery::Status readSyscallEventPidVnrData(
+      SyscallEvent::PidVnrData& pidvnr_data,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);
 
-  static osquery::Status readEvent(
-      Event& event,
+  static osquery::Status readSyscallEvent(
+      SyscallEvent& event,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::uint32_t event_identifier);
 
   static osquery::Status processRawEvent(ProcessEvent& process_event,
                                          BCCProcessEventsContext& context,
-                                         const Event& raw_event);
+                                         const SyscallEvent& raw_event);
 
   static void forkPerfEventHandler(void* this_ptr, void* data, int data_size);
   static void execPerfEventHandler(void* this_ptr, void* data, int data_size);
