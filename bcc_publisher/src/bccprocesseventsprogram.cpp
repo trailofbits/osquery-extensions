@@ -516,32 +516,34 @@ osquery::Status BCCProcessEventsProgram::readSyscallEvent(
 osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     ProcessEvent& process_event,
     BCCProcessEventsContext& context,
-    const SyscallEvent& raw_event) {
+    const SyscallEvent& syscall_event) {
   process_event = {};
 
   bool entry = false;
-  auto key = raw_event.header.tgid;
+  auto key = syscall_event.header.tgid;
   ForkEventMap* event_map{nullptr};
 
-  switch (raw_event.header.type) {
+  switch (syscall_event.header.type) {
   case SyscallEvent::Header::Type::SysEnterClone:
   case SyscallEvent::Header::Type::SysExitClone:
-    entry =
-        (raw_event.header.type == SyscallEvent::Header::Type::SysEnterClone);
+    entry = (syscall_event.header.type ==
+             SyscallEvent::Header::Type::SysEnterClone);
 
     event_map = &context.clone_event_map;
     break;
 
   case SyscallEvent::Header::Type::SysEnterFork:
   case SyscallEvent::Header::Type::SysExitFork:
-    entry = (raw_event.header.type == SyscallEvent::Header::Type::SysEnterFork);
+    entry =
+        (syscall_event.header.type == SyscallEvent::Header::Type::SysEnterFork);
+
     event_map = &context.fork_event_map;
     break;
 
   case SyscallEvent::Header::Type::SysEnterVfork:
   case SyscallEvent::Header::Type::SysExitVfork:
-    entry =
-        (raw_event.header.type == SyscallEvent::Header::Type::SysEnterVfork);
+    entry = (syscall_event.header.type ==
+             SyscallEvent::Header::Type::SysEnterVfork);
 
     event_map = &context.fork_event_map;
     break;
@@ -563,7 +565,7 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
       event_map = &context.vfork_event_map;
     } else {
       // Ignore this event
-      return osquery::Status(0);
+      return osquery::Status(2, "Event was ignored");
     }
 
     break;
@@ -573,41 +575,47 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
   }
 
   if (entry) {
-    if (raw_event.header.type == SyscallEvent::Header::Type::KprobePidvnr) {
-      // Attach this data to the existing clone/fork/vfork
+    if (syscall_event.header.type == SyscallEvent::Header::Type::KprobePidvnr) {
+      // Attach this data to the existing clone/fork/vfork event
       auto& parent_raw_event = event_map->at(key);
 
-      auto data = boost::get<SyscallEvent::PidVnrData>(raw_event.data);
+      auto data = boost::get<SyscallEvent::PidVnrData>(syscall_event.data);
       parent_raw_event.data = data;
 
-    } else if (raw_event.header.type ==
+      return osquery::Status(2, "State has been updated");
+
+    } else if (syscall_event.header.type ==
                    SyscallEvent::Header::Type::SysEnterExecve ||
-               raw_event.header.type ==
+
+               syscall_event.header.type ==
                    SyscallEvent::Header::Type::SysEnterExecveat) {
       // Directly emit a new process event
       process_event.type = ProcessEvent::Type::Exec;
       process_event.timestamp =
-          static_cast<std::time_t>(raw_event.header.timestamp / 1000000);
+          static_cast<std::time_t>(syscall_event.header.timestamp / 1000000);
 
-      process_event.pid = raw_event.header.pid;
-      process_event.tgid = raw_event.header.tgid;
-      process_event.uid = raw_event.header.uid;
-      process_event.gid = raw_event.header.gid;
-
-      const auto& event_data =
-          boost::get<SyscallEvent::ExecData>(raw_event.data);
+      process_event.pid = syscall_event.header.pid;
+      process_event.tgid = syscall_event.header.tgid;
+      process_event.uid = syscall_event.header.uid;
+      process_event.gid = syscall_event.header.gid;
 
       ProcessEvent::ExecData exec_data;
+
+      const auto& event_data =
+          boost::get<SyscallEvent::ExecData>(syscall_event.data);
+
       exec_data.filename = event_data.filename;
       exec_data.arguments = event_data.argv;
       exec_data.exit_code = 0;
 
       process_event.data = exec_data;
+
       return osquery::Status(0);
 
     } else {
       // Save this new raw event into the designated map
-      event_map->insert({key, raw_event});
+      event_map->insert({key, syscall_event});
+      return osquery::Status(2, "State has been updated");
     }
 
   } else {
@@ -615,7 +623,7 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     if (it == event_map->end()) {
       // Forks will (by nature) return multiple times; we can
       // ignore unmatched events
-      return osquery::Status(0);
+      return osquery::Status(2, "Event was ignored");
     }
 
     auto exit_event = event_map->at(key);
@@ -624,24 +632,24 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     // emit a new process event
     process_event.type = ProcessEvent::Type::Fork;
     process_event.timestamp =
-        static_cast<std::time_t>(raw_event.header.timestamp / 1000000);
+        static_cast<std::time_t>(syscall_event.header.timestamp / 1000000);
 
-    process_event.pid = raw_event.header.pid;
-    process_event.tgid = raw_event.header.tgid;
-    process_event.uid = raw_event.header.uid;
-    process_event.gid = raw_event.header.gid;
-
-    const auto& event_data =
-        boost::get<SyscallEvent::PidVnrData>(raw_event.data);
+    process_event.pid = syscall_event.header.pid;
+    process_event.tgid = syscall_event.header.tgid;
+    process_event.uid = syscall_event.header.uid;
+    process_event.gid = syscall_event.header.gid;
 
     ProcessEvent::ForkData fork_data;
+
+    const auto& event_data =
+        boost::get<SyscallEvent::PidVnrData>(exit_event.data);
+
     fork_data.child_pid = event_data.host_pid;
     fork_data.child_pid_namespaced = event_data.namespaced_pid_list;
 
     process_event.data = fork_data;
+    return osquery::Status(0);
   }
-
-  return osquery::Status(0);
 }
 
 void BCCProcessEventsProgram::forkPerfEventHandler(void* this_ptr,
@@ -700,12 +708,11 @@ void BCCProcessEventsProgram::processPerfEvent(
 
     ProcessEvent process_event = {};
     status = processSyscallEvent(process_event, d->context, event);
-    if (!status.ok()) {
+    if (status.ok()) {
+      d->process_events.push_back(process_event);
+    } else if (status.getCode() != 2) {
       LOG(ERROR) << "Failed to process the event: " << status.getMessage();
-      continue;
     }
-
-    d->process_events.push_back(process_event);
   }
 }
 } // namespace trailofbits

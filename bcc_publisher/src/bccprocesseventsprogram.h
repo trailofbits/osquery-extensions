@@ -184,7 +184,7 @@ class BCCProcessEventsProgram final {
 
   static osquery::Status processSyscallEvent(ProcessEvent& process_event,
                                              BCCProcessEventsContext& context,
-                                             const SyscallEvent& raw_event);
+                                             const SyscallEvent& syscall_event);
 
   static void forkPerfEventHandler(void* this_ptr, void* data, int data_size);
   static void execPerfEventHandler(void* this_ptr, void* data, int data_size);
