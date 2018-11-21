@@ -21,6 +21,7 @@ To learn more about osquery extensions development and why developing outside of
 
 Experimental extensions:
  * **network_monitor**: Provides an event-based table that lists DNS requests performed by the endpoint. Uses libpcap and Pcap++ to capture and parse network requests.
+ * bcc_publisher: Implements event-based tables in eBPF using BCC.
 
 ## Build Dependencies
 
