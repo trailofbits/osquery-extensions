@@ -19,10 +19,14 @@
 #include <pubsub/publisherregistry.h>
 #include <pubsub/servicemanager.h>
 
+#include "bccprocesseventsprogram.h"
+
 namespace trailofbits {
 struct BCCProcessEventsPublisherSubscriptionContext final {};
 
-struct BCCProcessEventsPublisherData final {};
+struct BCCProcessEventsPublisherData final {
+  ProcessEventList event_list;
+};
 
 class BCCProcessEventsPublisher final
     : public BaseEventPublisher<BCCProcessEventsPublisherSubscriptionContext,

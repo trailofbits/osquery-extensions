@@ -93,102 +93,6 @@ std::string getTracepointEventHandlerName(
 
   return "on_tracepoint_" + std::string(name);
 }
-
-std::ostream& operator<<(std::ostream& stream, EventHeader::Type event_type) {
-  const char* event_name{nullptr};
-
-  switch (event_type) {
-  case EventHeader::Type::SysEnterClone:
-    event_name = "SysEnterClone";
-    break;
-
-  case EventHeader::Type::SysExitClone:
-    event_name = "SysExitClone";
-    break;
-
-  case EventHeader::Type::SysEnterFork:
-    event_name = "SysEnterFork";
-    break;
-
-  case EventHeader::Type::SysExitFork:
-    event_name = "SysExitFork";
-    break;
-
-  case EventHeader::Type::SysEnterVfork:
-    event_name = "SysEnterVfork";
-    break;
-
-  case EventHeader::Type::SysExitVfork:
-    event_name = "SysExitVfork";
-    break;
-
-  case EventHeader::Type::SysEnterExecve:
-    event_name = "SysEnterExecve";
-    break;
-
-  case EventHeader::Type::SysEnterExecveat:
-    event_name = "SysEnterExecveat";
-    break;
-
-  case EventHeader::Type::KprobePidvnr:
-    event_name = "KprobePidvnr";
-    break;
-
-  default:
-    break;
-  }
-
-  if (event_name != nullptr) {
-    stream << event_name;
-  } else {
-    stream << "<UnknownEventType>";
-  }
-
-  return stream;
-}
-
-std::ostream& operator<<(std::ostream& stream, const Event& event) {
-  stream << std::setfill(' ') << std::setw(10) << "pid:" << event.header.pid
-         << " "
-         << "tgid: " << event.header.tgid << " "
-         << "uid: " << event.header.uid << " "
-         << "gid: " << event.header.gid << " "
-         << "type: " << event.header.type << " ";
-
-  if (event.header.type == EventHeader::Type::SysEnterExecve) {
-    const auto& exec_data = boost::get<Event::ExecData>(event.data);
-
-    stream << exec_data.filename << " ";
-
-    for (const auto& arg : exec_data.argv) {
-      stream << "\"" << arg << "\" ";
-    }
-
-    if (exec_data.argv_truncated) {
-      stream << "...";
-    }
-
-  } else if (event.header.type == EventHeader::Type::KprobePidvnr) {
-    const auto& pidvnr_data = boost::get<Event::PidVnrData>(event.data);
-
-    stream << "namespace_count:" << pidvnr_data.namespace_count << " "
-           << "host_pid:" << pidvnr_data.host_pid;
-
-    if (!pidvnr_data.namespaced_pid_list.empty()) {
-      stream << " namespaced_pid_list: ";
-
-      std::stringstream buffer;
-      for (auto pid : pidvnr_data.namespaced_pid_list) {
-        buffer << pid << " ";
-      }
-
-      stream << buffer.str();
-    }
-  }
-
-  stream << "\n";
-  return stream;
-}
 } // namespace
 
 struct BCCProcessEventsProgram::PrivateData final {
@@ -200,6 +104,9 @@ struct BCCProcessEventsProgram::PrivateData final {
   ebpf::BPF exec_events_bpf;
   ebpf::BPFPerfBuffer* exec_events_perf_buffer{nullptr};
   TracepointDescriptorList exec_events_tracepoints;
+
+  BCCProcessEventsContext context;
+  ProcessEventList process_events;
 };
 
 BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
@@ -359,6 +266,13 @@ BCCProcessEventsProgram::~BCCProcessEventsProgram() {
 void BCCProcessEventsProgram::update() {
   d->fork_events_perf_buffer->poll(100);
   d->exec_events_perf_buffer->poll(100);
+}
+
+ProcessEventList BCCProcessEventsProgram::getEvents() {
+  ProcessEventList new_events = std::move(d->process_events);
+  d->process_events.clear();
+
+  return new_events;
 }
 
 osquery::Status BCCProcessEventsProgram::readEventHeader(
@@ -585,6 +499,127 @@ osquery::Status BCCProcessEventsProgram::readEvent(
   return status;
 }
 
+osquery::Status BCCProcessEventsProgram::processRawEvent(
+    ProcessEvent& process_event,
+    BCCProcessEventsContext& context,
+    const Event& raw_event) {
+  process_event = {};
+
+  bool entry = false;
+  auto key = raw_event.header.tgid;
+  ForkEventMap* event_map{nullptr};
+
+  switch (raw_event.header.type) {
+  case EventHeader::Type::SysEnterClone:
+  case EventHeader::Type::SysExitClone:
+    entry = (raw_event.header.type == EventHeader::Type::SysEnterClone);
+    event_map = &context.clone_event_map;
+    break;
+
+  case EventHeader::Type::SysEnterFork:
+  case EventHeader::Type::SysExitFork:
+    entry = (raw_event.header.type == EventHeader::Type::SysEnterFork);
+    event_map = &context.fork_event_map;
+    break;
+
+  case EventHeader::Type::SysEnterVfork:
+  case EventHeader::Type::SysExitVfork:
+    entry = (raw_event.header.type == EventHeader::Type::SysEnterVfork);
+    event_map = &context.fork_event_map;
+    break;
+
+  case EventHeader::Type::SysEnterExecve:
+  case EventHeader::Type::SysEnterExecveat:
+    entry = true;
+    event_map = nullptr;
+    break;
+
+  case EventHeader::Type::KprobePidvnr:
+    entry = true;
+
+    if (context.clone_event_map.count(key) > 0) {
+      event_map = &context.clone_event_map;
+    } else if (context.fork_event_map.count(key) > 0) {
+      event_map = &context.fork_event_map;
+    } else if (context.vfork_event_map.count(key) > 0) {
+      event_map = &context.vfork_event_map;
+    } else {
+      // Ignore this event
+      return osquery::Status(0);
+    }
+
+    break;
+
+  default:
+    return osquery::Status::failure("Unhandled event type");
+  }
+
+  if (entry) {
+    if (raw_event.header.type == EventHeader::Type::KprobePidvnr) {
+      // Attach this data to the existing clone/fork/vfork
+      auto& parent_raw_event = event_map->at(key);
+
+      auto data = boost::get<Event::PidVnrData>(raw_event.data);
+      parent_raw_event.data = data;
+
+    } else if (raw_event.header.type == EventHeader::Type::SysEnterExecve ||
+               raw_event.header.type == EventHeader::Type::SysEnterExecveat) {
+      // Directly emit a new process event
+      process_event.type = ProcessEvent::Type::Exec;
+      process_event.timestamp =
+          static_cast<std::time_t>(raw_event.header.timestamp / 1000000);
+      process_event.pid = raw_event.header.pid;
+      process_event.tgid = raw_event.header.tgid;
+      process_event.uid = raw_event.header.uid;
+      process_event.gid = raw_event.header.gid;
+
+      const auto& event_data = boost::get<Event::ExecData>(raw_event.data);
+
+      ProcessEvent::ExecData exec_data;
+      exec_data.filename = event_data.filename;
+      exec_data.arguments = event_data.argv;
+      exec_data.exit_code = 0;
+
+      process_event.data = exec_data;
+      return osquery::Status(0);
+
+    } else {
+      // Save this new raw event into the designated map
+      event_map->insert({key, raw_event});
+    }
+
+  } else {
+    auto it = event_map->find(key);
+    if (it == event_map->end()) {
+      // Forks will (by nature) return multiple times; we can
+      // ignore unmatched events
+      return osquery::Status(0);
+    }
+
+    auto exit_event = event_map->at(key);
+    event_map->erase(key);
+
+    // emit a new process event
+    process_event.type = ProcessEvent::Type::Fork;
+    process_event.timestamp =
+        static_cast<std::time_t>(raw_event.header.timestamp / 1000000);
+    process_event.pid = raw_event.header.pid;
+    process_event.tgid = raw_event.header.tgid;
+    process_event.uid = raw_event.header.uid;
+    process_event.gid = raw_event.header.gid;
+
+    const auto& event_data = boost::get<Event::PidVnrData>(raw_event.data);
+
+    ProcessEvent::ForkData fork_data;
+    fork_data.child_pid = event_data.host_pid;
+    fork_data.child_pid_namespaced = event_data.namespaced_pid_list;
+
+    process_event.data = fork_data;
+  }
+
+  return osquery::Status(0);
+}
+
 void BCCProcessEventsProgram::forkPerfEventHandler(void* this_ptr,
                                                    void* data,
                                                    int data_size) {
@@ -637,7 +672,14 @@ void BCCProcessEventsProgram::processPerfEvent(
       continue;
     }
 
-    LOG(ERROR) << event;
+    ProcessEvent process_event = {};
+    status = processRawEvent(process_event, d->context, event);
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to process the event: " << status.getMessage();
+      continue;
+    }
+
+    d->process_events.push_back(process_event);
   }
 }
 } // namespace trailofbits

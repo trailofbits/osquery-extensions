@@ -18,7 +18,7 @@
 
 namespace trailofbits {
 // clang-format off
-BEGIN_TABLE(ebpf_process_events)
+BEGIN_TABLE(bcc_process_events)
   TABLE_COLUMN(type, osquery::TEXT_TYPE)
   TABLE_COLUMN(timestamp, osquery::TEXT_TYPE)
   TABLE_COLUMN(pid, osquery::TEXT_TYPE)
@@ -27,8 +27,7 @@ BEGIN_TABLE(ebpf_process_events)
   TABLE_COLUMN(childpid_ns2, osquery::TEXT_TYPE)
   TABLE_COLUMN(filename, osquery::TEXT_TYPE)
   TABLE_COLUMN(argv, osquery::TEXT_TYPE)
-  TABLE_COLUMN(envp, osquery::TEXT_TYPE)
-END_TABLE(ebpf_process_events)
+END_TABLE(bcc_process_events)
 // clang-format on
 
 struct BCCProcessEvents::PrivateData final {};
@@ -65,9 +64,78 @@ osquery::Status BCCProcessEvents::configure(
 }
 
 osquery::Status BCCProcessEvents::callback(
-    osquery::QueryData&,
+    osquery::QueryData& new_data,
     BCCProcessEventsPublisher::SubscriptionContextRef,
-    BCCProcessEventsPublisher::EventContextRef) {
+    BCCProcessEventsPublisher::EventContextRef event_context) {
+  new_data = {};
+
+  for (const auto& process_event : event_context->event_list) {
+    osquery::Row row = {};
+
+    if (process_event.type == ProcessEvent::Type::Exec) {
+      row["type"] = "exec";
+    } else {
+      row["type"] = "fork";
+    }
+
+    row["timestamp"] = std::to_string(process_event.timestamp);
+    row["pid"] = std::to_string(process_event.pid);
+
+    if (process_event.type == ProcessEvent::Type::Exec) {
+      row["childpid"] = "";
+      row["childpid_ns1"] = "";
+      row["childpid_ns2"] = "";
+
+      const auto& data = boost::get<ProcessEvent::ExecData>(process_event.data);
+
+      row["filename"] = data.filename;
+
+      std::stringstream buffer;
+      for (const auto& str : data.arguments) {
+        if (!buffer.str().empty()) {
+          buffer << ", ";
+        }
+
+        buffer << "\"";
+
+        // Probably not foolproof
+        for (const auto c : str) {
+          if (c == '"') {
+            buffer << "\\\"";
+          } else {
+            buffer << c;
+          }
+        }
+
+        buffer << "\"";
+      }
+
+      row["argv"] = buffer.str();
+
+    } else {
+      row["filename"] = "";
+      row["argv"] = "";
+
+      const auto& data = boost::get<ProcessEvent::ForkData>(process_event.data);
+
+      row["childpid"] = std::to_string(data.child_pid);
+
+      if (data.child_pid_namespaced.size() >= 1) {
+        row["childpid_ns1"] = std::to_string(data.child_pid_namespaced.at(0));
+      } else {
+        row["childpid_ns1"] = "";
+      }
+
+      if (data.child_pid_namespaced.size() >= 2) {
+        row["childpid_ns2"] = std::to_string(data.child_pid_namespaced.at(1));
+      } else {
+        row["childpid_ns2"] = "";
+      }
+    }
+
+    new_data.push_back(std::move(row));
+  }
+
   return osquery::Status(0);
 }
 } // namespace trailofbits

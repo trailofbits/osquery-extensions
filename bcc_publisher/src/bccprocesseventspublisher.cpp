@@ -15,7 +15,6 @@
  */
 
 #include "bccprocesseventspublisher.h"
-#include "bccprocesseventsprogram.h"
 
 namespace trailofbits {
 struct BCCProcessEventsPublisher::PrivateData final {
@@ -70,6 +69,16 @@ osquery::Status BCCProcessEventsPublisher::onSubscriberConfigurationChange(
 
 osquery::Status BCCProcessEventsPublisher::updatePublisher() noexcept {
   d->program->update();
+
+  EventContextRef event_context;
+  auto status = createEventContext(event_context);
+  if (!status.ok()) {
+    return status;
+  }
+
+  event_context->event_list = d->program->getEvents();
+  broadcastEvent(event_context);
+
   return osquery::Status(0);
 }
 

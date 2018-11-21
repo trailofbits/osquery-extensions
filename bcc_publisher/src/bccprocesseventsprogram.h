@@ -70,6 +70,41 @@ struct Event final {
   boost::variant<PidVnrData, ExecData> data;
 };
 
+using ForkEventMap = std::unordered_map<pid_t, Event>;
+
+struct BCCProcessEventsContext final {
+  ForkEventMap fork_event_map;
+  ForkEventMap vfork_event_map;
+  ForkEventMap clone_event_map;
+};
+
+struct ProcessEvent final {
+  enum class Type { Fork, Exec };
+
+  struct ExecData final {
+    std::string filename;
+    std::vector<std::string> arguments;
+    int exit_code;
+  };
+
+  struct ForkData final {
+    pid_t child_pid;
+    std::vector<pid_t> child_pid_namespaced;
+  };
+
+  Type type;
+
+  std::time_t timestamp;
+  pid_t pid;
+  pid_t tgid;
+  uid_t uid;
+  gid_t gid;
+
+  boost::variant<ExecData, ForkData> data;
+};
+
+using ProcessEventList = std::vector<ProcessEvent>;
+
 class BCCProcessEventsProgram;
 using BCCProcessEventsProgramRef = std::unique_ptr<BCCProcessEventsProgram>;
 
@@ -93,6 +128,7 @@ class BCCProcessEventsProgram final {
   ~BCCProcessEventsProgram();
 
   void update();
+  ProcessEventList getEvents();
 
   template <typename T>
   static void readEventData(
@@ -145,6 +181,10 @@ class BCCProcessEventsProgram final {
       Event& event,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::uint32_t event_identifier);
+
+  static osquery::Status processRawEvent(ProcessEvent& process_event,
+                                         BCCProcessEventsContext& context,
+                                         const Event& raw_event);
 
   static void forkPerfEventHandler(void* this_ptr, void* data, int data_size);
   static void execPerfEventHandler(void* this_ptr, void* data, int data_size);
