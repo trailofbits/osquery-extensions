@@ -30,7 +30,9 @@ BEGIN_TABLE(bcc_process_events)
 END_TABLE(bcc_process_events)
 // clang-format on
 
-struct BCCProcessEvents::PrivateData final {};
+struct BCCProcessEvents::PrivateData final {
+  bool show_fork_events{false};
+};
 
 BCCProcessEvents::BCCProcessEvents() : d(new PrivateData) {}
 
@@ -59,7 +61,32 @@ void BCCProcessEvents::release() noexcept {}
 
 osquery::Status BCCProcessEvents::configure(
     BCCProcessEventsPublisher::SubscriptionContextRef,
-    const json11::Json&) noexcept {
+    const json11::Json& configuration) noexcept {
+  d->show_fork_events = false;
+
+  if (!configuration.is_object()) {
+    LOG(ERROR) << "Invalid configuration";
+    return osquery::Status(0);
+  }
+
+  const auto& table_config = configuration["bcc_process_events"];
+  if (table_config == json11::Json()) {
+    LOG(ERROR) << "The 'bcc_process_events' configuration section is missing";
+    return osquery::Status(0);
+  }
+
+  const auto& show_fork_events_obj = table_config["show_fork_events"];
+  if (show_fork_events_obj == json11::Json()) {
+    LOG(ERROR) << "The 'show_fork_events' value is missing from the "
+                  "'bcc_process_events' section";
+
+    return osquery::Status(0);
+  }
+
+  d->show_fork_events = show_fork_events_obj.bool_value();
+  LOG(INFO) << "bcc_process_events: 'show_fork_events' has been set to "
+            << (d->show_fork_events ? "true" : "false");
+
   return osquery::Status(0);
 }
 
@@ -70,8 +97,12 @@ osquery::Status BCCProcessEvents::callback(
   new_data = {};
 
   for (const auto& process_event : event_context->event_list) {
-    osquery::Row row = {};
+    if (process_event.type == ProcessEvent::Type::Fork &&
+        !d->show_fork_events) {
+      continue;
+    }
 
+    osquery::Row row = {};
     if (process_event.type == ProcessEvent::Type::Exec) {
       row["type"] = "exec";
     } else {
