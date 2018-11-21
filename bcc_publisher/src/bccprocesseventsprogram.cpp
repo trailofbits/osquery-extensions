@@ -285,22 +285,27 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventHeader(
 
   current_index =
       static_cast<int>(event_identifier & 0x00FFFFFF) % EVENT_MAP_SIZE;
+
   cpu_index = static_cast<std::size_t>((event_identifier >> 28) & 0x000000FF);
 
   try {
-    readEventData(
+    readSyscallEventData(
         event_header.type, current_index, event_data_table, cpu_index);
 
-    readEventData(
+    readSyscallEventData(
         event_header.timestamp, current_index, event_data_table, cpu_index);
 
     std::uint64_t pid_tgid_value{0U};
-    readEventData(pid_tgid_value, current_index, event_data_table, cpu_index);
+    readSyscallEventData(
+        pid_tgid_value, current_index, event_data_table, cpu_index);
+
     event_header.pid = static_cast<pid_t>(pid_tgid_value >> 32U);
     event_header.tgid = static_cast<pid_t>(pid_tgid_value & 0xFFFFFFFF);
 
     std::uint64_t uid_gid_value{0U};
-    readEventData(uid_gid_value, current_index, event_data_table, cpu_index);
+    readSyscallEventData(
+        uid_gid_value, current_index, event_data_table, cpu_index);
+
     event_header.uid = static_cast<pid_t>(uid_gid_value >> 32U);
     event_header.gid = static_cast<pid_t>(uid_gid_value & 0xFFFFFFFF);
 
@@ -330,7 +335,8 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventString(
 
     for (i = 0U; i < chunk_count && !terminate; ++i) {
       string_chunk = 0U;
-      readEventData(string_chunk, current_index, event_data_table, cpu_index);
+      readSyscallEventData(
+          string_chunk, current_index, event_data_table, cpu_index);
 
       string_data.reserve(string_data.size() + 8U);
       for (auto k = 0U; k < sizeof(string_chunk_bytes); k++) {
@@ -411,22 +417,27 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventPidVnrData(
   pidvnr_data = {};
 
   try {
-    readEventData(pidvnr_data.namespace_count,
-                  current_index,
-                  event_data_table,
-                  cpu_index);
-    readEventData(
+    readSyscallEventData(pidvnr_data.namespace_count,
+                         current_index,
+                         event_data_table,
+                         cpu_index);
+
+    readSyscallEventData(
         pidvnr_data.host_pid, current_index, event_data_table, cpu_index);
 
     pid_t namespaced_pid;
 
     if (pidvnr_data.namespace_count >= 1) {
-      readEventData(namespaced_pid, current_index, event_data_table, cpu_index);
+      readSyscallEventData(
+          namespaced_pid, current_index, event_data_table, cpu_index);
+
       pidvnr_data.namespaced_pid_list.push_back(namespaced_pid);
     }
 
     if (pidvnr_data.namespace_count >= 2) {
-      readEventData(namespaced_pid, current_index, event_data_table, cpu_index);
+      readSyscallEventData(
+          namespaced_pid, current_index, event_data_table, cpu_index);
+
       pidvnr_data.namespaced_pid_list.push_back(namespaced_pid);
     }
 

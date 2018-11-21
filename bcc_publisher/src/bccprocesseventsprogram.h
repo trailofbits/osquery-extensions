@@ -131,7 +131,7 @@ class BCCProcessEventsProgram final {
   ProcessEventList getEvents();
 
   template <typename T>
-  static void readEventData(
+  static void readSyscallEventData(
       T& value,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
