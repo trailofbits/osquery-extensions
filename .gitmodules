@@ -1,0 +1,13 @@
+[submodule "opt_dependencies/pcap/src"]
+	path = opt_dependencies/pcap/src
+	url = https://github.com/the-tcpdump-group/libpcap.git
+	branch = libpcap-1.9
+[submodule "opt_dependencies/json11/src"]
+	path = opt_dependencies/json11/src
+	url = https://github.com/dropbox/json11.git
+[submodule "opt_dependencies/pcapplusplus/src"]
+	path = opt_dependencies/pcapplusplus/src
+	url = https://github.com/seladb/PcapPlusPlus.git
+[submodule "opt_dependencies/Pcap++/src"]
+	path = opt_dependencies/Pcap++/src
+	url = https://github.com/seladb/PcapPlusPlus.git

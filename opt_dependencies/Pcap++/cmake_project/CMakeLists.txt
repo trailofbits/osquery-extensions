@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.12)
+project(PcapPlusPlus)
+
+function(ImportPcapPlusPlus)
+  if(NOT PCAPPLUSPLUS_ROOT)
+    message(SEND_ERROR "The PCAPPLUSPLUS_ROOT variable was not defined")
+  else()
+    add_subdirectory("3rdParty")
+    add_subdirectory("Common++")
+    add_subdirectory("Pcap++")
+    add_subdirectory("Packet++")
+  endif()
+endfunction()
+
+ImportPcapPlusPlus()

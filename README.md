@@ -18,6 +18,9 @@ To learn more about osquery extensions development and why developing outside of
 | darwin_unified_log   | Provides an event driven table that contains entries from the unified system log on MacOS. | macOS |
 | (more to come)       | ...  | ...   |
 
+Experimental extensions:
+ * **network_monitor**: Provides an event-based table that lists DNS requests performed by the endpoint. Uses libpcap and Pcap++ to capture and parse network requests.
+
 ## Build Dependencies
 
 Note: the [releases](https://github.com/trailofbits/osquery-extensions/releases) page has download links for our extensions. The instructions below are only necessary for those interested in building from source.
