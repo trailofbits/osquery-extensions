@@ -369,6 +369,7 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventExecData(
   // Read the filename; this should always be present
   auto status = readSyscallEventString(
       exec_data.filename, current_index, event_data_table, cpu_index);
+
   if (!status.ok()) {
     return status;
   }
@@ -473,8 +474,10 @@ osquery::Status BCCProcessEventsProgram::readSyscallEvent(
   // know when we need to care about pid_vnr data
   case SyscallEvent::Header::Type::SysEnterClone:
   case SyscallEvent::Header::Type::SysExitClone:
+
   case SyscallEvent::Header::Type::SysEnterFork:
   case SyscallEvent::Header::Type::SysExitFork:
+
   case SyscallEvent::Header::Type::SysEnterVfork:
   case SyscallEvent::Header::Type::SysExitVfork:
     status = osquery::Status(0);
@@ -510,7 +513,7 @@ osquery::Status BCCProcessEventsProgram::readSyscallEvent(
   return status;
 }
 
-osquery::Status BCCProcessEventsProgram::processRawEvent(
+osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     ProcessEvent& process_event,
     BCCProcessEventsContext& context,
     const SyscallEvent& raw_event) {
@@ -525,6 +528,7 @@ osquery::Status BCCProcessEventsProgram::processRawEvent(
   case SyscallEvent::Header::Type::SysExitClone:
     entry =
         (raw_event.header.type == SyscallEvent::Header::Type::SysEnterClone);
+
     event_map = &context.clone_event_map;
     break;
 
@@ -538,6 +542,7 @@ osquery::Status BCCProcessEventsProgram::processRawEvent(
   case SyscallEvent::Header::Type::SysExitVfork:
     entry =
         (raw_event.header.type == SyscallEvent::Header::Type::SysEnterVfork);
+
     event_map = &context.fork_event_map;
     break;
 
@@ -583,6 +588,7 @@ osquery::Status BCCProcessEventsProgram::processRawEvent(
       process_event.type = ProcessEvent::Type::Exec;
       process_event.timestamp =
           static_cast<std::time_t>(raw_event.header.timestamp / 1000000);
+
       process_event.pid = raw_event.header.pid;
       process_event.tgid = raw_event.header.tgid;
       process_event.uid = raw_event.header.uid;
@@ -619,6 +625,7 @@ osquery::Status BCCProcessEventsProgram::processRawEvent(
     process_event.type = ProcessEvent::Type::Fork;
     process_event.timestamp =
         static_cast<std::time_t>(raw_event.header.timestamp / 1000000);
+
     process_event.pid = raw_event.header.pid;
     process_event.tgid = raw_event.header.tgid;
     process_event.uid = raw_event.header.uid;
@@ -685,13 +692,14 @@ void BCCProcessEventsProgram::processPerfEvent(
     SyscallEvent event = {};
     auto status =
         readSyscallEvent(event, event_data_table, event_identifiers[i]);
+
     if (!status.ok()) {
       LOG(ERROR) << "Failed to read the event header: " << status.getMessage();
       continue;
     }
 
     ProcessEvent process_event = {};
-    status = processRawEvent(process_event, d->context, event);
+    status = processSyscallEvent(process_event, d->context, event);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to process the event: " << status.getMessage();
       continue;

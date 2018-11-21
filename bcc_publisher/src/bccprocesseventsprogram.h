@@ -182,9 +182,9 @@ class BCCProcessEventsProgram final {
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::uint32_t event_identifier);
 
-  static osquery::Status processRawEvent(ProcessEvent& process_event,
-                                         BCCProcessEventsContext& context,
-                                         const SyscallEvent& raw_event);
+  static osquery::Status processSyscallEvent(ProcessEvent& process_event,
+                                             BCCProcessEventsContext& context,
+                                             const SyscallEvent& raw_event);
 
   static void forkPerfEventHandler(void* this_ptr, void* data, int data_size);
   static void execPerfEventHandler(void* this_ptr, void* data, int data_size);
