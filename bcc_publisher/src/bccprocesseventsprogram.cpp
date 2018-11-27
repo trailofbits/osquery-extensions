@@ -57,7 +57,10 @@ const TracepointDescriptorList kForkEventsTracepointList = {
 // clang-format off
 const TracepointDescriptorList kExecEventsTracepointList = {
   {"syscalls:sys_enter_execve"},
-  {"syscalls:sys_enter_execveat"}
+  {"syscalls:sys_exit_execve"},
+
+  {"syscalls:sys_enter_execveat"},
+  {"syscalls:sys_exit_execveat"}
 };
 // clang-format on
 
@@ -309,6 +312,14 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventHeader(
     event_header.uid = static_cast<pid_t>(uid_gid_value >> 32U);
     event_header.gid = static_cast<pid_t>(uid_gid_value & 0xFFFFFFFF);
 
+    if (event_header.type == SyscallEvent::Header::Type::SysExitExecve ||
+        event_header.type == SyscallEvent::Header::Type::SysExitExecveat) {
+      int exit_code = 0;
+      readSyscallEventData(
+          exit_code, current_index, event_data_table, cpu_index);
+      event_header.exit_code = exit_code;
+    }
+
     return osquery::Status(0);
 
   } catch (const osquery::Status& status) {
@@ -379,7 +390,7 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventExecData(
     std::vector<std::uint64_t> table_data = {};
     auto s = event_data_table.get_value(current_index, table_data);
     if (s.code() != 0) {
-      throw osquery::Status::failure(s.msg());
+      return osquery::Status::failure(s.msg());
     }
 
     if (cpu_index >= table_data.size()) {
@@ -494,6 +505,13 @@ osquery::Status BCCProcessEventsProgram::readSyscallEvent(
     break;
   }
 
+  // There is no additional data for these events; they are captured
+  // so that we can take the syscall exit code
+  case SyscallEvent::Header::Type::SysExitExecve:
+  case SyscallEvent::Header::Type::SysExitExecveat:
+    status = osquery::Status(0);
+    break;
+
   // We use this event to fill the clone/fork/vfork data with useful
   // namespace information
   case SyscallEvent::Header::Type::KprobePidvnr: {
@@ -521,7 +539,7 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
 
   bool entry = false;
   auto key = syscall_event.header.tgid;
-  ForkEventMap* event_map{nullptr};
+  SyscallEventMap* event_map{nullptr};
 
   switch (syscall_event.header.type) {
   case SyscallEvent::Header::Type::SysEnterClone:
@@ -549,9 +567,19 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     break;
 
   case SyscallEvent::Header::Type::SysEnterExecve:
+  case SyscallEvent::Header::Type::SysExitExecve:
+    entry = (syscall_event.header.type ==
+             SyscallEvent::Header::Type::SysEnterExecve);
+
+    event_map = &context.execve_event_map;
+    break;
+
   case SyscallEvent::Header::Type::SysEnterExecveat:
-    entry = true;
-    event_map = nullptr;
+  case SyscallEvent::Header::Type::SysExitExecveat:
+    entry = (syscall_event.header.type ==
+             SyscallEvent::Header::Type::SysEnterExecveat);
+
+    event_map = &context.execveat_event_map;
     break;
 
   case SyscallEvent::Header::Type::KprobePidvnr:
@@ -584,34 +612,6 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
 
       return osquery::Status(2, "State has been updated");
 
-    } else if (syscall_event.header.type ==
-                   SyscallEvent::Header::Type::SysEnterExecve ||
-
-               syscall_event.header.type ==
-                   SyscallEvent::Header::Type::SysEnterExecveat) {
-      // Directly emit a new process event
-      process_event.type = ProcessEvent::Type::Exec;
-      process_event.timestamp =
-          static_cast<std::time_t>(syscall_event.header.timestamp / 1000000);
-
-      process_event.pid = syscall_event.header.pid;
-      process_event.tgid = syscall_event.header.tgid;
-      process_event.uid = syscall_event.header.uid;
-      process_event.gid = syscall_event.header.gid;
-
-      ProcessEvent::ExecData exec_data;
-
-      const auto& event_data =
-          boost::get<SyscallEvent::ExecData>(syscall_event.data);
-
-      exec_data.filename = event_data.filename;
-      exec_data.arguments = event_data.argv;
-      exec_data.exit_code = 0;
-
-      process_event.data = exec_data;
-
-      return osquery::Status(0);
-
     } else {
       // Save this new raw event into the designated map
       event_map->insert({key, syscall_event});
@@ -621,16 +621,33 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
   } else {
     auto it = event_map->find(key);
     if (it == event_map->end()) {
-      // Forks will (by nature) return multiple times; we can
-      // ignore unmatched events
-      return osquery::Status(2, "Event was ignored");
+      if (syscall_event.header.type ==
+              SyscallEvent::Header::Type::SysExitExecve ||
+          syscall_event.header.type ==
+              SyscallEvent::Header::Type::SysExitExecveat) {
+        return osquery::Status::failure(
+            "Failed to locate the entry execve/execveat event");
+
+      } else {
+        // Forks will (by nature) return multiple times; we can
+        // ignore unmatched events
+        return osquery::Status(2, "Event was ignored");
+      }
     }
 
-    auto exit_event = event_map->at(key);
+    auto entry_event = event_map->at(key);
     event_map->erase(key);
 
     // emit a new process event
-    process_event.type = ProcessEvent::Type::Fork;
+    if (syscall_event.header.type ==
+            SyscallEvent::Header::Type::SysExitExecve ||
+        syscall_event.header.type ==
+            SyscallEvent::Header::Type::SysExitExecveat) {
+      process_event.type = ProcessEvent::Type::Exec;
+    } else {
+      process_event.type = ProcessEvent::Type::Fork;
+    }
+
     process_event.timestamp =
         static_cast<std::time_t>(syscall_event.header.timestamp / 1000000);
 
@@ -639,15 +656,30 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     process_event.uid = syscall_event.header.uid;
     process_event.gid = syscall_event.header.gid;
 
-    ProcessEvent::ForkData fork_data;
+    if (process_event.type == ProcessEvent::Type::Exec) {
+      ProcessEvent::ExecData exec_data;
 
-    const auto& event_data =
-        boost::get<SyscallEvent::PidVnrData>(exit_event.data);
+      const auto& entry_event_data =
+          boost::get<SyscallEvent::ExecData>(entry_event.data);
 
-    fork_data.child_pid = event_data.host_pid;
-    fork_data.child_pid_namespaced = event_data.namespaced_pid_list;
+      exec_data.filename = entry_event_data.filename;
+      exec_data.arguments = entry_event_data.argv;
+      exec_data.exit_code = syscall_event.header.exit_code.get();
 
-    process_event.data = fork_data;
+      process_event.data = exec_data;
+
+    } else {
+      ProcessEvent::ForkData fork_data;
+
+      const auto& entry_event_data =
+          boost::get<SyscallEvent::PidVnrData>(entry_event.data);
+
+      fork_data.child_pid = entry_event_data.host_pid;
+      fork_data.child_pid_namespaced = entry_event_data.namespaced_pid_list;
+
+      process_event.data = fork_data;
+    }
+
     return osquery::Status(0);
   }
 }

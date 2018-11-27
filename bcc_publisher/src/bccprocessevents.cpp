@@ -27,11 +27,13 @@ BEGIN_TABLE(bcc_process_events)
   TABLE_COLUMN(childpid_ns2, osquery::TEXT_TYPE)
   TABLE_COLUMN(filename, osquery::TEXT_TYPE)
   TABLE_COLUMN(argv, osquery::TEXT_TYPE)
+  TABLE_COLUMN(exit_code, osquery::TEXT_TYPE)
 END_TABLE(bcc_process_events)
 // clang-format on
 
 struct BCCProcessEvents::PrivateData final {
   bool show_fork_events{false};
+  bool hide_failed_exec_events{false};
 };
 
 BCCProcessEvents::BCCProcessEvents() : d(new PrivateData) {}
@@ -63,6 +65,7 @@ osquery::Status BCCProcessEvents::configure(
     BCCProcessEventsPublisher::SubscriptionContextRef,
     const json11::Json& configuration) noexcept {
   d->show_fork_events = false;
+  d->hide_failed_exec_events = false;
 
   if (!configuration.is_object()) {
     LOG(ERROR) << "Invalid configuration";
@@ -85,6 +88,19 @@ osquery::Status BCCProcessEvents::configure(
 
   d->show_fork_events = show_fork_events_obj.bool_value();
   LOG(INFO) << "bcc_process_events: 'show_fork_events' has been set to "
+            << (d->show_fork_events ? "true" : "false");
+
+  const auto& hide_failed_exec_events_obj =
+      table_config["hide_failed_exec_events"];
+  if (show_fork_events_obj == json11::Json()) {
+    LOG(ERROR) << "The 'hide_failed_exec_events' value is missing from the "
+                  "'bcc_process_events' section";
+
+    return osquery::Status(0);
+  }
+
+  d->hide_failed_exec_events = hide_failed_exec_events_obj.bool_value();
+  LOG(INFO) << "bcc_process_events: 'hide_failed_exec_events' has been set to "
             << (d->show_fork_events ? "true" : "false");
 
   return osquery::Status(0);
@@ -142,10 +158,12 @@ osquery::Status BCCProcessEvents::callback(
       }
 
       row["argv"] = buffer.str();
+      row["exit_code"] = std::to_string(data.exit_code);
 
     } else {
       row["filename"] = "";
       row["argv"] = "";
+      row["exit_code"] = "";
 
       const auto& data = boost::get<ProcessEvent::ForkData>(process_event.data);
 

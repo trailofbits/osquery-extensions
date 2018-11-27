@@ -41,7 +41,10 @@ struct SyscallEvent final {
       SysExitVfork = EVENTID_SYSEXITVFORK,
 
       SysEnterExecve = EVENTID_SYSENTEREXECVE,
+      SysExitExecve = EVENTID_SYSEXITEXECVE,
+
       SysEnterExecveat = EVENTID_SYSENTEREXECVEAT,
+      SysExitExecveat = EVENTID_SYSEXITEXECVEAT,
 
       KprobePidvnr = EVENTID_PIDVNR
     };
@@ -52,6 +55,7 @@ struct SyscallEvent final {
     pid_t tgid;
     uid_t uid;
     gid_t gid;
+    boost::optional<int> exit_code;
   };
 
   struct ExecData final {
@@ -70,12 +74,15 @@ struct SyscallEvent final {
   boost::variant<PidVnrData, ExecData> data;
 };
 
-using ForkEventMap = std::unordered_map<pid_t, SyscallEvent>;
+using SyscallEventMap = std::unordered_map<pid_t, SyscallEvent>;
 
 struct BCCProcessEventsContext final {
-  ForkEventMap fork_event_map;
-  ForkEventMap vfork_event_map;
-  ForkEventMap clone_event_map;
+  SyscallEventMap fork_event_map;
+  SyscallEventMap vfork_event_map;
+  SyscallEventMap clone_event_map;
+
+  SyscallEventMap execve_event_map;
+  SyscallEventMap execveat_event_map;
 };
 
 struct ProcessEvent final {

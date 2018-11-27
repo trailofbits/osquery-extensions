@@ -1,0 +1,11 @@
+1. Switch to the `alessandro/provision/full-boost-for-extensions` branch (https://github.com/trailofbits/osquery-pr/tree/alessandro/provision/full-boost-for-extensions)
+2. Run `make sysprep` (this should also run `make deps` automatically)
+3. flex, bison and m4 should now be installed, but they will not quite work yet:
+```
+mkdir -p /home/linuxbrew/.linuxbrew
+ln -s /usr/local/osquery/opt /home/linuxbrew/.linuxbrew/opt
+ln -s /usr/local/osquery/Cellar /home/linuxbrew/.linuxbrew/Cellar
+```
+4. Download the LLVM and Clang source tarballs and extract them in osquery-extensions/bcc_publisher/utils/llvm-bpf; then build and install that folder. It may require some changes to the LLVM CMake files to skip checks on the atomic libraries
+5. Build and install the extensions as always
+

@@ -22,13 +22,11 @@ BPF_PERF_OUTPUT(events);
 BPF_PERCPU_ARRAY(exec_event_data, u64, EVENT_MAP_SIZE);
 BPF_PERCPU_ARRAY(exec_cpu_index, u64, 1);
 
-#define BOOL int
-#define TRUE 1
-#define FALSE 0
-
 /// Saves the generic event header into the per-cpu map, returning the
 /// initial index
-static int saveEventHeader(u64 event_identifier) {
+static int saveEventHeader(u64 event_identifier,
+                           BOOL save_exit_code,
+                           int exit_code) {
   int index_key = 0U;
   u64 initial_slot = 0U;
   u64* index_ptr = exec_cpu_index.lookup_or_init(&index_key, &initial_slot);
@@ -49,6 +47,12 @@ static int saveEventHeader(u64 event_identifier) {
   field = bpf_get_current_uid_gid();
   exec_event_data.update(&index, &field);
   INCREMENT_EVENT_DATA_INDEX(index);
+
+  if (save_exit_code == TRUE) {
+    field = (u64)exit_code;
+    exec_event_data.update(&index, &field);
+    INCREMENT_EVENT_DATA_INDEX(index);
+  }
 
   initial_slot = index; // re-use the same var to avoid wasting stack space
   exec_cpu_index.update(&index_key, &initial_slot);
@@ -104,10 +108,10 @@ static BOOL emitVarargsTerminator(BOOL truncated) {
   return TRUE;
 }
 
-/// Execve handler
+/// Execve handlers
 int on_tracepoint_sys_enter_execve(
     struct tracepoint__syscalls__sys_enter_execve* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTEREXECVE);
+  int event_index = saveEventHeader(EVENTID_SYSENTEREXECVE, FALSE, 0);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -141,10 +145,22 @@ emit_event:
   return 0;
 }
 
-/// Execveat handler
+int on_tracepoint_sys_exit_execve(
+    struct tracepoint__syscalls__sys_exit_execve* args) {
+  int event_index = saveEventHeader(EVENTID_SYSEXITEXECVE, TRUE, args->ret);
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(args, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+/// Execveat handlers
 int on_tracepoint_sys_enter_execveat(
     struct tracepoint__syscalls__sys_enter_execveat* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTEREXECVEAT);
+  int event_index = saveEventHeader(EVENTID_SYSENTEREXECVEAT, FALSE, 0);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -174,6 +190,18 @@ emit_terminator:
   goto emit_event;
 
 emit_event:
+  events.perf_submit(args, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+int on_tracepoint_sys_exit_execveat(
+    struct tracepoint__syscalls__sys_exit_execveat* args) {
+  int event_index = saveEventHeader(EVENTID_SYSEXITEXECVEAT, TRUE, args->ret);
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
   events.perf_submit(args, &event_identifier, sizeof(event_identifier));
   return 0;
 }
