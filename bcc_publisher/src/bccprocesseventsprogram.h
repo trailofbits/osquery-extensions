@@ -40,6 +40,9 @@ struct SyscallEvent final {
       SysEnterVfork = EVENTID_SYSENTERVFORK,
       SysExitVfork = EVENTID_SYSEXITVFORK,
 
+      SysEnterExit = EVENTID_SYSENTEREXIT,
+      SysEnterExitGroup = EVENTID_SYSENTEREXITGROUP,
+
       SysEnterExecve = EVENTID_SYSENTEREXECVE,
       SysExitExecve = EVENTID_SYSEXITEXECVE,
 
@@ -70,8 +73,12 @@ struct SyscallEvent final {
     std::vector<pid_t> namespaced_pid_list;
   };
 
+  struct ExitData final {
+    int error_code;
+  };
+
   Header header;
-  boost::variant<PidVnrData, ExecData> data;
+  boost::variant<PidVnrData, ExecData, ExitData> data;
 };
 
 using SyscallEventMap = std::unordered_map<pid_t, SyscallEvent>;
@@ -86,7 +93,7 @@ struct BCCProcessEventsContext final {
 };
 
 struct ProcessEvent final {
-  enum class Type { Fork, Exec };
+  enum class Type { Fork, Exec, Exit };
 
   struct ExecData final {
     std::string filename;
@@ -99,6 +106,10 @@ struct ProcessEvent final {
     std::vector<pid_t> child_pid_namespaced;
   };
 
+  struct ExitData final {
+    int error_code;
+  };
+
   Type type;
 
   std::time_t timestamp;
@@ -107,7 +118,7 @@ struct ProcessEvent final {
   uid_t uid;
   gid_t gid;
 
-  boost::variant<ExecData, ForkData> data;
+  boost::variant<ExecData, ForkData, ExitData> data;
 };
 
 using ProcessEventList = std::vector<ProcessEvent>;
@@ -174,6 +185,12 @@ class BCCProcessEventsProgram final {
 
   static osquery::Status readSyscallEventExecData(
       SyscallEvent::ExecData& exec_data,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventExitData(
+      SyscallEvent::ExitData& exec_data,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);

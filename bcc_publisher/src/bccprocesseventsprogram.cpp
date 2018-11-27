@@ -51,6 +51,9 @@ const TracepointDescriptorList kForkEventsTracepointList = {
 
   {"syscalls:sys_enter_vfork"},
   {"syscalls:sys_exit_vfork"},
+
+  {"syscalls:sys_enter_exit"},
+  {"syscalls:sys_enter_exit_group"}
 };
 // clang-format on
 
@@ -421,6 +424,23 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventExecData(
   return osquery::Status(0);
 }
 
+osquery::Status BCCProcessEventsProgram::readSyscallEventExitData(
+    SyscallEvent::ExitData& exit_data,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  exit_data = {};
+
+  try {
+    readSyscallEventData(
+        exit_data.error_code, current_index, event_data_table, cpu_index);
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
 osquery::Status BCCProcessEventsProgram::readSyscallEventPidVnrData(
     SyscallEvent::PidVnrData& pidvnr_data,
     int& current_index,
@@ -493,6 +513,17 @@ osquery::Status BCCProcessEventsProgram::readSyscallEvent(
   case SyscallEvent::Header::Type::SysExitVfork:
     status = osquery::Status(0);
     break;
+
+  // We need the error code passed to the exit/exit_group syscall
+  case SyscallEvent::Header::Type::SysEnterExit:
+  case SyscallEvent::Header::Type::SysEnterExitGroup: {
+    SyscallEvent::ExitData exit_data = {};
+    status = readSyscallEventExitData(
+        exit_data, current_index, event_data_table, cpu_index);
+
+    event.data = exit_data;
+    break;
+  }
 
   // We expect to find the filename and arguments for the launched program
   case SyscallEvent::Header::Type::SysEnterExecve:
@@ -582,6 +613,12 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     event_map = &context.execveat_event_map;
     break;
 
+  case SyscallEvent::Header::Type::SysEnterExit:
+  case SyscallEvent::Header::Type::SysEnterExitGroup:
+    entry = true;
+    event_map = nullptr;
+    break;
+
   case SyscallEvent::Header::Type::KprobePidvnr:
     entry = true;
 
@@ -611,6 +648,29 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
       parent_raw_event.data = data;
 
       return osquery::Status(2, "State has been updated");
+
+    } else if (syscall_event.header.type ==
+                   SyscallEvent::Header::Type::SysEnterExit ||
+               syscall_event.header.type ==
+                   SyscallEvent::Header::Type::SysEnterExitGroup) {
+      // Directly emit a new event
+      process_event.type = ProcessEvent::Type::Exit;
+      process_event.timestamp =
+          static_cast<std::time_t>(syscall_event.header.timestamp / 1000000);
+      process_event.pid = syscall_event.header.pid;
+      process_event.tgid = syscall_event.header.tgid;
+      process_event.uid = syscall_event.header.uid;
+      process_event.gid = syscall_event.header.gid;
+
+      auto syscall_data =
+          boost::get<SyscallEvent::ExitData>(syscall_event.data);
+
+      ProcessEvent::ExitData exit_data;
+      exit_data.error_code = syscall_data.error_code;
+
+      process_event.data = exit_data;
+
+      return osquery::Status(0);
 
     } else {
       // Save this new raw event into the designated map

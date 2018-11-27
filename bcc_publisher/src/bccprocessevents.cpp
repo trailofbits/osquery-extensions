@@ -28,11 +28,13 @@ BEGIN_TABLE(bcc_process_events)
   TABLE_COLUMN(filename, osquery::TEXT_TYPE)
   TABLE_COLUMN(argv, osquery::TEXT_TYPE)
   TABLE_COLUMN(return_code, osquery::TEXT_TYPE)
+  TABLE_COLUMN(error_code, osquery::TEXT_TYPE)
 END_TABLE(bcc_process_events)
 // clang-format on
 
 struct BCCProcessEvents::PrivateData final {
   bool show_fork_events{false};
+  bool show_exit_events{false};
   bool hide_failed_exec_events{false};
 };
 
@@ -65,6 +67,7 @@ osquery::Status BCCProcessEvents::configure(
     BCCProcessEventsPublisher::SubscriptionContextRef,
     const json11::Json& configuration) noexcept {
   d->show_fork_events = false;
+  d->show_exit_events = false;
   d->hide_failed_exec_events = false;
 
   if (!configuration.is_object()) {
@@ -92,6 +95,7 @@ osquery::Status BCCProcessEvents::configure(
 
   const auto& hide_failed_exec_events_obj =
       table_config["hide_failed_exec_events"];
+
   if (show_fork_events_obj == json11::Json()) {
     LOG(ERROR) << "The 'hide_failed_exec_events' value is missing from the "
                   "'bcc_process_events' section";
@@ -101,6 +105,19 @@ osquery::Status BCCProcessEvents::configure(
 
   d->hide_failed_exec_events = hide_failed_exec_events_obj.bool_value();
   LOG(INFO) << "bcc_process_events: 'hide_failed_exec_events' has been set to "
+            << (d->show_fork_events ? "true" : "false");
+
+  const auto& show_exit_events_obj = table_config["show_exit_events"];
+
+  if (show_exit_events_obj == json11::Json()) {
+    LOG(ERROR) << "The 'show_exit_events' value is missing from the "
+                  "'bcc_process_events' section";
+
+    return osquery::Status(0);
+  }
+
+  d->show_exit_events = show_exit_events_obj.bool_value();
+  LOG(INFO) << "bcc_process_events: 'show_exit_events' has been set to "
             << (d->show_fork_events ? "true" : "false");
 
   return osquery::Status(0);
@@ -118,20 +135,23 @@ osquery::Status BCCProcessEvents::callback(
       continue;
     }
 
-    osquery::Row row = {};
-    if (process_event.type == ProcessEvent::Type::Exec) {
-      row["type"] = "exec";
-    } else {
-      row["type"] = "fork";
+    if (process_event.type == ProcessEvent::Type::Exit &&
+        !d->show_exit_events) {
+      continue;
     }
+
+    osquery::Row row = {};
 
     row["timestamp"] = std::to_string(process_event.timestamp);
     row["pid"] = std::to_string(process_event.pid);
 
     if (process_event.type == ProcessEvent::Type::Exec) {
+      row["type"] = "exec";
+
       row["childpid"] = "";
       row["childpid_ns1"] = "";
       row["childpid_ns2"] = "";
+      row["error_code"] = "";
 
       const auto& data = boost::get<ProcessEvent::ExecData>(process_event.data);
 
@@ -160,10 +180,13 @@ osquery::Status BCCProcessEvents::callback(
       row["argv"] = buffer.str();
       row["return_code"] = std::to_string(data.exit_code);
 
-    } else {
+    } else if (process_event.type == ProcessEvent::Type::Fork) {
+      row["type"] = "fork";
+
       row["filename"] = "";
       row["argv"] = "";
       row["return_code"] = "";
+      row["error_code"] = "";
 
       const auto& data = boost::get<ProcessEvent::ForkData>(process_event.data);
 
@@ -180,6 +203,19 @@ osquery::Status BCCProcessEvents::callback(
       } else {
         row["childpid_ns2"] = "";
       }
+
+    } else {
+      row["type"] = "exit";
+
+      row["childpid"] = "";
+      row["childpid_ns1"] = "";
+      row["childpid_ns2"] = "";
+      row["filename"] = "";
+      row["argv"] = "";
+      row["return_code"] = "";
+
+      const auto& data = boost::get<ProcessEvent::ExitData>(process_event.data);
+      row["error_code"] = std::to_string(data.error_code);
     }
 
     new_data.push_back(std::move(row));

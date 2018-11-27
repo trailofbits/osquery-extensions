@@ -53,6 +53,23 @@ static int saveEventHeader(u64 event_identifier) {
   return event_index;
 }
 
+/// Saves the given value to the per-cpu buffer; only use after the header
+/// has been sent
+static int saveEventValue(u64 value) {
+  int index_key = 0U;
+  u64 initial_slot = 0U;
+  u64* index_ptr = fork_cpu_index.lookup_or_init(&index_key, &initial_slot);
+  int index = (index_ptr != NULL ? *index_ptr : initial_slot);
+
+  fork_event_data.update(&index, &value);
+  INCREMENT_EVENT_DATA_INDEX(index);
+
+  initial_slot = index; // re-use the same var to avoid wasting stack space
+  fork_cpu_index.update(&index_key, &initial_slot);
+
+  return TRUE;
+}
+
 /// Saves namespace data into the per-cpu map
 static BOOL savePidNamespaceData(struct pid* pid) {
   int index_key = 0U;
@@ -165,5 +182,33 @@ int on_kprobe_pid_vnr_enter(struct pt_regs* ctx, struct pid* pid) {
       (event_index & 0x00FFFFFF);
 
   events.perf_submit(ctx, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+/// exit() handler
+int on_tracepoint_sys_enter_exit(
+    struct tracepoint__syscalls__sys_enter_exit* args) {
+  int event_index = saveEventHeader(EVENTID_SYSENTEREXIT);
+  saveEventValue(args->error_code);
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(args, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+/// exit_group() handler
+int on_tracepoint_sys_enter_exit_group(
+    struct tracepoint__syscalls__sys_enter_exit_group* args) {
+  int event_index = saveEventHeader(EVENTID_SYSENTEREXITGROUP);
+  saveEventValue(args->error_code);
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(args, &event_identifier, sizeof(event_identifier));
   return 0;
 }
