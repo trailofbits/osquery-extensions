@@ -27,7 +27,7 @@ BEGIN_TABLE(bcc_process_events)
   TABLE_COLUMN(childpid_ns2, osquery::TEXT_TYPE)
   TABLE_COLUMN(filename, osquery::TEXT_TYPE)
   TABLE_COLUMN(argv, osquery::TEXT_TYPE)
-  TABLE_COLUMN(exit_code, osquery::TEXT_TYPE)
+  TABLE_COLUMN(return_code, osquery::TEXT_TYPE)
 END_TABLE(bcc_process_events)
 // clang-format on
 
@@ -158,12 +158,12 @@ osquery::Status BCCProcessEvents::callback(
       }
 
       row["argv"] = buffer.str();
-      row["exit_code"] = std::to_string(data.exit_code);
+      row["return_code"] = std::to_string(data.exit_code);
 
     } else {
       row["filename"] = "";
       row["argv"] = "";
-      row["exit_code"] = "";
+      row["return_code"] = "";
 
       const auto& data = boost::get<ProcessEvent::ForkData>(process_event.data);
 
