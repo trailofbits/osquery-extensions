@@ -15,6 +15,7 @@
  */
 
 #include "bccprocesseventsprogram.h"
+#include "dockertracker.h"
 
 #include <iomanip>
 #include <iostream>
@@ -111,7 +112,8 @@ struct BCCProcessEventsProgram::PrivateData final {
   ebpf::BPFPerfBuffer* exec_events_perf_buffer{nullptr};
   TracepointDescriptorList exec_events_tracepoints;
 
-  BCCProcessEventsContext context;
+  BCCProcessEventsContext syscall_event_context;
+  DockerTracker docker_tracker;
   ProcessEventList process_events;
 };
 
@@ -159,7 +161,7 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
     static auto L_lostForkEventNotifier = [](void*,
                                              std::uint64_t count) -> void {
       LOG(ERROR) << "BCCProcessEventsPublisher: Lost " << count
-                 << " fork events";
+                 << " fork/vfork/clone/exit/exit_group events";
     };
 
     status = d->fork_events_bpf.open_perf_buffer(
@@ -194,7 +196,7 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
     static auto L_lostExecEventNotifier = [](void*,
                                              std::uint64_t count) -> void {
       LOG(ERROR) << "BCCProcessEventsPublisher: Lost " << count
-                 << " exec events";
+                 << " execve/execveat events";
     };
 
     status = d->exec_events_bpf.open_perf_buffer(
@@ -275,7 +277,7 @@ void BCCProcessEventsProgram::update() {
 }
 
 ProcessEventList BCCProcessEventsProgram::getEvents() {
-  ProcessEventList new_events = std::move(d->process_events);
+  auto new_events = std::move(d->process_events);
   d->process_events.clear();
 
   return new_events;
@@ -655,8 +657,7 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
                    SyscallEvent::Header::Type::SysEnterExitGroup) {
       // Directly emit a new event
       process_event.type = ProcessEvent::Type::Exit;
-      process_event.timestamp =
-          static_cast<std::time_t>(syscall_event.header.timestamp / 1000000);
+      process_event.timestamp = syscall_event.header.timestamp;
       process_event.pid = syscall_event.header.pid;
       process_event.tgid = syscall_event.header.tgid;
       process_event.uid = syscall_event.header.uid;
@@ -681,12 +682,22 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
   } else {
     auto it = event_map->find(key);
     if (it == event_map->end()) {
-      if (syscall_event.header.type ==
-              SyscallEvent::Header::Type::SysExitExecve ||
-          syscall_event.header.type ==
-              SyscallEvent::Header::Type::SysExitExecveat) {
-        return osquery::Status::failure(
-            "Failed to locate the entry execve/execveat event");
+      auto type = syscall_event.header.type;
+      if (type == SyscallEvent::Header::Type::SysExitExecve ||
+          type == SyscallEvent::Header::Type::SysExitExecveat) {
+        const char* syscall_name = nullptr;
+        if (type == SyscallEvent::Header::Type::SysExitExecve) {
+          syscall_name = "execve";
+        } else {
+          syscall_name = "execveat";
+        }
+
+        std::stringstream error_message;
+        error_message << "Failed to locate the entry event for the "
+                      << syscall_name << " event. The syscall returned "
+                      << syscall_event.header.exit_code.get();
+
+        return osquery::Status::failure(error_message.str());
 
       } else {
         // Forks will (by nature) return multiple times; we can
@@ -708,9 +719,7 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
       process_event.type = ProcessEvent::Type::Fork;
     }
 
-    process_event.timestamp =
-        static_cast<std::time_t>(syscall_event.header.timestamp / 1000000);
-
+    process_event.timestamp = syscall_event.header.timestamp;
     process_event.pid = syscall_event.header.pid;
     process_event.tgid = syscall_event.header.tgid;
     process_event.uid = syscall_event.header.uid;
@@ -788,6 +797,8 @@ void BCCProcessEventsProgram::processPerfEvent(
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     const std::uint32_t* event_identifiers,
     std::size_t event_identifier_count) {
+  ProcessEventList new_events;
+
   for (std::size_t i = 0U; i < event_identifier_count; ++i) {
     SyscallEvent event = {};
     auto status =
@@ -799,12 +810,27 @@ void BCCProcessEventsProgram::processPerfEvent(
     }
 
     ProcessEvent process_event = {};
-    status = processSyscallEvent(process_event, d->context, event);
-    if (status.ok()) {
-      d->process_events.push_back(process_event);
-    } else if (status.getCode() != 2) {
-      LOG(ERROR) << "Failed to process the event: " << status.getMessage();
+    status =
+        processSyscallEvent(process_event, d->syscall_event_context, event);
+    if (status.getCode() != 1) {
+      d->docker_tracker.processEvent(process_event);
     }
+
+    if (status.getCode() == 2) {
+      continue;
+
+    } else if (status.getCode() != 0) {
+      LOG(ERROR) << "Failed to process the event: " << status.getMessage();
+      continue;
+    }
+
+    new_events.insert({process_event.timestamp, process_event});
+  }
+
+  for (auto& p : new_events) {
+    auto& event = p.second;
+    d->docker_tracker.processEvent(event);
+    d->process_events.insert(std::move(p));
   }
 }
 } // namespace trailofbits

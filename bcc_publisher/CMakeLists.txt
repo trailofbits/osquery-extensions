@@ -28,6 +28,7 @@ function(bccPublisherMain)
     src/bccprocesseventspublisher.h
     src/bccprocesseventspublisher.cpp
 
+    src/bccprocesseventsprogramtypes.h
     src/bccprocesseventsprogram.h
     src/bccprocesseventsprogram.cpp
 
@@ -39,6 +40,9 @@ function(bccPublisherMain)
 
     src/globals.h
     src/globals.cpp
+
+    src/dockertracker.h
+    src/dockertracker.cpp
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})

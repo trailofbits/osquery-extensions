@@ -29,7 +29,7 @@ function(probeGenerator)
 
   execute_process(
     COMMAND sh -c "echo -n > '${probeGenerator_destination}'"
-    COMMAND sh -c "echo 'static const std::string ${probeGenerator_probeVariableName} = R\"PROBE_SOURCE(' >> '${probeGenerator_destination}'"
+    COMMAND sh -c "echo '#include <string>\n\nstatic const std::string ${probeGenerator_probeVariableName} = R\"PROBE_SOURCE(' >> '${probeGenerator_destination}'"
   )
 
   foreach(probe_source_file ${probeGenerator_sources})

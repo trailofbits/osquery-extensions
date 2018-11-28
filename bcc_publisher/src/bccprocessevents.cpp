@@ -29,6 +29,8 @@ BEGIN_TABLE(bcc_process_events)
   TABLE_COLUMN(argv, osquery::TEXT_TYPE)
   TABLE_COLUMN(return_code, osquery::TEXT_TYPE)
   TABLE_COLUMN(error_code, osquery::TEXT_TYPE)
+  TABLE_COLUMN(docker_container_id, osquery::TEXT_TYPE)
+  TABLE_COLUMN(docker_namespace_name, osquery::TEXT_TYPE)
 END_TABLE(bcc_process_events)
 // clang-format on
 
@@ -129,7 +131,10 @@ osquery::Status BCCProcessEvents::callback(
     BCCProcessEventsPublisher::EventContextRef event_context) {
   new_data = {};
 
-  for (const auto& process_event : event_context->event_list) {
+  for (const auto& p : event_context->event_list) {
+    const auto& timestamp = p.first;
+    const auto& process_event = p.second;
+
     if (process_event.type == ProcessEvent::Type::Fork &&
         !d->show_fork_events) {
       continue;
@@ -142,8 +147,10 @@ osquery::Status BCCProcessEvents::callback(
 
     osquery::Row row = {};
 
-    row["timestamp"] = std::to_string(process_event.timestamp);
+    row["timestamp"] = std::to_string(timestamp);
     row["pid"] = std::to_string(process_event.pid);
+    row["docker_container_id"] = process_event.docker_container_id;
+    row["docker_namespace_name"] = process_event.docker_namespace_name;
 
     if (process_event.type == ProcessEvent::Type::Exec) {
       row["type"] = "exec";

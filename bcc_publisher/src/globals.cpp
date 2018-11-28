@@ -7,7 +7,7 @@ BCCProcessEventsServiceRef process_events_service;
 
 osquery::Status initializeProcessEventsService() {
   return ServiceManager::instance().createService<BCCProcessEventsService>(
-      process_events_service, 2U);
+      process_events_service, 1U);
 }
 
 void releaseProcessEventsService() {

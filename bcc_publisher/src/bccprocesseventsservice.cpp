@@ -76,7 +76,7 @@ void BCCProcessEventsService::run() {
 
       {
         std::lock_guard<std::mutex> lock(mutex);
-        queue.insert(queue.end(), process_events.begin(), process_events.end());
+        queue.insert(process_events.begin(), process_events.end());
         cv.notify_all();
       }
     }
