@@ -15,18 +15,10 @@
  */
 
 #include "bccprocesseventspublisher.h"
+#include "globals.h"
 
 namespace trailofbits {
-struct BCCProcessEventsPublisher::PrivateData final {
-  BCCProcessEventsProgramRef program;
-};
-
-BCCProcessEventsPublisher::BCCProcessEventsPublisher() : d(new PrivateData) {
-  auto status = BCCProcessEventsProgram::create(d->program);
-  if (!status.ok()) {
-    throw status;
-  }
-}
+BCCProcessEventsPublisher::BCCProcessEventsPublisher() {}
 
 osquery::Status BCCProcessEventsPublisher::create(
     IEventPublisherRef& publisher) {
@@ -68,7 +60,10 @@ osquery::Status BCCProcessEventsPublisher::onSubscriberConfigurationChange(
 }
 
 osquery::Status BCCProcessEventsPublisher::updatePublisher() noexcept {
-  d->program->update();
+  auto new_events = process_events_service->getEvents(0U);
+  if (new_events.empty()) {
+    return osquery::Status(0);
+  }
 
   EventContextRef event_context;
   auto status = createEventContext(event_context);
@@ -76,7 +71,7 @@ osquery::Status BCCProcessEventsPublisher::updatePublisher() noexcept {
     return status;
   }
 
-  event_context->event_list = d->program->getEvents();
+  event_context->event_list = new_events;
   broadcastEvent(event_context);
 
   return osquery::Status(0);

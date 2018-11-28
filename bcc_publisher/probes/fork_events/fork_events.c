@@ -67,11 +67,11 @@ static int saveEventValue(u64 value) {
   initial_slot = index; // re-use the same var to avoid wasting stack space
   fork_cpu_index.update(&index_key, &initial_slot);
 
-  return TRUE;
+  return 0;
 }
 
 /// Saves namespace data into the per-cpu map
-static BOOL savePidNamespaceData(struct pid* pid) {
+static int savePidNamespaceData(struct pid* pid) {
   int index_key = 0U;
   u64 initial_slot = 0U;
   u64* index_ptr = fork_cpu_index.lookup_or_init(&index_key, &initial_slot);
@@ -91,7 +91,7 @@ static BOOL savePidNamespaceData(struct pid* pid) {
   initial_slot = index; // re-use the same var to avoid wasting stack space
   fork_cpu_index.update(&index_key, &initial_slot);
 
-  return TRUE;
+  return 0;
 }
 
 /// clone() handler

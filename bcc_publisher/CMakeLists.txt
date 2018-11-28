@@ -33,6 +33,12 @@ function(bccPublisherMain)
 
     src/bccprocessevents.h
     src/bccprocessevents.cpp
+
+    src/bccprocesseventsservice.h
+    src/bccprocesseventsservice.cpp
+
+    src/globals.h
+    src/globals.cpp
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})

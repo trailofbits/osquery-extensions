@@ -30,10 +30,6 @@
 
 #define EVENT_MAP_SIZE 20480
 
-#define BOOL int
-#define TRUE 1
-#define FALSE 0
-
 // clang-format off
 #define INCREMENT_EVENT_DATA_INDEX_BY(idx, amount) \
   idx = ((idx + amount) & 0x00FFFFFFUL) % EVENT_MAP_SIZE

@@ -22,6 +22,10 @@ BPF_PERF_OUTPUT(events);
 BPF_PERCPU_ARRAY(exec_event_data, u64, EVENT_MAP_SIZE);
 BPF_PERCPU_ARRAY(exec_cpu_index, u64, 1);
 
+#define BOOL int
+#define TRUE 1
+#define FALSE 0
+
 /// Saves the generic event header into the per-cpu map, returning the
 /// initial index
 static int saveEventHeader(u64 event_identifier,
@@ -61,7 +65,7 @@ static int saveEventHeader(u64 event_identifier,
 }
 
 /// Saves the given string into the per-cpu map
-static BOOL saveString(const char* buffer) {
+static int saveString(const char* buffer) {
   int index_key = 0U;
   u64 initial_slot = 0U;
   u64* index_ptr = exec_cpu_index.lookup_or_init(&index_key, &initial_slot);
@@ -75,7 +79,8 @@ static BOOL saveString(const char* buffer) {
 
   initial_slot = index; // re-use the same var to avoid wasting stack space
   exec_cpu_index.update(&index_key, &initial_slot);
-  return TRUE;
+
+  return 0;
 }
 
 /// Saves the string pointed to by the given address into the per-cpu
@@ -93,7 +98,7 @@ static BOOL saveStringFromAddress(char* buffer, const char* address) {
 
 /// Saves the truncation identifier into the per-cpu map; used for varargs
 /// functions likes execve
-static BOOL emitVarargsTerminator(BOOL truncated) {
+static int emitVarargsTerminator(BOOL truncated) {
   int index_key = 0U;
   u64 initial_slot = 0U;
   u64* index_ptr = exec_cpu_index.lookup_or_init(&index_key, &initial_slot);
@@ -105,7 +110,8 @@ static BOOL emitVarargsTerminator(BOOL truncated) {
 
   initial_slot = index; // re-use the same var to avoid wasting stack space
   exec_cpu_index.update(&index_key, &initial_slot);
-  return TRUE;
+
+  return 0;
 }
 
 /// Execve handlers

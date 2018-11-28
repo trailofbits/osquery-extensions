@@ -27,10 +27,6 @@
 #define VARARGS_TERMINATOR 0xFFFF0000FFFF0000ULL
 #define VARARGS_TRUNCATION 0x0011001100110011ULL
 
-#define BOOL int
-#define TRUE 1
-#define FALSE 0
-
 // clang-format off
 #define INCREMENT_EVENT_DATA_INDEX_BY(idx, amount) \
   idx = ((idx + amount) & 0x00FFFFFFUL) % EVENT_MAP_SIZE

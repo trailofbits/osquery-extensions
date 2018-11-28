@@ -32,10 +32,7 @@ class BCCProcessEventsPublisher final
     : public BaseEventPublisher<BCCProcessEventsPublisherSubscriptionContext,
                                 BCCProcessEventsPublisherData> {
  protected:
-  struct PrivateData;
-  std::unique_ptr<PrivateData> d;
-
-  explicit BCCProcessEventsPublisher();
+  BCCProcessEventsPublisher();
 
  public:
   static osquery::Status create(IEventPublisherRef& publisher);

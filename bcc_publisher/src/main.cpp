@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "globals.h"
+
 #include <pubsub/publisherregistry.h>
 #include <pubsub/publisherscheduler.h>
 #include <pubsub/servicemanager.h>
@@ -54,6 +56,12 @@ int main(int argc, char* argv[]) {
   osquery::Initializer runner(argc, argv, osquery::ToolType::EXTENSION);
 
   auto status = osquery::startExtension("bcc_publisher", "1.0.0");
+  if (!status.ok()) {
+    LOG(ERROR) << status.getMessage();
+    runner.requestShutdown(status.getCode());
+  }
+
+  status = trailofbits::initializeProcessEventsService();
   if (!status.ok()) {
     LOG(ERROR) << status.getMessage();
     runner.requestShutdown(status.getCode());
@@ -110,5 +118,7 @@ int main(int argc, char* argv[]) {
   }
 
   trailofbits::ServiceManager::instance().stop();
+  trailofbits::releaseProcessEventsService();
+
   return 0;
 }
