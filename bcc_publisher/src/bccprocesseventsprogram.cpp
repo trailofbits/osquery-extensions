@@ -43,6 +43,16 @@ const KprobeDescriptorList kForkEventsKprobeList = {
 // clang-format on
 
 // clang-format off
+const TracepointDescriptorList kExecEventsTracepointList = {
+  {"syscalls:sys_enter_execve"},
+  {"syscalls:sys_exit_execve"},
+
+  {"syscalls:sys_enter_execveat"},
+  {"syscalls:sys_exit_execveat"}
+};
+// clang-format on
+
+// clang-format off
 const TracepointDescriptorList kForkEventsTracepointList = {
   {"syscalls:sys_enter_clone"},
   {"syscalls:sys_exit_clone"},
@@ -55,16 +65,6 @@ const TracepointDescriptorList kForkEventsTracepointList = {
 
   {"syscalls:sys_enter_exit"},
   {"syscalls:sys_enter_exit_group"}
-};
-// clang-format on
-
-// clang-format off
-const TracepointDescriptorList kExecEventsTracepointList = {
-  {"syscalls:sys_enter_execve"},
-  {"syscalls:sys_exit_execve"},
-
-  {"syscalls:sys_enter_execveat"},
-  {"syscalls:sys_exit_execveat"}
 };
 // clang-format on
 
@@ -114,7 +114,7 @@ struct BCCProcessEventsProgram::PrivateData final {
 
   BCCProcessEventsContext syscall_event_context;
   DockerTracker docker_tracker;
-  ProcessEventList process_events;
+  std::map<std::uint64_t, SyscallEvent> syscall_event_list;
 };
 
 BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
@@ -272,15 +272,48 @@ BCCProcessEventsProgram::~BCCProcessEventsProgram() {
 }
 
 void BCCProcessEventsProgram::update() {
-  d->fork_events_perf_buffer->poll(100);
-  d->exec_events_perf_buffer->poll(100);
+  const int kPollTime = 100;
+
+  const std::vector<ebpf::BPFPerfBuffer*> kPerfBufferList = {
+      d->fork_events_perf_buffer, d->exec_events_perf_buffer};
+
+  for (auto perf_buffer : kPerfBufferList) {
+    perf_buffer->poll(kPollTime);
+  }
 }
 
 ProcessEventList BCCProcessEventsProgram::getEvents() {
-  auto new_events = std::move(d->process_events);
-  d->process_events.clear();
+  ProcessEventList process_event_list;
 
-  return new_events;
+  auto syscall_event_list = std::move(d->syscall_event_list);
+  d->syscall_event_list.clear();
+
+  for (const auto& p : syscall_event_list) {
+    const auto& syscall_event = p.second;
+
+    ProcessEvent process_event = {};
+    auto status = processSyscallEvent(
+        process_event, d->syscall_event_context, syscall_event);
+
+    if (status.getCode() != 1) {
+      d->docker_tracker.processEvent(process_event);
+    }
+
+    if (status.getCode() == 2) {
+      continue;
+
+    } else if (status.getCode() != 0) {
+      LOG(ERROR) << "Failed to process the event: " << status.getMessage();
+      continue;
+    }
+
+    d->docker_tracker.processEvent(process_event);
+
+    auto timestamp = process_event.timestamp;
+    process_event_list.insert({timestamp, std::move(process_event)});
+  }
+
+  return process_event_list;
 }
 
 osquery::Status BCCProcessEventsProgram::readSyscallEventHeader(
@@ -322,6 +355,7 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventHeader(
       int exit_code = 0;
       readSyscallEventData(
           exit_code, current_index, event_data_table, cpu_index);
+
       event_header.exit_code = exit_code;
     }
 
@@ -797,8 +831,6 @@ void BCCProcessEventsProgram::processPerfEvent(
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     const std::uint32_t* event_identifiers,
     std::size_t event_identifier_count) {
-  ProcessEventList new_events;
-
   for (std::size_t i = 0U; i < event_identifier_count; ++i) {
     SyscallEvent event = {};
     auto status =
@@ -809,28 +841,8 @@ void BCCProcessEventsProgram::processPerfEvent(
       continue;
     }
 
-    ProcessEvent process_event = {};
-    status =
-        processSyscallEvent(process_event, d->syscall_event_context, event);
-    if (status.getCode() != 1) {
-      d->docker_tracker.processEvent(process_event);
-    }
-
-    if (status.getCode() == 2) {
-      continue;
-
-    } else if (status.getCode() != 0) {
-      LOG(ERROR) << "Failed to process the event: " << status.getMessage();
-      continue;
-    }
-
-    new_events.insert({process_event.timestamp, process_event});
-  }
-
-  for (auto& p : new_events) {
-    auto& event = p.second;
-    d->docker_tracker.processEvent(event);
-    d->process_events.insert(std::move(p));
+    auto timestamp = event.header.timestamp;
+    d->syscall_event_list.insert({timestamp, std::move(event)});
   }
 }
 } // namespace trailofbits

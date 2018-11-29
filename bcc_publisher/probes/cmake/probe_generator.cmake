@@ -28,7 +28,7 @@ function(probeGenerator)
   endif()
 
   execute_process(
-    COMMAND sh -c "echo -n > '${probeGenerator_destination}'"
+    COMMAND sh -c "echo -n > '${probeGenerator_destination}'\n\n"
     COMMAND sh -c "echo '#include <string>\n\nstatic const std::string ${probeGenerator_probeVariableName} = R\"PROBE_SOURCE(' >> '${probeGenerator_destination}'"
   )
 

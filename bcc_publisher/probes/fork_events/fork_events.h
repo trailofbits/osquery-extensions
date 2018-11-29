@@ -28,11 +28,14 @@
 #define EVENTID_SYSENTEREXIT 0xFF00FF07
 #define EVENTID_SYSENTEREXITGROUP 0xFF00FF08
 
-#define EVENT_MAP_SIZE 20480
+#define EVENT_MAP_SIZE 1000000
 
 // clang-format off
 #define INCREMENT_EVENT_DATA_INDEX_BY(idx, amount) \
   idx = ((idx + amount) & 0x00FFFFFFUL) % EVENT_MAP_SIZE
 // clang-format on
 
-#define INCREMENT_EVENT_DATA_INDEX(idx) INCREMENT_EVENT_DATA_INDEX_BY(idx, 1)
+// clang-format off
+#define INCREMENT_EVENT_DATA_INDEX(idx) \
+  INCREMENT_EVENT_DATA_INDEX_BY(idx, 1)
+// clang-format on
