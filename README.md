@@ -4,9 +4,9 @@ This repository includes [osquery](https://osquery.io/) [extensions](https://osq
 
 [Extensions](https://osquery.readthedocs.io/en/stable/deployment/extensions/) are a type of osquery add-on that can be loaded at runtime to provide new virtual tables. The extensions interface allows organizations to implement proprietary detection methods, or address their individual needs. Here, we use it to demonstrate other pioneering use cases of osquery.
 
-In extensions, we can add capabilities that go beyond what would be possible in osquery core. Trail of Bits has developed extensions to provide tables that can _manage_ service configurations as well as _view_ them, or that can cross-check information on the host with external third-party services. 
+In extensions, we can add capabilities that go beyond what would be possible in osquery core. Trail of Bits has developed extensions to provide tables that can _manage_ service configurations as well as _view_ them, or that can cross-check information on the host with external third-party services.
 
-To learn more about osquery extensions development and why developing outside of 'core' is encouraged for demonstrating new use cases or novel functionality, view our talk ([slides](https://github.com/trailofbits/presentations/tree/master/Osquery%20Extensions), [video](https://www.youtube.com/watch?v=g46rjoP18EE)) from QueryCon 2018. 
+To learn more about osquery extensions development and why developing outside of 'core' is encouraged for demonstrating new use cases or novel functionality, view our talk ([slides](https://github.com/trailofbits/presentations/tree/master/Osquery%20Extensions), [video](https://www.youtube.com/watch?v=g46rjoP18EE)) from QueryCon 2018.
 
 | Extension            | Description | Supported Endpoints |
 |          :-:         |    :-:      |         :-:         |
@@ -16,6 +16,7 @@ To learn more about osquery extensions development and why developing outside of
 | ntfs_forensics       | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
 | windows_sync_objects | Provides osquery with the ability of listing and locking Windows synchronization objects (mutants, events, semaphores). | Windows |
 | darwin_unified_log   | Provides an event driven table that contains entries from the unified system log on MacOS. | macOS |
+| iptables             | Provides a superset of the information supplied by the default `iptables` table | Linux |
 | (more to come)       | ...  | ...   |
 
 Experimental extensions:
@@ -89,7 +90,7 @@ make sysprep
 make deps
 
 # If using macOS, replace `nproc` with `sysctl -n hw.ncpu`
-make -j `nproc` 
+make -j `nproc`
 ```
 
 ### Windows
@@ -131,7 +132,7 @@ This is where the extension should be available once it has been built:
 
 ## Running the automated tests
 
-macOS or Linux: once osquery has been built with tests enabled (*i.e.*, *without* the `SKIP_TESTS` variable), enter the build/<platform_name> folder and run the following command: `make trailofbits_extensions_tests`. 
+macOS or Linux: once osquery has been built with tests enabled (*i.e.*, *without* the `SKIP_TESTS` variable), enter the build/<platform_name> folder and run the following command: `make trailofbits_extensions_tests`.
 
 Windows: tests are not yet supported on Windows.
 
