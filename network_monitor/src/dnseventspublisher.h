@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "pcap_utils.h"
+
 #include <pubsub/publisherregistry.h>
 #include <pubsub/servicemanager.h>
 
@@ -140,6 +142,11 @@ class DNSEventsPublisher final
 
   /// Worker method; should perform some work and then return
   osquery::Status run() noexcept override;
+
+  /// Generates new DNS events from the given TCP stream
+  /// Notes: we can't use const since Pcap++ expects writable buffers
+  static osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
+                                                  ByteVector& tcp_stream);
 
   /// Disable the copy constructor
   DNSEventsPublisher(const DNSEventsPublisher& other) = delete;

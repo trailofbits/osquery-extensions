@@ -15,14 +15,12 @@
 cmake_minimum_required(VERSION 3.12)
 project(network_monitor)
 
-function(main)
+function(networkMonitorMain)
   #
   # Source files
   #
 
-  set(source_files
-    src/main.cpp
-
+  set(common_source_files
     src/dnseventspublisher.h
     src/dnseventspublisher.cpp
 
@@ -36,7 +34,10 @@ function(main)
     src/pcapreaderservice.cpp
   )
 
-  add_osquery_extension("${PROJECT_NAME}" ${source_files})
+  add_osquery_extension("${PROJECT_NAME}"
+    src/main.cpp
+    ${common_source_files}
+  )
 
   #
   # Dependencies
@@ -53,4 +54,4 @@ function(main)
   target_link_libraries("${PROJECT_NAME}" ${libraries})
 endfunction()
 
-main()
+networkMonitorMain()

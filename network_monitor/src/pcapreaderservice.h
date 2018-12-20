@@ -32,9 +32,6 @@
 #include <sys/time.h>
 
 namespace trailofbits {
-/// A vector of bytes
-using ByteVector = std::vector<std::uint8_t>;
-
 /// Used to keep track of a TCP conversation between two hosts
 struct TcpConversation final {
   /// Contains data about the connection (such as ip addresses and ports)

@@ -67,4 +67,7 @@ osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
 osquery::Status waitForNewPackets(bool& timed_out,
                                   PcapRef& ref,
                                   std::size_t msecs);
+
+/// A vector of bytes
+using ByteVector = std::vector<std::uint8_t>;
 } // namespace trailofbits

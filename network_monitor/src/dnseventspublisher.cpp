@@ -86,50 +86,6 @@ DnsEvent generateDnsEvent(pcpp::ProtocolType protocol,
   return dns_event;
 }
 
-/// Generates new DNS events from the given TCP stream
-/// Notes: we can't use const since Pcap++ expects writable buffers
-osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
-                                                  ByteVector& tcp_stream) {
-  try {
-    dns_event_list = {};
-
-    auto buffer_ptr = tcp_stream.data();
-    auto buffer_end = buffer_ptr + tcp_stream.size();
-
-    while (buffer_ptr < buffer_end) {
-      if (buffer_ptr + 2U > buffer_end) {
-        return osquery::Status(1, "Missing request size in TCP stream");
-      }
-
-      auto chunk_size = *reinterpret_cast<const std::uint16_t*>(buffer_ptr);
-      chunk_size = htons(chunk_size);
-
-      auto chunk_start = buffer_ptr + 2U;
-      auto chunk_end = chunk_start + chunk_size;
-
-      if (chunk_end > buffer_end) {
-        return osquery::Status(1, "Invalid request size in TCP stream");
-      }
-
-      // The DnsLayer wil always attempt to free the buffer
-      auto* temp_buffer = new std::uint8_t[chunk_size];
-      std::memcpy(temp_buffer, chunk_start, chunk_size);
-
-      pcpp::DnsLayer dns_layer(temp_buffer, chunk_size, nullptr, nullptr);
-
-      auto dns_event = generateDnsEvent(pcpp::TCP, &dns_layer);
-      dns_event_list.push_back(dns_event);
-
-      buffer_ptr = chunk_end;
-    }
-
-    return osquery::Status(0);
-
-  } catch (const std::bad_alloc&) {
-    return osquery::Status(1, "Memory allocation failure");
-  }
-}
-
 void appendDnsEventListFromTCPConversation(DnsEventList& dns_event_list,
                                            TcpConversation& tcp_conversation) {
   std::vector<std::reference_wrapper<ByteVector>> stream_list = {
@@ -140,7 +96,7 @@ void appendDnsEventListFromTCPConversation(DnsEventList& dns_event_list,
 
   for (auto& stream_data : stream_list) {
     DnsEventList new_events = {};
-    auto status = generateDnsEventListFromTCPStream(new_events, stream_data);
+    auto status = DNSEventsPublisher::generateDnsEventListFromTCPStream(new_events, stream_data);
 
     if (!status.ok()) {
       LOG(ERROR) << status.getMessage();
@@ -287,5 +243,47 @@ osquery::Status DNSEventsPublisher::run() noexcept {
 
   emitEvents(event_context);
   return osquery::Status(0);
+}
+
+osquery::Status DNSEventsPublisher::generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
+                                                  ByteVector& tcp_stream) {
+  try {
+    dns_event_list = {};
+
+    auto buffer_ptr = tcp_stream.data();
+    auto buffer_end = buffer_ptr + tcp_stream.size();
+
+    while (buffer_ptr < buffer_end) {
+      if (buffer_ptr + 2U > buffer_end) {
+        return osquery::Status(1, "Missing request size in TCP stream");
+      }
+
+      auto chunk_size = *reinterpret_cast<const std::uint16_t*>(buffer_ptr);
+      chunk_size = htons(chunk_size);
+
+      auto chunk_start = buffer_ptr + 2U;
+      auto chunk_end = chunk_start + chunk_size;
+
+      if (chunk_end > buffer_end) {
+        return osquery::Status(1, "Invalid request size in TCP stream");
+      }
+
+      // The DnsLayer wil always attempt to free the buffer
+      auto* temp_buffer = new std::uint8_t[chunk_size];
+      std::memcpy(temp_buffer, chunk_start, chunk_size);
+
+      pcpp::DnsLayer dns_layer(temp_buffer, chunk_size, nullptr, nullptr);
+
+      auto dns_event = generateDnsEvent(pcpp::TCP, &dns_layer);
+      dns_event_list.push_back(dns_event);
+
+      buffer_ptr = chunk_end;
+    }
+
+    return osquery::Status(0);
+
+  } catch (const std::bad_alloc&) {
+    return osquery::Status(1, "Memory allocation failure");
+  }
 }
 } // namespace trailofbits

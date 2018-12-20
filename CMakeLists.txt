@@ -18,6 +18,9 @@ project("traiofbits_extensions")
 set(ROOT_TEST_TARGET "trailofbits_extensions_tests")
 add_custom_target("${ROOT_TEST_TARGET}")
 
+set(ROOT_FUZZ_TARGET "trailofbits_extensions_fuzzers")
+add_custom_target("${ROOT_FUZZ_TARGET}")
+
 set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(ENV{OSQUERY_EXTENSION_GROUP_NAME} "trailofbits_osquery_extensions")
