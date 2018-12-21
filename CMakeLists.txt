@@ -21,7 +21,7 @@ add_custom_target("${ROOT_TEST_TARGET}")
 set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(ENV{OSQUERY_EXTENSION_GROUP_NAME} "trailofbits_osquery_extensions")
-set(ENV{OSQUERY_EXTENSION_GROUP_VERSION} "1.0")
+set(ENV{OSQUERY_EXTENSION_GROUP_VERSION} "1.2")
 
 function(trailofbitsExtensionsMain)
   message(STATUS "================================")
