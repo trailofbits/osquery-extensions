@@ -177,7 +177,7 @@ osquery::Status DNSEventsSubscriber::create(IEventSubscriberRef& subscriber) {
     return osquery::Status(0);
 
   } catch (const std::bad_alloc&) {
-    return osquery::Status(1, "Memory allocation failure");
+    return osquery::Status::failure("Memory allocation failure");
 
   } catch (const osquery::Status& status) {
     return status;

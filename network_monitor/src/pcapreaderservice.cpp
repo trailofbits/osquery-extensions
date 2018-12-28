@@ -127,7 +127,8 @@ osquery::Status PcapReaderService::configure(
 
   auto pcap_link_type = pcap_datalink(pcap.get());
   if (pcap_link_type == PCAP_ERROR_NOT_ACTIVATED) {
-    return osquery::Status(1, "Failed to acquire the link-layer header type");
+    return osquery::Status::failure(
+        "Failed to acquire the link-layer header type");
   }
 
   bool valid_link_header_type = false;
@@ -155,7 +156,7 @@ osquery::Status PcapReaderService::configure(
   }
 
   if (!valid_link_header_type) {
-    return osquery::Status(1, "Invalid link-layer header type");
+    return osquery::Status::failure("Invalid link-layer header type");
   }
 
   status = getNetworkDeviceInformation(device_information, interface_name);
@@ -195,7 +196,7 @@ osquery::Status PcapReaderService::configure(
     auto error_message = std::string("Failed to compile the eBPF filter: ") +
                          pcap_geterr(pcap.get());
 
-    return osquery::Status(1, error_message);
+    return osquery::Status::failure(error_message);
   }
 
   if (pcap_setfilter(pcap.get(), &ebpf_filter_program) != 0) {
@@ -203,7 +204,7 @@ osquery::Status PcapReaderService::configure(
         std::string("Failed to enable the eBPF filter program: ") +
         pcap_geterr(pcap.get());
 
-    return osquery::Status(1, error_message);
+    return osquery::Status::failure(error_message);
   }
 
   static auto L_onTcpMessageReady =

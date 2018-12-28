@@ -31,19 +31,19 @@ osquery::Status createPcap(PcapRef& ref,
 
   auto ptr = pcap_create(device_name.c_str(), error_message);
   if (ptr == nullptr) {
-    return osquery::Status(1, error_message);
+    return osquery::Status::failure(error_message);
   }
 
   if (pcap_set_timeout(ptr, packet_capture_timeout) != 0) {
-    return osquery::Status(1, "Failed to set the capture timeout");
+    return osquery::Status::failure("Failed to set the capture timeout");
   }
 
   if (pcap_set_buffer_size(ptr, capture_buffer_size) != 0) {
-    return osquery::Status(1, "Failed to set the capture buffer size");
+    return osquery::Status::failure("Failed to set the capture buffer size");
   }
 
   if (pcap_activate(ptr) < 0) {
-    return osquery::Status(1, "Failed to activate the pcap handle");
+    return osquery::Status::failure("Failed to activate the pcap handle");
   }
 
   ref.reset(ptr);
@@ -66,11 +66,11 @@ osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
   char error_message[PCAP_ERRBUF_SIZE] = {};
 
   if (pcap_findalldevs(&interface_list, error_message) != 0) {
-    return osquery::Status(1, error_message);
+    return osquery::Status::failure(error_message);
   }
 
   if (interface_list == nullptr) {
-    return osquery::Status(1, "No device found");
+    return osquery::Status::failure("No device found");
   }
 
   pcap_if_t* pcap_dev_info = nullptr;
@@ -89,7 +89,7 @@ osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
   }
 
   if (pcap_dev_info == nullptr) {
-    return osquery::Status(1, "The specified device was not found");
+    return osquery::Status::failure("The specified device was not found");
   }
 
   dev_info.name = pcap_dev_info->name;
@@ -116,16 +116,14 @@ osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
     if (inet_ntop(
             address_family, address_ptr, ip_address, sizeof(ip_address)) ==
         nullptr) {
-      return osquery::Status(
-          false,
+      return osquery::Status::failure(
           "Failed to acquire the ip address for the specified interface");
     }
 
     char netmask[INET6_ADDRSTRLEN];
     if (inet_ntop(address_family, netmask_ptr, netmask, sizeof(netmask)) ==
         nullptr) {
-      return osquery::Status(
-          false,
+      return osquery::Status::failure(
           "Failed to acquire the ip address for the specified interface");
     }
 
@@ -148,7 +146,7 @@ osquery::Status waitForNewPackets(bool& timed_out,
 
   auto pcap_fd = pcap_get_selectable_fd(ref.get());
   if (pcap_fd == -1) {
-    return osquery::Status(1, "Not supported on this platform");
+    return osquery::Status::failure("Not supported on this platform");
   }
 
   pollfd fds[] = {{pcap_fd, POLLIN, 0}};
@@ -163,8 +161,8 @@ osquery::Status waitForNewPackets(bool& timed_out,
     timed_out = true;
 
     if (errno != EINTR) {
-      return osquery::Status(
-          1, "poll() failed with error " + std::to_string(errno));
+      return osquery::Status::failure("poll() failed with error " +
+                                      std::to_string(errno));
     } else {
       return osquery::Status(0);
     }
