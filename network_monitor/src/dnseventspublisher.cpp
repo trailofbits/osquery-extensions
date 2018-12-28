@@ -17,11 +17,95 @@
 #include "dnseventspublisher.h"
 #include "pcapreaderservice.h"
 
+#include <osquery/sql.h>
+
 #include <IPv4Layer.h>
 #include <IPv6Layer.h>
 
+#include <grp.h>
+#include <pwd.h>
+#include <sys/types.h>
+
 namespace trailofbits {
 namespace {
+bool privileges_dropped = false;
+
+/// Returns the UID and primary GID for the nobody user
+bool getUserAndGroupIDs(uid_t& uid, gid_t& gid, const std::string& username) {
+  auto s =
+      static_cast<std::size_t>(sysconf(_SC_GETPW_R_SIZE_MAX) * sizeof(char));
+  std::vector<char> buffer(s);
+
+  struct passwd passwd_entry = {};
+  struct passwd* passwd_entry_ptr = nullptr;
+  if (getpwnam_r(username.c_str(),
+                 &passwd_entry,
+                 buffer.data(),
+                 buffer.size(),
+                 &passwd_entry_ptr) != 0 ||
+      passwd_entry_ptr == nullptr) {
+    LOG(ERROR)
+        << "Failed to determine the UID/GID for tob_network_monitor_ext. Have "
+           "the user and group been created?";
+    return false;
+  }
+
+  uid = passwd_entry.pw_uid;
+  gid = passwd_entry.pw_gid;
+
+  return true;
+}
+
+/// Drops to the nobody user
+bool dropToUser(const std::string& unprivileged_username) {
+  auto query_data = osquery::SQL::selectFrom({"value", "default"},
+                                             "osquery_flags",
+                                             "name",
+                                             osquery::EQUALS,
+                                             "extensions_socket");
+  if (query_data.size() != 1U) {
+    LOG(ERROR) << "Could not query the osquery_flags table";
+    return false;
+  }
+
+  const auto& first_row = query_data.at(0);
+  if (first_row.at("default_value").empty() && first_row.at("value").empty()) {
+    LOG(ERROR) << "No data returned";
+    return false;
+  }
+
+  std::string extension_manager_socket =
+      (!first_row.at("value").empty() ? first_row.at("value")
+                                      : first_row.at("default_value"));
+
+  uid_t uid = 0U;
+  gid_t gid = 0U;
+
+  if (!getUserAndGroupIDs(uid, gid, unprivileged_username)) {
+    return false;
+  }
+
+  if (chown(extension_manager_socket.c_str(), 0, gid) != 0) {
+    return false;
+  }
+
+  if (chmod(extension_manager_socket.c_str(), 0770) != 0) {
+    return false;
+  }
+
+  // clang-format off
+  if (initgroups(unprivileged_username.c_str(), gid) != 0 ||
+      setgid(gid) != 0 ||
+      setuid(uid) != 0 ||
+      setuid(0) != -1) {
+
+    return false;
+  }
+  // clang-format on
+
+  return true;
+}
+
 /// Generates a list of questions from the given DnsLayer
 /// We can't use const as the methods we need in DnsLayer are not marked const
 DnsEvent::QuestionList generateDnsQuestionList(pcpp::DnsLayer* dns_layer) {
@@ -98,7 +182,7 @@ osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
 
     while (buffer_ptr < buffer_end) {
       if (buffer_ptr + 2U > buffer_end) {
-        return osquery::Status(1, "Missing request size in TCP stream");
+        return osquery::Status::failure("Missing request size in TCP stream");
       }
 
       auto chunk_size = *reinterpret_cast<const std::uint16_t*>(buffer_ptr);
@@ -108,7 +192,7 @@ osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
       auto chunk_end = chunk_start + chunk_size;
 
       if (chunk_end > buffer_end) {
-        return osquery::Status(1, "Invalid request size in TCP stream");
+        return osquery::Status::failure("Invalid request size in TCP stream");
       }
 
       // The DnsLayer wil always attempt to free the buffer
@@ -126,7 +210,7 @@ osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
     return osquery::Status(0);
 
   } catch (const std::bad_alloc&) {
-    return osquery::Status(1, "Memory allocation failure");
+    return osquery::Status::failure("Memory allocation failure");
   }
 }
 
@@ -186,7 +270,7 @@ osquery::Status DNSEventsPublisher::create(IEventPublisherRef& publisher) {
     return osquery::Status(0);
 
   } catch (const std::bad_alloc&) {
-    return osquery::Status(1, "Memory allocation failure");
+    return osquery::Status::failure("Memory allocation failure");
 
   } catch (const osquery::Status& status) {
     return status;
@@ -204,7 +288,34 @@ osquery::Status DNSEventsPublisher::release() noexcept {
 
 osquery::Status DNSEventsPublisher::configure(
     const json11::Json& configuration) noexcept {
-  return d->pcap_reader_service->configure(configuration);
+  if (!configuration.is_object()) {
+    return osquery::Status::failure("Invalid configuration");
+  }
+
+  const auto& unprivileged_user_obj = configuration["user"];
+  if (unprivileged_user_obj == json11::Json()) {
+    return osquery::Status::failure(
+        "The 'user' configuration option is missing");
+  }
+
+  auto unprivileged_user = unprivileged_user_obj.string_value();
+
+  if (privileges_dropped) {
+    LOG(WARNING) << "Configuration has changed; requesting a restart...";
+    exit(1);
+  }
+
+  auto status = d->pcap_reader_service->configure(configuration);
+  if (!status.ok()) {
+    return status;
+  }
+
+  if (!dropToUser(unprivileged_user)) {
+    return osquery::Status::failure("Failed to drop privileges");
+  }
+
+  privileges_dropped = true;
+  return osquery::Status(0);
 }
 
 osquery::Status DNSEventsPublisher::run() noexcept {
