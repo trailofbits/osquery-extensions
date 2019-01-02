@@ -111,15 +111,29 @@ osquery::Status PcapReaderService::configure(
   if (interface_name_obj == json11::Json()) {
     LOG(ERROR)
         << "The 'interface' value is missing from the 'dns_events' section";
+
     return osquery::Status(0);
   }
 
   auto interface_name = interface_name_obj.string_value();
 
+  const auto& promiscuous_mode_obj = dns_event_configuration["promiscuous"];
+  if (promiscuous_mode_obj == json11::Json()) {
+    LOG(ERROR)
+        << "The 'promiscuous' value is missing from the 'dns_events' section";
+
+    return osquery::Status(0);
+  }
+
+  auto promiscuous_mode = promiscuous_mode_obj.bool_value();
+
   std::lock_guard<std::mutex> lock(pcap_mutex);
 
-  auto status = createPcap(
-      pcap, interface_name, kCaptureBufferSize, kCaptureBufferTimeout);
+  auto status = createPcap(pcap,
+                           interface_name,
+                           kCaptureBufferSize,
+                           kCaptureBufferTimeout,
+                           promiscuous_mode);
 
   if (!status.ok()) {
     return status;

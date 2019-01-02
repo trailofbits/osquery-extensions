@@ -57,7 +57,8 @@ struct NetworkDeviceInformation final {
 osquery::Status createPcap(PcapRef& ref,
                            const std::string& device_name,
                            int capture_buffer_size,
-                           int packet_capture_timeout);
+                           int packet_capture_timeout,
+                           bool promiscuous_mode);
 
 /// Returns the device information for the specified network interface
 osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
