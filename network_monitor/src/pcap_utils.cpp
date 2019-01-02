@@ -16,6 +16,8 @@
 
 #include "pcap_utils.h"
 
+#include <osquery/logger.h>
+
 #include <arpa/inet.h>
 #include <poll.h>
 #include <sys/socket.h>
@@ -24,7 +26,8 @@ namespace trailofbits {
 osquery::Status createPcap(PcapRef& ref,
                            const std::string& device_name,
                            int capture_buffer_size,
-                           int packet_capture_timeout) {
+                           int packet_capture_timeout,
+                           bool promiscuous_mode) {
   ref.reset();
 
   char error_message[PCAP_ERRBUF_SIZE] = {};
@@ -32,6 +35,14 @@ osquery::Status createPcap(PcapRef& ref,
   auto ptr = pcap_create(device_name.c_str(), error_message);
   if (ptr == nullptr) {
     return osquery::Status::failure(error_message);
+  }
+
+  if (promiscuous_mode) {
+    if (pcap_set_promisc(ptr, 1) != 0) {
+      return osquery::Status::failure("Failed to enable the promiscuous mode");
+    }
+
+    LOG(WARNING) << "Promiscuous mode has been enabled";
   }
 
   if (pcap_set_timeout(ptr, packet_capture_timeout) != 0) {
