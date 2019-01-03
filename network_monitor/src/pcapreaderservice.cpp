@@ -32,12 +32,6 @@ const int kCaptureBufferSize = 1048576;
 /// The buffer timeout is used to aggregate multiple packets into a single event
 const int kCaptureBufferTimeout = 1000;
 
-/// Max TCP conversation size
-const std::size_t kMaxTcpConversationLength = 10240U;
-
-/// When an inactive connection should be forcefully dropped
-const std::size_t kMaxTcpConversationIdleTime = 30U;
-
 /// The eBPF program used to filter the packets
 const std::string kFilterRules = "port 53 and (tcp or udp)";
 } // namespace
@@ -52,7 +46,7 @@ void PcapReaderService::onTcpMessageReady(int side,
   auto& stream_buffer =
       (side == 1) ? conversation.received_data : conversation.sent_data;
 
-  if (stream_buffer.size() >= kMaxTcpConversationLength) {
+  if (stream_buffer.size() >= max_tcp_conversation_length) {
     pending_tcp_conversation_map.erase(conversation_id);
     tcp_conversation_timestamp_map.erase(conversation_id);
 
@@ -156,6 +150,30 @@ osquery::Status PcapReaderService::configure(
   }
 
   auto promiscuous_mode = promiscuous_mode_obj.bool_value();
+
+  const auto& max_tcp_conv_length_obj =
+      dns_event_configuration["max_tcp_conversation_length"];
+  if (max_tcp_conv_length_obj == json11::Json()) {
+    LOG(ERROR) << "The 'max_tcp_conversation_length' value is missing from the "
+                  "'dns_events' section";
+
+    return osquery::Status(0);
+  }
+
+  max_tcp_conversation_length =
+      static_cast<std::size_t>(max_tcp_conv_length_obj.int_value());
+
+  const auto& max_tcp_conv_idle_time_obj =
+      dns_event_configuration["max_tcp_conversation_idle_time"];
+  if (max_tcp_conv_idle_time_obj == json11::Json()) {
+    LOG(ERROR) << "The 'max_tcp_conversation_idle_time' value is missing from "
+                  "the 'dns_events' section";
+
+    return osquery::Status(0);
+  }
+
+  max_tcp_conversation_idle_time =
+      static_cast<std::size_t>(max_tcp_conv_idle_time_obj.int_value());
 
   std::lock_guard<std::mutex> lock(pcap_mutex);
 
@@ -406,7 +424,7 @@ void PcapReaderService::run() {
       const auto& last_update = it->second;
 
       auto elapsed_time = static_cast<std::size_t>(current_time - last_update);
-      if (elapsed_time > kMaxTcpConversationIdleTime) {
+      if (elapsed_time > max_tcp_conversation_idle_time) {
         it = tcp_conversation_timestamp_map.erase(it);
 
         pending_tcp_conversation_map.erase(conversation_id);
