@@ -15,8 +15,8 @@ The configuration file is located at the following path: `/var/osquery/extension
 }
 ```
 
-**user**: This user will be used to drop privileges.
-**interface**: Interface to monitor. Currently, only one is supported.
+**user**: This user will be used to drop privileges.  
+**interface**: Interface to monitor. Currently, only one is supported.  
 **promiscuous**: If enabled, the table will also be able to report DNS requests/answers from other machines on the same network. **You should always consult the network administrator when enabling this setting!**
 
 # Dropping privileges
