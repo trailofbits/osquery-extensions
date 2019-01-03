@@ -5,6 +5,7 @@ function(CommonPlusPlusMain)
   set(public_headers_folder "${PCAPPLUSPLUS_ROOT}/Common++/header")
 
   set(public_header_files
+    "${public_headers_folder}/GeneralUtils.h"
     "${public_headers_folder}/IpAddress.h"
     "${public_headers_folder}/IpUtils.h"
     "${public_headers_folder}/Logger.h"
@@ -18,6 +19,7 @@ function(CommonPlusPlusMain)
   )
 
   set(source_files
+    "${PCAPPLUSPLUS_ROOT}/Common++/src/GeneralUtils.cpp"
     "${PCAPPLUSPLUS_ROOT}/Common++/src/IpAddress.cpp"
     "${PCAPPLUSPLUS_ROOT}/Common++/src/IpUtils.cpp"
     "${PCAPPLUSPLUS_ROOT}/Common++/src/Logger.cpp"

@@ -48,7 +48,7 @@ function(PcapPlusPlusMain)
   target_compile_options("${PROJECT_NAME}" PRIVATE -Wno-error)
   target_include_directories("${PROJECT_NAME}" PUBLIC ${public_include_folders})
   target_compile_definitions("${PROJECT_NAME}" PUBLIC LINUX)
-  target_link_libraries("${PROJECT_NAME}" PUBLIC pcap Common++ Packet++ light_pcapng)
+  target_link_libraries("${PROJECT_NAME}" PUBLIC pcap Common++ Packet++ light_pcapng EndianPortable)
 endfunction()
 
 PcapPlusPlusMain()
