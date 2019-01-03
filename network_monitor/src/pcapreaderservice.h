@@ -111,6 +111,9 @@ class PcapReaderService final : public IService {
   /// Completed TCP conversations
   TcpConversationMap completed_tcp_conversation_map;
 
+  /// When the last update on each TCP conversation has happened
+  std::map<TcpConversationId, std::time_t> tcp_conversation_timestamp_map;
+
   /// Automatically called by the TCP reassembler when new data is available
   void onTcpMessageReady(int side, pcpp::TcpStreamData tcp_data);
 
