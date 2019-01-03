@@ -10,14 +10,19 @@ The configuration file is located at the following path: `/var/osquery/extension
 
   "dns_events": {
     "interface": "eth0",
-    "promiscuous": false
+    "promiscuous": false,
+
+    "max_tcp_conversation_length": 10240,
+    "max_tcp_conversation_idle_time": 300
   }
 }
 ```
 
-**user**: This user will be used to drop privileges.
-**interface**: Interface to monitor. Currently, only one is supported.
-**promiscuous**: If enabled, the table will also be able to report DNS requests/answers from other machines on the same network. **You should always consult the network administrator when enabling this setting!**
+**user**: This user will be used to drop privileges.  
+**interface**: Interface to monitor. Currently, only one is supported.  
+**promiscuous**: If enabled, the table will also be able to report DNS requests/answers from other machines on the same network. **You should always consult the network administrator when enabling this setting!**  
+**max_tcp_conversation_length**: TCP conversations that are bigger than this amount of bytes will be ignored.  
+**max_tcp_conversation_idle_time**: TCP conversations that have been idle for this amount of seconds will be ignored.  
 
 # Dropping privileges
 During startup, the extension will perform the following tasks:

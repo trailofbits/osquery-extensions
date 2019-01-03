@@ -56,7 +56,7 @@ bool getUserAndGroupIDs(uid_t& uid, gid_t& gid, const std::string& username) {
   return true;
 }
 
-/// Drops to the nobody user
+/// Drops to the unprivileged user
 bool dropToUser(const std::string& unprivileged_username) {
   auto query_data = osquery::SQL::selectFrom({"value", "default"},
                                              "osquery_flags",
@@ -82,14 +82,20 @@ bool dropToUser(const std::string& unprivileged_username) {
   gid_t gid = 0U;
 
   if (!getUserAndGroupIDs(uid, gid, unprivileged_username)) {
+    LOG(ERROR) << "Failed to resolve the following username:"
+               << unprivileged_username;
     return false;
   }
 
   if (chown(extension_manager_socket.c_str(), 0, gid) != 0) {
+    LOG(ERROR)
+        << "Failed to update the owner group of the extensions manager socket";
     return false;
   }
 
   if (chmod(extension_manager_socket.c_str(), 0770) != 0) {
+    LOG(ERROR)
+        << "Failed to update the permissions of the extensions manager socket";
     return false;
   }
 
@@ -99,6 +105,7 @@ bool dropToUser(const std::string& unprivileged_username) {
       setuid(uid) != 0 ||
       setuid(0) != -1) {
 
+    LOG(ERROR) << "Failed to drop privileges to " << unprivileged_username;
     return false;
   }
   // clang-format on
@@ -135,7 +142,7 @@ DnsEvent::AnswerList generateDnsAnswerList(pcpp::DnsLayer* dns_layer) {
     DnsEvent::Answer answer = {};
 
     answer.ttl = raw_answer->getTTL();
-    answer.record_data = raw_answer->getDataAsString();
+    answer.record_data = raw_answer->getData()->toString();
     answer.record_type = raw_answer->getDnsType();
     answer.record_class = raw_answer->getDnsClass();
     answer.record_name = raw_answer->getName();
@@ -157,7 +164,7 @@ DnsEvent generateDnsEvent(pcpp::ProtocolType protocol,
 
   dns_event.id = dns_header.transactionID;
   dns_event.protocol = protocol;
-  dns_event.truncated = dns_header.truncation;
+  dns_event.truncated = (dns_header.truncation != 0U);
   dns_event.type = (dns_header.queryOrResponse == 0) ? DnsEvent::Type::Query
                                                      : DnsEvent::Type::Response;
 
@@ -195,7 +202,7 @@ osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
         return osquery::Status::failure("Invalid request size in TCP stream");
       }
 
-      // The DnsLayer wil always attempt to free the buffer
+      // The DnsLayer will always attempt to free the buffer
       auto* temp_buffer = new std::uint8_t[chunk_size];
       std::memcpy(temp_buffer, chunk_start, chunk_size);
 

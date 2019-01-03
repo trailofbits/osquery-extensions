@@ -16,8 +16,13 @@
 
 #include "pcapreaderservice.h"
 
+#include <sstream>
+
 #include <IPv4Layer.h>
 #include <IPv6Layer.h>
+#include <TcpLayer.h>
+
+#include <osquery/logger.h>
 
 namespace trailofbits {
 namespace {
@@ -41,12 +46,28 @@ void PcapReaderService::onTcpMessageReady(int side,
   auto& stream_buffer =
       (side == 1) ? conversation.received_data : conversation.sent_data;
 
+  if (stream_buffer.size() >= max_tcp_conversation_length) {
+    pending_tcp_conversation_map.erase(conversation_id);
+    tcp_conversation_timestamp_map.erase(conversation_id);
+
+    std::stringstream message;
+    message << "Dropping conversation between '"
+            << tcp_data.getConnectionData().srcIP->toString() << "' and '"
+            << tcp_data.getConnectionData().dstIP->toString() << "' because "
+            << "the conversation size is above the max limit";
+
+    LOG(WARNING) << message.str();
+    return;
+  }
+
   auto data_length = static_cast<std::size_t>(tcp_data.getDataLength());
   const auto data_begin = tcp_data.getData();
   const auto data_end = data_begin + data_length;
 
   stream_buffer.reserve(stream_buffer.size() + data_length);
   stream_buffer.insert(stream_buffer.end(), data_begin, data_end);
+
+  tcp_conversation_timestamp_map[conversation_id] = std::time(nullptr);
 }
 
 void PcapReaderService::onTcpConnectionStart(
@@ -56,6 +77,8 @@ void PcapReaderService::onTcpConnectionStart(
 
   conversation.connection_data = connection_data;
   gettimeofday(&conversation.event_time, nullptr);
+
+  tcp_conversation_timestamp_map[conversation_id] = std::time(nullptr);
 }
 
 void PcapReaderService::onTcpConnectionEnd(
@@ -73,6 +96,7 @@ void PcapReaderService::onTcpConnectionEnd(
       {conversation_id, std::move(conversation)});
 
   pending_tcp_conversation_map.erase(it);
+  tcp_conversation_timestamp_map.erase(conversation_id);
 }
 
 TcpConversation& PcapReaderService::getPendingTcpConversation(
@@ -126,6 +150,30 @@ osquery::Status PcapReaderService::configure(
   }
 
   auto promiscuous_mode = promiscuous_mode_obj.bool_value();
+
+  const auto& max_tcp_conv_length_obj =
+      dns_event_configuration["max_tcp_conversation_length"];
+  if (max_tcp_conv_length_obj == json11::Json()) {
+    LOG(ERROR) << "The 'max_tcp_conversation_length' value is missing from the "
+                  "'dns_events' section";
+
+    return osquery::Status(0);
+  }
+
+  max_tcp_conversation_length =
+      static_cast<std::size_t>(max_tcp_conv_length_obj.int_value());
+
+  const auto& max_tcp_conv_idle_time_obj =
+      dns_event_configuration["max_tcp_conversation_idle_time"];
+  if (max_tcp_conv_idle_time_obj == json11::Json()) {
+    LOG(ERROR) << "The 'max_tcp_conversation_idle_time' value is missing from "
+                  "the 'dns_events' section";
+
+    return osquery::Status(0);
+  }
+
+  max_tcp_conversation_idle_time =
+      static_cast<std::size_t>(max_tcp_conv_idle_time_obj.int_value());
 
   std::lock_guard<std::mutex> lock(pcap_mutex);
 
@@ -312,8 +360,17 @@ void PcapReaderService::run() {
             std::make_pair(packet_header->ts, std::move(udp_request_data));
 
         new_udp_requests.push_back(std::move(udp_request));
+
       } else {
-        tcp_reassembler->reassemblePacket(&raw_packet);
+        bool process_packet = false;
+        if (packet.isPacketOfType(pcpp::IPv4) ||
+            packet.isPacketOfType(pcpp::IPv6)) {
+          process_packet = (packet.getLayerOfType<pcpp::TcpLayer>() != nullptr);
+        }
+
+        if (process_packet) {
+          tcp_reassembler->reassemblePacket(&raw_packet);
+        }
       }
     }
 
@@ -329,6 +386,7 @@ void PcapReaderService::run() {
         } else {
           udp_request_buffer.reserve(udp_request_buffer.size() +
                                      new_udp_requests.size());
+
           std::move(new_udp_requests.begin(),
                     new_udp_requests.end(),
                     std::back_inserter(udp_request_buffer));
@@ -356,6 +414,26 @@ void PcapReaderService::run() {
       }
 
       shared_data.cv.notify_all();
+    }
+
+    auto current_time = std::time(nullptr);
+
+    for (auto it = tcp_conversation_timestamp_map.begin();
+         it != tcp_conversation_timestamp_map.end();) {
+      const auto& conversation_id = it->first;
+      const auto& last_update = it->second;
+
+      auto elapsed_time = static_cast<std::size_t>(current_time - last_update);
+      if (elapsed_time > max_tcp_conversation_idle_time) {
+        it = tcp_conversation_timestamp_map.erase(it);
+
+        pending_tcp_conversation_map.erase(conversation_id);
+        tcp_reassembler->closeConnection(conversation_id);
+
+        LOG(WARNING) << "Dropping connection " << conversation_id;
+      } else {
+        ++it;
+      }
     }
   }
 }
