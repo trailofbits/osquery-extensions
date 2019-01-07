@@ -18,7 +18,6 @@
 #include "dockertracker.h"
 
 #include <iomanip>
-#include <iostream>
 
 namespace trailofbits {
 namespace {
@@ -68,6 +67,12 @@ const TracepointDescriptorList kForkEventsTracepointList = {
 };
 // clang-format on
 
+// clang-format off
+const TracepointDescriptorList kFdEventsTracepointList = {
+  {"syscalls:sys_enter_creat"}
+};
+// clang-format on
+
 std::string getKprobeEventHandlerName(
     const KprobeDescriptor& kprobe_descriptor) {
   std::stringstream buffer;
@@ -100,6 +105,105 @@ std::string getTracepointEventHandlerName(
 
   return "on_tracepoint_" + std::string(name);
 }
+
+bool isEntrySyscallEventType(const SyscallEvent& syscall_event) {
+  switch (syscall_event.header.type) {
+  case SyscallEvent::Header::Type::SysEnterClone:
+  case SyscallEvent::Header::Type::SysEnterFork:
+  case SyscallEvent::Header::Type::SysEnterVfork:
+  case SyscallEvent::Header::Type::SysEnterExecve:
+  case SyscallEvent::Header::Type::SysEnterExecveat:
+  case SyscallEvent::Header::Type::SysEnterExit:
+  case SyscallEvent::Header::Type::SysEnterExitGroup:
+
+  case SyscallEvent::Header::Type::KprobePidvnr:
+
+  case SyscallEvent::Header::Type::SysEnterCreat:
+  case SyscallEvent::Header::Type::SysEnterMknod:
+  case SyscallEvent::Header::Type::SysEnterMknodat:
+  case SyscallEvent::Header::Type::SysEnterOpen:
+  case SyscallEvent::Header::Type::SysEnterOpenat:
+  case SyscallEvent::Header::Type::SysEnterOpen_by_handle_at:
+  case SyscallEvent::Header::Type::SysEnterName_to_handle_at:
+  case SyscallEvent::Header::Type::SysEnterClose:
+  case SyscallEvent::Header::Type::SysEnterDup:
+  case SyscallEvent::Header::Type::SysEnterDup2:
+  case SyscallEvent::Header::Type::SysEnterDup3:
+  case SyscallEvent::Header::Type::SysEnterSocket:
+  case SyscallEvent::Header::Type::SysEnterSocketpair:
+    return true;
+
+  case SyscallEvent::Header::Type::SysExitClone:
+  case SyscallEvent::Header::Type::SysExitFork:
+  case SyscallEvent::Header::Type::SysExitVfork:
+  case SyscallEvent::Header::Type::SysExitExecve:
+  case SyscallEvent::Header::Type::SysExitExecveat:
+    return false;
+
+  default:
+    throw std::logic_error("Invalid event type specified");
+  }
+}
+
+osquery::Status getSyscallEventMap(SyscallEventMap*& event_map,
+                                   const SyscallEvent& syscall_event,
+                                   BCCProcessEventsContext& context) {
+  event_map = nullptr;
+
+  switch (syscall_event.header.type) {
+  case SyscallEvent::Header::Type::SysEnterClone:
+  case SyscallEvent::Header::Type::SysExitClone:
+    event_map = &context.clone_event_map;
+    return osquery::Status(0);
+
+  case SyscallEvent::Header::Type::SysEnterFork:
+  case SyscallEvent::Header::Type::SysExitFork:
+    event_map = &context.fork_event_map;
+    return osquery::Status(0);
+
+  case SyscallEvent::Header::Type::SysEnterVfork:
+  case SyscallEvent::Header::Type::SysExitVfork:
+    event_map = &context.vfork_event_map;
+    return osquery::Status(0);
+
+  case SyscallEvent::Header::Type::SysEnterExecve:
+  case SyscallEvent::Header::Type::SysExitExecve:
+    event_map = &context.execve_event_map;
+    return osquery::Status(0);
+
+  case SyscallEvent::Header::Type::SysEnterExecveat:
+  case SyscallEvent::Header::Type::SysExitExecveat:
+    event_map = &context.execveat_event_map;
+    return osquery::Status(0);
+
+  case SyscallEvent::Header::Type::SysEnterExit:
+  case SyscallEvent::Header::Type::SysEnterExitGroup:
+  case SyscallEvent::Header::Type::SysEnterCreat:
+    event_map = nullptr;
+    return osquery::Status(0);
+
+  case SyscallEvent::Header::Type::KprobePidvnr: {
+    const auto& key = syscall_event.header.tgid;
+
+    if (context.clone_event_map.count(key) > 0) {
+      event_map = &context.clone_event_map;
+    } else if (context.fork_event_map.count(key) > 0) {
+      event_map = &context.fork_event_map;
+    } else if (context.vfork_event_map.count(key) > 0) {
+      event_map = &context.vfork_event_map;
+    }
+
+    if (event_map == nullptr) {
+      return osquery::Status(2, "Event was ignored");
+    }
+
+    return osquery::Status(0);
+  }
+
+  default:
+    return osquery::Status::failure("Unhandled event type");
+  }
+}
 } // namespace
 
 struct BCCProcessEventsProgram::PrivateData final {
@@ -111,6 +215,10 @@ struct BCCProcessEventsProgram::PrivateData final {
   ebpf::BPF exec_events_bpf;
   ebpf::BPFPerfBuffer* exec_events_perf_buffer{nullptr};
   TracepointDescriptorList exec_events_tracepoints;
+
+  ebpf::BPF fd_events_bpf;
+  ebpf::BPFPerfBuffer* fd_events_perf_buffer{nullptr};
+  TracepointDescriptorList fd_events_tracepoints;
 
   BCCProcessEventsContext syscall_event_context;
   DockerTracker docker_tracker;
@@ -209,6 +317,39 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
 
     d->exec_events_perf_buffer = d->exec_events_bpf.get_perf_buffer("events");
 
+    // Initialize the fd_events program
+    status = d->fd_events_bpf.init(bcc_probe_fd_events);
+    if (status.code() != 0) {
+      throw osquery::Status(1, "BCC initialization error: " + status.msg());
+    }
+
+    for (const auto& tracepoint : kFdEventsTracepointList) {
+      status = d->fd_events_bpf.attach_tracepoint(
+          tracepoint.name, getTracepointEventHandlerName(tracepoint));
+
+      if (status.code() != 0) {
+        throw osquery::Status::failure(
+            "Failed to attach the following tracepont: " + tracepoint.name +
+            ". Error: " + status.msg());
+      }
+
+      d->fd_events_tracepoints.push_back(tracepoint);
+    }
+
+    static auto L_lostFdEventNotifier = [](void*, std::uint64_t count) -> void {
+      LOG(ERROR) << "BCCProcessEventsPublisher: Lost " << count << " fd events";
+    };
+
+    status = d->fd_events_bpf.open_perf_buffer(
+        "events", fdPerfEventHandler, L_lostFdEventNotifier, this);
+
+    if (status.code() != 0) {
+      throw osquery::Status::failure("Failed to open the perf event buffer: " +
+                                     status.msg());
+    }
+
+    d->fd_events_perf_buffer = d->fd_events_bpf.get_perf_buffer("events");
+
   } catch (const osquery::Status&) {
     detachKprobes();
     detachTracepoints();
@@ -275,7 +416,8 @@ void BCCProcessEventsProgram::update() {
   const int kPollTime = 100;
 
   const std::vector<ebpf::BPFPerfBuffer*> kPerfBufferList = {
-      d->fork_events_perf_buffer, d->exec_events_perf_buffer};
+      d->fork_events_perf_buffer,
+      d->exec_events_perf_buffer}; //, d-fd_events_perf_buffer};
 
   for (auto perf_buffer : kPerfBufferList) {
     perf_buffer->poll(kPollTime);
@@ -295,7 +437,10 @@ ProcessEventList BCCProcessEventsProgram::getEvents() {
     auto status = processSyscallEvent(
         process_event, d->syscall_event_context, syscall_event);
 
-    if (status.getCode() != 1) {
+    // Always give a chance to the Docker tracker to process events, even
+    // if they were ignored by the syscall processer (status code 2)
+    if (syscall_event.header.type != SyscallEvent::Header::Type::KprobePidvnr &&
+        status.getCode() != 1) {
       d->docker_tracker.processEvent(process_event);
     }
 
@@ -604,78 +749,16 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     const SyscallEvent& syscall_event) {
   process_event = {};
 
-  bool entry = false;
-  auto key = syscall_event.header.tgid;
   SyscallEventMap* event_map{nullptr};
-
-  switch (syscall_event.header.type) {
-  case SyscallEvent::Header::Type::SysEnterClone:
-  case SyscallEvent::Header::Type::SysExitClone:
-    entry = (syscall_event.header.type ==
-             SyscallEvent::Header::Type::SysEnterClone);
-
-    event_map = &context.clone_event_map;
-    break;
-
-  case SyscallEvent::Header::Type::SysEnterFork:
-  case SyscallEvent::Header::Type::SysExitFork:
-    entry =
-        (syscall_event.header.type == SyscallEvent::Header::Type::SysEnterFork);
-
-    event_map = &context.fork_event_map;
-    break;
-
-  case SyscallEvent::Header::Type::SysEnterVfork:
-  case SyscallEvent::Header::Type::SysExitVfork:
-    entry = (syscall_event.header.type ==
-             SyscallEvent::Header::Type::SysEnterVfork);
-
-    event_map = &context.fork_event_map;
-    break;
-
-  case SyscallEvent::Header::Type::SysEnterExecve:
-  case SyscallEvent::Header::Type::SysExitExecve:
-    entry = (syscall_event.header.type ==
-             SyscallEvent::Header::Type::SysEnterExecve);
-
-    event_map = &context.execve_event_map;
-    break;
-
-  case SyscallEvent::Header::Type::SysEnterExecveat:
-  case SyscallEvent::Header::Type::SysExitExecveat:
-    entry = (syscall_event.header.type ==
-             SyscallEvent::Header::Type::SysEnterExecveat);
-
-    event_map = &context.execveat_event_map;
-    break;
-
-  case SyscallEvent::Header::Type::SysEnterExit:
-  case SyscallEvent::Header::Type::SysEnterExitGroup:
-    entry = true;
-    event_map = nullptr;
-    break;
-
-  case SyscallEvent::Header::Type::KprobePidvnr:
-    entry = true;
-
-    if (context.clone_event_map.count(key) > 0) {
-      event_map = &context.clone_event_map;
-    } else if (context.fork_event_map.count(key) > 0) {
-      event_map = &context.fork_event_map;
-    } else if (context.vfork_event_map.count(key) > 0) {
-      event_map = &context.vfork_event_map;
-    } else {
-      // Ignore this event
-      return osquery::Status(2, "Event was ignored");
-    }
-
-    break;
-
-  default:
-    return osquery::Status::failure("Unhandled event type");
+  auto status = getSyscallEventMap(event_map, syscall_event, context);
+  if (!status.ok()) {
+    // This may also be a code 2 (event should be ignored)
+    return status;
   }
 
-  if (entry) {
+  auto key = syscall_event.header.tgid;
+
+  if (isEntrySyscallEventType(syscall_event)) {
     if (syscall_event.header.type == SyscallEvent::Header::Type::KprobePidvnr) {
       // Attach this data to the existing clone/fork/vfork event
       auto& parent_raw_event = event_map->at(key);
@@ -821,6 +904,26 @@ void BCCProcessEventsProgram::execPerfEventHandler(void* this_ptr,
   auto event_data_table =
       program.d->exec_events_bpf.get_percpu_array_table<std::uint64_t>(
           "exec_event_data");
+
+  program.processPerfEvent(event_data_table,
+                           event_identifiers,
+                           static_cast<std::size_t>(data_size / 4));
+}
+
+void BCCProcessEventsProgram::fdPerfEventHandler(void* this_ptr,
+                                                 void* data,
+                                                 int data_size) {
+  if ((data_size % 4U) != 0U) {
+    LOG(ERROR) << "Invalid data size: " << data_size;
+    return;
+  }
+
+  auto event_identifiers = static_cast<const std::uint32_t*>(data);
+  auto& program = *static_cast<BCCProcessEventsProgram*>(this_ptr);
+
+  auto event_data_table =
+      program.d->exec_events_bpf.get_percpu_array_table<std::uint64_t>(
+          "fd_event_data");
 
   program.processPerfEvent(event_data_table,
                            event_identifiers,

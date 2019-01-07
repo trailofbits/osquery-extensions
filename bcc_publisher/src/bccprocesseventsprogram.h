@@ -110,6 +110,7 @@ class BCCProcessEventsProgram final {
 
   static void forkPerfEventHandler(void* this_ptr, void* data, int data_size);
   static void execPerfEventHandler(void* this_ptr, void* data, int data_size);
+  static void fdPerfEventHandler(void* this_ptr, void* data, int data_size);
 
   BCCProcessEventsProgram(const BCCProcessEventsProgram& other) = delete;
   BCCProcessEventsProgram& operator=(const BCCProcessEventsProgram& other) =

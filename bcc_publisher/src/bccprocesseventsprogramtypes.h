@@ -6,6 +6,9 @@
 #include <bcc_probe_exec_events.h>
 #include <exec_events/exec_events.h>
 
+#include <bcc_probe_fd_events.h>
+#include <fd_events/fd_events.h>
+
 #include <boost/variant.hpp>
 #include <osquery/sdk.h>
 
@@ -31,7 +34,21 @@ struct SyscallEvent final {
       SysEnterExecveat = EVENTID_SYSENTEREXECVEAT,
       SysExitExecveat = EVENTID_SYSEXITEXECVEAT,
 
-      KprobePidvnr = EVENTID_PIDVNR
+      KprobePidvnr = EVENTID_PIDVNR,
+
+      SysEnterCreat = EVENTID_SYSENTERCREAT,
+      SysEnterMknod = EVENTID_SYSENTERMKNOD,
+      SysEnterMknodat = EVENTID_SYSENTERMKNODAT,
+      SysEnterOpen = EVENTID_SYSENTEROPEN,
+      SysEnterOpenat = EVENTID_SYSENTEROPENAT,
+      SysEnterOpen_by_handle_at = EVENTID_SYSENTEROPEN_BY_HANDLE_AT,
+      SysEnterName_to_handle_at = EVENTID_SYSENTERNAME_TO_HANDLE_AT,
+      SysEnterClose = EVENTID_SYSENTERCLOSE,
+      SysEnterDup = EVENTID_SYSENTERDUP,
+      SysEnterDup2 = EVENTID_SYSENTERDUP2,
+      SysEnterDup3 = EVENTID_SYSENTERDUP3,
+      SysEnterSocket = EVENTID_SYSENTERSOCKET,
+      SysEnterSocketpair = EVENTID_SYSENTERSOCKETPAIR
     };
 
     Type type;
@@ -59,8 +76,17 @@ struct SyscallEvent final {
     int error_code;
   };
 
+  struct OpenCreateData final {
+    int folder_fd{-1};
+    mode_t open_mode{0};
+    int flags{0};
+    dev_t device{0};
+
+    std::string path;
+  };
+
   Header header;
-  boost::variant<PidVnrData, ExecData, ExitData> data;
+  boost::variant<PidVnrData, ExecData, ExitData, OpenCreateData> data;
 };
 
 using SyscallEventMap = std::unordered_map<pid_t, SyscallEvent>;

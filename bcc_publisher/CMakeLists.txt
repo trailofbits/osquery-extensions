@@ -21,6 +21,7 @@ function(bccPublisherMain)
   add_subdirectory(probes)
   importBccProbe("fork_events")
   importBccProbe("exec_events")
+  importBccProbe("fd_events")
 
   set(source_files
     src/main.cpp
@@ -51,6 +52,7 @@ function(bccPublisherMain)
     bcc
     bcc_probe_fork_events
     bcc_probe_exec_events
+    bcc_probe_fd_events
   )
 
   # We have to disable some warnings for BCC to work correctly
