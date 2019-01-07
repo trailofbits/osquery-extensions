@@ -70,7 +70,7 @@ Remember, if you'd just rather have a binary package, you'll find one in the [re
 
 At a high-level, the steps are:
 1. Clone the osquery and osquery-extensions repositories
-2. Symlink the osquery-extensions folder into `osquery/externals/external_trailofbits`
+2. Symlink the osquery-extensions folder into `osquery/external/extension_trailofbits`
 3. Run the osquery scripts to install dependencies and build osquery, which also builds the extensions
 
 Here are example steps for each platform:
