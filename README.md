@@ -73,6 +73,8 @@ At a high-level, the steps are:
 2. Symlink the osquery-extensions folder into `osquery/external/extension_trailofbits`
 3. Run the osquery scripts to install dependencies and build osquery, which also builds the extensions
 
+Additionally, the osquery-extensions repository has git submodules that need to be pulled.
+
 Here are example steps for each platform:
 
 ### macOS or Linux
@@ -81,6 +83,10 @@ Here are example steps for each platform:
 cd /src
 git clone https://github.com/facebook/osquery.git
 git clone https://github.com/trailofbits/osquery-extensions.git
+
+cd /src/osquery-extensions
+git submodule init
+git submodule update --recursive
 
 cd /src/osquery
 ln -s /src/osquery-extensions /src/osquery/external/extension_trailofbits
@@ -97,6 +103,10 @@ make -j `nproc`
 cd \Projects
 git clone https://github.com/facebook/osquery.git
 git clone https://github.com/trailofbits/osquery-extensions.git
+
+cd \Projects\osquery-extensions
+git submodule init
+git submodule update --recursive
 
 # Symbolically link the extensions repo into the osquery core repo:
 mklink /D "\Projects\osquery\external\extension_trailofbits" "\Projects\osquery-extensions"
