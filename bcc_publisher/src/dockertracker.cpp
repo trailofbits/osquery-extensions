@@ -41,7 +41,7 @@ osquery::Status DockerTracker::processEvent(ProcessEvent& process_event) {
   }
 
   auto container_id_it =
-      d->docker_state.process_id_to_container_map.find(process_event.pid);
+      d->docker_state.process_id_to_container_map.find(process_event.tgid);
   if (container_id_it == d->docker_state.process_id_to_container_map.end()) {
     return osquery::Status(0);
   }
@@ -127,7 +127,7 @@ osquery::Status DockerTracker::updateDockerState(
   switch (process_event.type) {
   case ProcessEvent::Type::Fork: {
     auto docker_container_it =
-        docker_state.process_id_to_container_map.find(process_event.pid);
+        docker_state.process_id_to_container_map.find(process_event.tgid);
     if (docker_container_it == docker_state.process_id_to_container_map.end()) {
       return osquery::Status(0);
     }
@@ -160,17 +160,17 @@ osquery::Status DockerTracker::updateDockerState(
         {container_id, std::move(container_instance)});
 
     docker_state.container_to_pid_list_map[container_id].insert(
-        process_event.pid);
+        process_event.tgid);
 
     docker_state.process_id_to_container_map.insert(
-        {process_event.pid, std::move(container_id)});
+        {process_event.tgid, std::move(container_id)});
 
     return osquery::Status(0);
   }
 
   case ProcessEvent::Type::Exit: {
     auto docker_container_it =
-        docker_state.process_id_to_container_map.find(process_event.pid);
+        docker_state.process_id_to_container_map.find(process_event.tgid);
     if (docker_container_it == docker_state.process_id_to_container_map.end()) {
       return osquery::Status(0);
     }
@@ -184,13 +184,13 @@ osquery::Status DockerTracker::updateDockerState(
     auto& container_pid_list =
         docker_state.container_to_pid_list_map[container_id];
 
-    container_pid_list.erase(process_event.pid);
+    container_pid_list.erase(process_event.tgid);
     if (container_pid_list.size() == 0U) {
       docker_state.container_to_pid_list_map.erase(container_id);
       docker_state.docker_container_list.erase(container_id);
     }
 
-    docker_state.process_id_to_container_map.erase(process_event.pid);
+    docker_state.process_id_to_container_map.erase(process_event.tgid);
     return osquery::Status(0);
   }
 

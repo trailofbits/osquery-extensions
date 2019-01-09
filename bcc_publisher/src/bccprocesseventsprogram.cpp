@@ -106,55 +106,36 @@ std::string getTracepointEventHandlerName(
   return "on_tracepoint_" + std::string(name);
 }
 
-bool isEntrySyscallEventType(const SyscallEvent& syscall_event) {
-  switch (syscall_event.header.type) {
-  case SyscallEvent::Header::Type::SysEnterClone:
-  case SyscallEvent::Header::Type::SysEnterFork:
-  case SyscallEvent::Header::Type::SysEnterVfork:
-  case SyscallEvent::Header::Type::SysEnterExecve:
-  case SyscallEvent::Header::Type::SysEnterExecveat:
-  case SyscallEvent::Header::Type::SysEnterExit:
-  case SyscallEvent::Header::Type::SysEnterExitGroup:
-
-  case SyscallEvent::Header::Type::KprobePidvnr:
-
-  case SyscallEvent::Header::Type::SysEnterCreat:
-  case SyscallEvent::Header::Type::SysEnterMknod:
-  case SyscallEvent::Header::Type::SysEnterMknodat:
-  case SyscallEvent::Header::Type::SysEnterOpen:
-  case SyscallEvent::Header::Type::SysEnterOpenat:
-  case SyscallEvent::Header::Type::SysEnterOpen_by_handle_at:
-  case SyscallEvent::Header::Type::SysEnterName_to_handle_at:
-  case SyscallEvent::Header::Type::SysEnterClose:
-  case SyscallEvent::Header::Type::SysEnterDup:
-  case SyscallEvent::Header::Type::SysEnterDup2:
-  case SyscallEvent::Header::Type::SysEnterDup3:
-  case SyscallEvent::Header::Type::SysEnterSocket:
-  case SyscallEvent::Header::Type::SysEnterSocketpair:
-    return true;
-
-  case SyscallEvent::Header::Type::SysExitClone:
-  case SyscallEvent::Header::Type::SysExitFork:
-  case SyscallEvent::Header::Type::SysExitVfork:
-  case SyscallEvent::Header::Type::SysExitExecve:
-  case SyscallEvent::Header::Type::SysExitExecveat:
-    return false;
-
-  default:
-    throw std::logic_error("Invalid event type specified");
-  }
-}
-
 osquery::Status getSyscallEventMap(SyscallEventMap*& event_map,
                                    const SyscallEvent& syscall_event,
                                    BCCProcessEventsContext& context) {
   event_map = nullptr;
 
   switch (syscall_event.header.type) {
-  case SyscallEvent::Header::Type::SysEnterClone:
-  case SyscallEvent::Header::Type::SysExitClone:
-    event_map = &context.clone_event_map;
+  case SyscallEvent::Header::Type::SysEnterClone: {
+    const auto& clone_data =
+        boost::get<SyscallEvent::CloneData>(syscall_event.data);
+
+    if ((clone_data.clone_flags & CLONE_THREAD) != 0) {
+      event_map = &context.clone_thread_event_map;
+    } else {
+      event_map = &context.clone_event_map;
+    }
+
     return osquery::Status(0);
+  }
+
+  case SyscallEvent::Header::Type::SysExitClone: {
+    const auto& key = syscall_event.header.pid;
+
+    if (context.clone_thread_event_map.count(key) > 0) {
+      event_map = &context.clone_thread_event_map;
+    } else {
+      event_map = &context.clone_event_map;
+    }
+
+    return osquery::Status(0);
+  }
 
   case SyscallEvent::Header::Type::SysEnterFork:
   case SyscallEvent::Header::Type::SysExitFork:
@@ -183,7 +164,7 @@ osquery::Status getSyscallEventMap(SyscallEventMap*& event_map,
     return osquery::Status(0);
 
   case SyscallEvent::Header::Type::KprobePidvnr: {
-    const auto& key = syscall_event.header.tgid;
+    const auto& key = syscall_event.header.pid;
 
     if (context.clone_event_map.count(key) > 0) {
       event_map = &context.clone_event_map;
@@ -191,10 +172,12 @@ osquery::Status getSyscallEventMap(SyscallEventMap*& event_map,
       event_map = &context.fork_event_map;
     } else if (context.vfork_event_map.count(key) > 0) {
       event_map = &context.vfork_event_map;
+    } else if (context.clone_thread_event_map.count(key) > 0) {
+      event_map = &context.clone_thread_event_map;
     }
 
     if (event_map == nullptr) {
-      return osquery::Status(2, "Event was ignored");
+      return osquery::Status::failure("Not found");
     }
 
     return osquery::Status(0);
@@ -204,6 +187,253 @@ osquery::Status getSyscallEventMap(SyscallEventMap*& event_map,
     return osquery::Status::failure("Unhandled event type");
   }
 }
+
+osquery::Status processPidVnrSyscallEvent(ProcessEvent& process_event,
+                                          BCCProcessEventsContext& context,
+                                          const SyscallEvent& syscall_event) {
+  process_event = {};
+
+  if (syscall_event.header.type != SyscallEvent::Header::Type::KprobePidvnr) {
+    throw std::logic_error("Invalid event type");
+  }
+
+  // Get the parent fork/vfork/clone event; ignore if we don't have one
+  SyscallEventMap* event_map{nullptr};
+  auto status = getSyscallEventMap(event_map, syscall_event, context);
+  if (!status.ok()) {
+    return osquery::Status(2, "Event was ignored");
+  }
+
+  // Attach this data to the existing clone/fork/vfork event
+  auto key = syscall_event.header.pid;
+  auto& parent_raw_event = event_map->at(key);
+
+  auto data = boost::get<SyscallEvent::PidVnrData>(syscall_event.data);
+  parent_raw_event.namespace_data = data;
+
+  return osquery::Status(0);
+}
+
+osquery::Status processExitOrExitGroupSyscallEvent(
+    ProcessEvent& process_event,
+    BCCProcessEventsContext& context,
+    const SyscallEvent& syscall_event) {
+  process_event = {};
+
+  if (syscall_event.header.type != SyscallEvent::Header::Type::SysEnterExit &&
+      syscall_event.header.type !=
+          SyscallEvent::Header::Type::SysEnterExitGroup) {
+    throw std::logic_error("Invalid event type");
+  }
+
+  process_event.type = ProcessEvent::Type::Exit;
+  process_event.timestamp = syscall_event.header.timestamp;
+  process_event.pid = syscall_event.header.pid;
+  process_event.tgid = syscall_event.header.tgid;
+  process_event.uid = syscall_event.header.uid;
+  process_event.gid = syscall_event.header.gid;
+
+  auto syscall_data = boost::get<SyscallEvent::ExitData>(syscall_event.data);
+
+  ProcessEvent::ExitData exit_data;
+  exit_data.error_code = syscall_data.error_code;
+
+  process_event.data = exit_data;
+
+  return osquery::Status(0);
+}
+
+osquery::Status deferSyscallEventProcessing(ProcessEvent& process_event,
+                                            BCCProcessEventsContext& context,
+                                            const SyscallEvent& syscall_event) {
+  process_event = {};
+
+  switch (syscall_event.header.type) {
+  case SyscallEvent::Header::Type::SysEnterClone:
+  case SyscallEvent::Header::Type::SysEnterFork:
+  case SyscallEvent::Header::Type::SysEnterVfork:
+  case SyscallEvent::Header::Type::SysEnterExecve:
+  case SyscallEvent::Header::Type::SysEnterExecveat:
+    break;
+
+  default:
+    throw std::logic_error("Invalid event type");
+  }
+
+  SyscallEventMap* event_map{nullptr};
+  auto status = getSyscallEventMap(event_map, syscall_event, context);
+  if (!status.ok()) {
+    return status;
+  }
+
+  const auto& key = syscall_event.header.pid;
+  event_map->insert({key, syscall_event});
+
+  return osquery::Status(2, "State has been updated");
+}
+
+osquery::Status processExecveOrExecveatSyscallExitEvent(
+    ProcessEvent& process_event,
+    BCCProcessEventsContext& context,
+    const SyscallEvent& syscall_event) {
+  process_event = {};
+
+  if (syscall_event.header.type != SyscallEvent::Header::Type::SysExitExecve &&
+      syscall_event.header.type !=
+          SyscallEvent::Header::Type::SysExitExecveat) {
+    throw std::logic_error("Invalid event type");
+  }
+
+  SyscallEventMap* event_map{nullptr};
+  auto status = getSyscallEventMap(event_map, syscall_event, context);
+  if (!status.ok()) {
+    return status;
+  }
+
+  auto key = syscall_event.header.pid;
+
+  auto it = event_map->find(key);
+  if (it == event_map->end()) {
+    const char* syscall_name = nullptr;
+    if (syscall_event.header.type ==
+        SyscallEvent::Header::Type::SysExitExecve) {
+      syscall_name = "execve";
+    } else {
+      syscall_name = "execveat";
+    }
+
+    std::stringstream error_message;
+    error_message << "Failed to locate the entry event for the " << syscall_name
+                  << " event. The syscall returned "
+                  << syscall_event.header.exit_code.get();
+
+    return osquery::Status::failure(error_message.str());
+  }
+
+  auto entry_event = it->second;
+  event_map->erase(it);
+
+  process_event.type = ProcessEvent::Type::Exec;
+  process_event.timestamp = syscall_event.header.timestamp;
+  process_event.pid = syscall_event.header.pid;
+  process_event.tgid = syscall_event.header.tgid;
+  process_event.uid = syscall_event.header.uid;
+  process_event.gid = syscall_event.header.gid;
+
+  ProcessEvent::ExecData exec_data;
+
+  const auto& entry_event_data =
+      boost::get<SyscallEvent::ExecData>(entry_event.data);
+
+  exec_data.filename = entry_event_data.filename;
+  exec_data.arguments = entry_event_data.argv;
+  exec_data.exit_code = syscall_event.header.exit_code.get();
+
+  process_event.data = exec_data;
+
+  return osquery::Status(0);
+}
+
+osquery::Status processForkOrCloneSyscallExitEvent(
+    ProcessEvent& process_event,
+    BCCProcessEventsContext& context,
+    const SyscallEvent& syscall_event) {
+  process_event = {};
+
+  if (syscall_event.header.type != SyscallEvent::Header::Type::SysExitFork &&
+      syscall_event.header.type != SyscallEvent::Header::Type::SysExitVfork &&
+      syscall_event.header.type != SyscallEvent::Header::Type::SysExitClone) {
+    throw std::logic_error("Invalid event type");
+  }
+
+  // Ignore the exit event happening inside the child process; we wouldn't be
+  // able to match it against any enter event
+  if (syscall_event.header.exit_code.get() == 0) {
+    return osquery::Status(2);
+  }
+
+  SyscallEventMap* event_map{nullptr};
+  auto status = getSyscallEventMap(event_map, syscall_event, context);
+  if (!status.ok()) {
+    return status;
+  }
+
+  auto key = syscall_event.header.pid;
+
+  auto it = event_map->find(key);
+  if (it == event_map->end()) {
+    const char* syscall_name = nullptr;
+    if (syscall_event.header.type == SyscallEvent::Header::Type::SysExitFork) {
+      syscall_name = "fork";
+    } else if (syscall_event.header.type ==
+               SyscallEvent::Header::Type::SysExitVfork) {
+      syscall_name = "vfork";
+    } else {
+      syscall_name = "clone";
+    }
+
+    std::stringstream error_message;
+    error_message << "Failed to locate the entry event for the " << syscall_name
+                  << " event. The syscall returned "
+                  << syscall_event.header.exit_code.get();
+
+    return osquery::Status::failure(error_message.str());
+  }
+
+  auto entry_event = event_map->at(key);
+  event_map->erase(key);
+
+  // Ignore threads
+  if (entry_event.header.type == SyscallEvent::Header::Type::SysEnterClone) {
+    const auto& entry_event_clone_data =
+        boost::get<SyscallEvent::CloneData>(entry_event.data);
+
+    if ((entry_event_clone_data.clone_flags & CLONE_THREAD) != 0) {
+      return osquery::Status(2, "Event was ignored");
+    }
+  }
+
+  process_event.type = ProcessEvent::Type::Fork;
+  process_event.timestamp = syscall_event.header.timestamp;
+  process_event.pid = syscall_event.header.pid;
+  process_event.tgid = syscall_event.header.tgid;
+  process_event.uid = syscall_event.header.uid;
+  process_event.gid = syscall_event.header.gid;
+
+  ProcessEvent::ForkData fork_data;
+  fork_data.child_pid = entry_event.namespace_data.get().host_pid;
+  fork_data.child_pid_namespaced =
+      entry_event.namespace_data.get().namespaced_pid_list;
+
+  process_event.data = fork_data;
+  return osquery::Status(0);
+}
+
+using SyscallEventCallback = osquery::Status (*)(ProcessEvent&,
+                                                 BCCProcessEventsContext& t,
+                                                 const SyscallEvent&);
+
+// clang-format off
+const std::unordered_map<SyscallEvent::Header::Type, SyscallEventCallback> kSyscallEventHandlerMap = {
+  {SyscallEvent::Header::Type::KprobePidvnr, processPidVnrSyscallEvent},
+
+  {SyscallEvent::Header::Type::SysEnterExit, processExitOrExitGroupSyscallEvent},
+  {SyscallEvent::Header::Type::SysEnterExitGroup, processExitOrExitGroupSyscallEvent},
+
+  {SyscallEvent::Header::Type::SysEnterClone, deferSyscallEventProcessing},
+  {SyscallEvent::Header::Type::SysEnterFork, deferSyscallEventProcessing},
+  {SyscallEvent::Header::Type::SysEnterVfork, deferSyscallEventProcessing},
+  {SyscallEvent::Header::Type::SysEnterExecve, deferSyscallEventProcessing},
+  {SyscallEvent::Header::Type::SysEnterExecveat, deferSyscallEventProcessing},
+
+  {SyscallEvent::Header::Type::SysExitExecve, processExecveOrExecveatSyscallExitEvent},
+  {SyscallEvent::Header::Type::SysExitExecveat, processExecveOrExecveatSyscallExitEvent},
+
+  {SyscallEvent::Header::Type::SysExitFork, processForkOrCloneSyscallExitEvent},
+  {SyscallEvent::Header::Type::SysExitVfork, processForkOrCloneSyscallExitEvent},
+  {SyscallEvent::Header::Type::SysExitClone, processForkOrCloneSyscallExitEvent}
+};
+// clang-format on
 } // namespace
 
 struct BCCProcessEventsProgram::PrivateData final {
@@ -417,7 +647,8 @@ void BCCProcessEventsProgram::update() {
 
   const std::vector<ebpf::BPFPerfBuffer*> kPerfBufferList = {
       d->fork_events_perf_buffer,
-      d->exec_events_perf_buffer}; //, d-fd_events_perf_buffer};
+      d->exec_events_perf_buffer,
+      d->fd_events_perf_buffer};
 
   for (auto perf_buffer : kPerfBufferList) {
     perf_buffer->poll(kPollTime);
@@ -437,10 +668,8 @@ ProcessEventList BCCProcessEventsProgram::getEvents() {
     auto status = processSyscallEvent(
         process_event, d->syscall_event_context, syscall_event);
 
-    // Always give a chance to the Docker tracker to process events, even
-    // if they were ignored by the syscall processer (status code 2)
-    if (syscall_event.header.type != SyscallEvent::Header::Type::KprobePidvnr &&
-        status.getCode() != 1) {
+    if (status.getCode() != 1 &&
+        syscall_event.header.type != SyscallEvent::Header::Type::KprobePidvnr) {
       d->docker_tracker.processEvent(process_event);
     }
 
@@ -451,8 +680,6 @@ ProcessEventList BCCProcessEventsProgram::getEvents() {
       LOG(ERROR) << "Failed to process the event: " << status.getMessage();
       continue;
     }
-
-    d->docker_tracker.processEvent(process_event);
 
     auto timestamp = process_event.timestamp;
     process_event_list.insert({timestamp, std::move(process_event)});
@@ -485,18 +712,21 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventHeader(
     readSyscallEventData(
         pid_tgid_value, current_index, event_data_table, cpu_index);
 
-    event_header.pid = static_cast<pid_t>(pid_tgid_value >> 32U);
-    event_header.tgid = static_cast<pid_t>(pid_tgid_value & 0xFFFFFFFF);
+    event_header.pid = static_cast<pid_t>(pid_tgid_value & 0xFFFFFFFF);
+    event_header.tgid = static_cast<pid_t>(pid_tgid_value >> 32U);
 
     std::uint64_t uid_gid_value{0U};
     readSyscallEventData(
         uid_gid_value, current_index, event_data_table, cpu_index);
 
-    event_header.uid = static_cast<pid_t>(uid_gid_value >> 32U);
-    event_header.gid = static_cast<pid_t>(uid_gid_value & 0xFFFFFFFF);
+    event_header.uid = static_cast<pid_t>(uid_gid_value & 0xFFFFFFFF);
+    event_header.gid = static_cast<pid_t>(uid_gid_value >> 32U);
 
     if (event_header.type == SyscallEvent::Header::Type::SysExitExecve ||
-        event_header.type == SyscallEvent::Header::Type::SysExitExecveat) {
+        event_header.type == SyscallEvent::Header::Type::SysExitExecveat ||
+        event_header.type == SyscallEvent::Header::Type::SysExitFork ||
+        event_header.type == SyscallEvent::Header::Type::SysExitVfork ||
+        event_header.type == SyscallEvent::Header::Type::SysExitClone) {
       int exit_code = 0;
       readSyscallEventData(
           exit_code, current_index, event_data_table, cpu_index);
@@ -605,6 +835,34 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventExecData(
   return osquery::Status(0);
 }
 
+osquery::Status BCCProcessEventsProgram::readSyscallEventCloneData(
+    SyscallEvent::CloneData& clone_data,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  clone_data = {};
+
+  try {
+    readSyscallEventData(
+        clone_data.clone_flags, current_index, event_data_table, cpu_index);
+
+    std::uint64_t parent_child_tid{0U};
+    readSyscallEventData(
+        parent_child_tid, current_index, event_data_table, cpu_index);
+
+    clone_data.parent_tid =
+        static_cast<std::uint32_t>(parent_child_tid >> 32U) & 0xFFFFFFFFU;
+
+    clone_data.child_tid =
+        static_cast<std::uint32_t>(parent_child_tid) & 0xFFFFFFFFU;
+
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
 osquery::Status BCCProcessEventsProgram::readSyscallEventExitData(
     SyscallEvent::ExitData& exit_data,
     int& current_index,
@@ -615,6 +873,7 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventExitData(
   try {
     readSyscallEventData(
         exit_data.error_code, current_index, event_data_table, cpu_index);
+
     return osquery::Status(0);
 
   } catch (const osquery::Status& status) {
@@ -682,9 +941,19 @@ osquery::Status BCCProcessEventsProgram::readSyscallEvent(
   }
 
   switch (event.header.type) {
+  // We need to capture this both to isolate the pid_vnr call and also
+  // to ignore threads
+  case SyscallEvent::Header::Type::SysEnterClone: {
+    SyscallEvent::CloneData clone_data = {};
+    status = readSyscallEventCloneData(
+        clone_data, current_index, event_data_table, cpu_index);
+
+    event.data = clone_data;
+    break;
+  }
+
   // No processing required for these events; we grab them only to
   // know when we need to care about pid_vnr data
-  case SyscallEvent::Header::Type::SysEnterClone:
   case SyscallEvent::Header::Type::SysExitClone:
 
   case SyscallEvent::Header::Type::SysEnterFork:
@@ -749,125 +1018,13 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
     const SyscallEvent& syscall_event) {
   process_event = {};
 
-  SyscallEventMap* event_map{nullptr};
-  auto status = getSyscallEventMap(event_map, syscall_event, context);
-  if (!status.ok()) {
-    // This may also be a code 2 (event should be ignored)
-    return status;
+  auto it = kSyscallEventHandlerMap.find(syscall_event.header.type);
+  if (it == kSyscallEventHandlerMap.end()) {
+    return osquery::Status::failure("Invalid syscall event received");
   }
 
-  auto key = syscall_event.header.tgid;
-
-  if (isEntrySyscallEventType(syscall_event)) {
-    if (syscall_event.header.type == SyscallEvent::Header::Type::KprobePidvnr) {
-      // Attach this data to the existing clone/fork/vfork event
-      auto& parent_raw_event = event_map->at(key);
-
-      auto data = boost::get<SyscallEvent::PidVnrData>(syscall_event.data);
-      parent_raw_event.data = data;
-
-      return osquery::Status(2, "State has been updated");
-
-    } else if (syscall_event.header.type ==
-                   SyscallEvent::Header::Type::SysEnterExit ||
-               syscall_event.header.type ==
-                   SyscallEvent::Header::Type::SysEnterExitGroup) {
-      // Directly emit a new event
-      process_event.type = ProcessEvent::Type::Exit;
-      process_event.timestamp = syscall_event.header.timestamp;
-      process_event.pid = syscall_event.header.pid;
-      process_event.tgid = syscall_event.header.tgid;
-      process_event.uid = syscall_event.header.uid;
-      process_event.gid = syscall_event.header.gid;
-
-      auto syscall_data =
-          boost::get<SyscallEvent::ExitData>(syscall_event.data);
-
-      ProcessEvent::ExitData exit_data;
-      exit_data.error_code = syscall_data.error_code;
-
-      process_event.data = exit_data;
-
-      return osquery::Status(0);
-
-    } else {
-      // Save this new raw event into the designated map
-      event_map->insert({key, syscall_event});
-      return osquery::Status(2, "State has been updated");
-    }
-
-  } else {
-    auto it = event_map->find(key);
-    if (it == event_map->end()) {
-      auto type = syscall_event.header.type;
-      if (type == SyscallEvent::Header::Type::SysExitExecve ||
-          type == SyscallEvent::Header::Type::SysExitExecveat) {
-        const char* syscall_name = nullptr;
-        if (type == SyscallEvent::Header::Type::SysExitExecve) {
-          syscall_name = "execve";
-        } else {
-          syscall_name = "execveat";
-        }
-
-        std::stringstream error_message;
-        error_message << "Failed to locate the entry event for the "
-                      << syscall_name << " event. The syscall returned "
-                      << syscall_event.header.exit_code.get();
-
-        return osquery::Status::failure(error_message.str());
-
-      } else {
-        // Forks will (by nature) return multiple times; we can
-        // ignore unmatched events
-        return osquery::Status(2, "Event was ignored");
-      }
-    }
-
-    auto entry_event = event_map->at(key);
-    event_map->erase(key);
-
-    // emit a new process event
-    if (syscall_event.header.type ==
-            SyscallEvent::Header::Type::SysExitExecve ||
-        syscall_event.header.type ==
-            SyscallEvent::Header::Type::SysExitExecveat) {
-      process_event.type = ProcessEvent::Type::Exec;
-    } else {
-      process_event.type = ProcessEvent::Type::Fork;
-    }
-
-    process_event.timestamp = syscall_event.header.timestamp;
-    process_event.pid = syscall_event.header.pid;
-    process_event.tgid = syscall_event.header.tgid;
-    process_event.uid = syscall_event.header.uid;
-    process_event.gid = syscall_event.header.gid;
-
-    if (process_event.type == ProcessEvent::Type::Exec) {
-      ProcessEvent::ExecData exec_data;
-
-      const auto& entry_event_data =
-          boost::get<SyscallEvent::ExecData>(entry_event.data);
-
-      exec_data.filename = entry_event_data.filename;
-      exec_data.arguments = entry_event_data.argv;
-      exec_data.exit_code = syscall_event.header.exit_code.get();
-
-      process_event.data = exec_data;
-
-    } else {
-      ProcessEvent::ForkData fork_data;
-
-      const auto& entry_event_data =
-          boost::get<SyscallEvent::PidVnrData>(entry_event.data);
-
-      fork_data.child_pid = entry_event_data.host_pid;
-      fork_data.child_pid_namespaced = entry_event_data.namespaced_pid_list;
-
-      process_event.data = fork_data;
-    }
-
-    return osquery::Status(0);
-  }
+  auto syscall_handler = it->second;
+  return syscall_handler(process_event, context, syscall_event);
 }
 
 void BCCProcessEventsProgram::forkPerfEventHandler(void* this_ptr,
@@ -922,7 +1079,7 @@ void BCCProcessEventsProgram::fdPerfEventHandler(void* this_ptr,
   auto& program = *static_cast<BCCProcessEventsProgram*>(this_ptr);
 
   auto event_data_table =
-      program.d->exec_events_bpf.get_percpu_array_table<std::uint64_t>(
+      program.d->fd_events_bpf.get_percpu_array_table<std::uint64_t>(
           "fd_event_data");
 
   program.processPerfEvent(event_data_table,

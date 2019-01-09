@@ -87,6 +87,12 @@ class BCCProcessEventsProgram final {
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);
 
+  static osquery::Status readSyscallEventCloneData(
+      SyscallEvent::CloneData& exec_data,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
   static osquery::Status readSyscallEventExitData(
       SyscallEvent::ExitData& exec_data,
       int& current_index,

@@ -76,6 +76,12 @@ struct SyscallEvent final {
     int error_code;
   };
 
+  struct CloneData final {
+    std::uint64_t clone_flags{0U};
+    std::uint32_t parent_tid{0U};
+    std::uint32_t child_tid{0U};
+  };
+
   struct OpenCreateData final {
     int folder_fd{-1};
     mode_t open_mode{0};
@@ -86,7 +92,9 @@ struct SyscallEvent final {
   };
 
   Header header;
-  boost::variant<PidVnrData, ExecData, ExitData, OpenCreateData> data;
+  boost::optional<PidVnrData> namespace_data;
+  boost::variant<PidVnrData, ExecData, ExitData, CloneData, OpenCreateData>
+      data;
 };
 
 using SyscallEventMap = std::unordered_map<pid_t, SyscallEvent>;
@@ -95,6 +103,7 @@ struct BCCProcessEventsContext final {
   SyscallEventMap fork_event_map;
   SyscallEventMap vfork_event_map;
   SyscallEventMap clone_event_map;
+  SyscallEventMap clone_thread_event_map;
 
   SyscallEventMap execve_event_map;
   SyscallEventMap execveat_event_map;
