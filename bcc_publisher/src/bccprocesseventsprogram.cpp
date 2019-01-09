@@ -73,6 +73,19 @@ const TracepointDescriptorList kFdEventsTracepointList = {
 };
 // clang-format on
 
+void initializeProcessEvent(ProcessEvent& process_event,
+                            ProcessEvent::Type event_type,
+                            const SyscallEvent& syscall_event) {
+  process_event = {};
+
+  process_event.type = event_type;
+  process_event.timestamp = syscall_event.header.timestamp;
+  process_event.pid = syscall_event.header.pid;
+  process_event.tgid = syscall_event.header.tgid;
+  process_event.uid = syscall_event.header.uid;
+  process_event.gid = syscall_event.header.gid;
+}
+
 std::string getKprobeEventHandlerName(
     const KprobeDescriptor& kprobe_descriptor) {
   std::stringstream buffer;
@@ -226,12 +239,8 @@ osquery::Status processExitOrExitGroupSyscallEvent(
     throw std::logic_error("Invalid event type");
   }
 
-  process_event.type = ProcessEvent::Type::Exit;
-  process_event.timestamp = syscall_event.header.timestamp;
-  process_event.pid = syscall_event.header.pid;
-  process_event.tgid = syscall_event.header.tgid;
-  process_event.uid = syscall_event.header.uid;
-  process_event.gid = syscall_event.header.gid;
+  initializeProcessEvent(
+      process_event, ProcessEvent::Type::Exit, syscall_event);
 
   auto syscall_data = boost::get<SyscallEvent::ExitData>(syscall_event.data);
 
@@ -313,12 +322,8 @@ osquery::Status processExecveOrExecveatSyscallExitEvent(
   auto entry_event = it->second;
   event_map->erase(it);
 
-  process_event.type = ProcessEvent::Type::Exec;
-  process_event.timestamp = syscall_event.header.timestamp;
-  process_event.pid = syscall_event.header.pid;
-  process_event.tgid = syscall_event.header.tgid;
-  process_event.uid = syscall_event.header.uid;
-  process_event.gid = syscall_event.header.gid;
+  initializeProcessEvent(
+      process_event, ProcessEvent::Type::Exec, syscall_event);
 
   ProcessEvent::ExecData exec_data;
 
@@ -393,12 +398,8 @@ osquery::Status processForkOrCloneSyscallExitEvent(
     }
   }
 
-  process_event.type = ProcessEvent::Type::Fork;
-  process_event.timestamp = syscall_event.header.timestamp;
-  process_event.pid = syscall_event.header.pid;
-  process_event.tgid = syscall_event.header.tgid;
-  process_event.uid = syscall_event.header.uid;
-  process_event.gid = syscall_event.header.gid;
+  initializeProcessEvent(
+      process_event, ProcessEvent::Type::Fork, syscall_event);
 
   ProcessEvent::ForkData fork_data;
   fork_data.child_pid = entry_event.namespace_data.get().host_pid;
