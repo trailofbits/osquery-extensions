@@ -17,6 +17,7 @@
 #pragma once
 
 #include "bccprocesseventsprogramtypes.h"
+#include "probes/common/utilities.h"
 
 #include <BPF.h>
 

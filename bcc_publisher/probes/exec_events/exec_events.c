@@ -22,14 +22,10 @@ BPF_PERF_OUTPUT(events);
 BPF_PERCPU_ARRAY(exec_event_data, u64, EVENT_MAP_SIZE);
 BPF_PERCPU_ARRAY(exec_cpu_index, u64, 1);
 
-#define BOOL int
-#define TRUE 1
-#define FALSE 0
-
 /// Saves the generic event header into the per-cpu map, returning the
 /// initial index
 static int saveEventHeader(u64 event_identifier,
-                           BOOL save_exit_code,
+                           bool save_exit_code,
                            int exit_code) {
   int index_key = 0U;
   u64 initial_slot = 0U;
@@ -52,7 +48,7 @@ static int saveEventHeader(u64 event_identifier,
   exec_event_data.update(&index, &field);
   INCREMENT_EVENT_DATA_INDEX(index);
 
-  if (save_exit_code == TRUE) {
+  if (save_exit_code == true) {
     field = (u64)exit_code;
     exec_event_data.update(&index, &field);
     INCREMENT_EVENT_DATA_INDEX(index);
@@ -85,26 +81,26 @@ static int saveString(const char* buffer) {
 
 /// Saves the string pointed to by the given address into the per-cpu
 /// map
-static BOOL saveStringFromAddress(char* buffer, const char* address) {
+static bool saveStringFromAddress(char* buffer, const char* address) {
   if (address == NULL) {
-    return FALSE;
+    return false;
   }
 
   bpf_probe_read(buffer, ARG_SIZE, address);
   saveString(buffer);
 
-  return TRUE;
+  return true;
 }
 
 /// Saves the truncation identifier into the per-cpu map; used for varargs
 /// functions likes execve
-static int emitVarargsTerminator(BOOL truncated) {
+static int emitVarargsTerminator(bool truncated) {
   int index_key = 0U;
   u64 initial_slot = 0U;
   u64* index_ptr = exec_cpu_index.lookup_or_init(&index_key, &initial_slot);
   int index = (index_ptr != NULL ? *index_ptr : initial_slot);
 
-  u64 terminator = truncated == TRUE ? VARARGS_TRUNCATION : VARARGS_TERMINATOR;
+  u64 terminator = truncated == true ? VARARGS_TRUNCATION : VARARGS_TERMINATOR;
   exec_event_data.update(&index, &terminator);
   INCREMENT_EVENT_DATA_INDEX(index);
 
@@ -117,7 +113,7 @@ static int emitVarargsTerminator(BOOL truncated) {
 /// Execve handlers
 int on_tracepoint_sys_enter_execve(
     struct tracepoint__syscalls__sys_enter_execve* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTEREXECVE, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_SYSENTEREXECVE, false, 0);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -131,7 +127,7 @@ int on_tracepoint_sys_enter_execve(
 #pragma unroll
   for (int i = 1; i < MAX_ARGS; i++) {
     bpf_probe_read(&argument_ptr, sizeof(argument_ptr), &args->argv[i]);
-    if (saveStringFromAddress(buffer, argument_ptr) == FALSE) {
+    if (saveStringFromAddress(buffer, argument_ptr) == false) {
       goto emit_terminator;
     }
   }
@@ -139,11 +135,11 @@ int on_tracepoint_sys_enter_execve(
   goto emit_truncation;
 
 emit_truncation:
-  emitVarargsTerminator(TRUE);
+  emitVarargsTerminator(true);
   goto emit_event;
 
 emit_terminator:
-  emitVarargsTerminator(FALSE);
+  emitVarargsTerminator(false);
   goto emit_event;
 
 emit_event:
@@ -153,7 +149,7 @@ emit_event:
 
 int on_tracepoint_sys_exit_execve(
     struct tracepoint__syscalls__sys_exit_execve* args) {
-  int event_index = saveEventHeader(EVENTID_SYSEXITEXECVE, TRUE, args->ret);
+  int event_index = saveEventHeader(EVENTID_SYSEXITEXECVE, true, args->ret);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -166,7 +162,7 @@ int on_tracepoint_sys_exit_execve(
 /// Execveat handlers
 int on_tracepoint_sys_enter_execveat(
     struct tracepoint__syscalls__sys_enter_execveat* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTEREXECVEAT, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_SYSENTEREXECVEAT, false, 0);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -180,7 +176,7 @@ int on_tracepoint_sys_enter_execveat(
 #pragma unroll
   for (int i = 1; i < MAX_ARGS; i++) {
     bpf_probe_read(&argument_ptr, sizeof(argument_ptr), &args->argv[i]);
-    if (saveStringFromAddress(buffer, argument_ptr) == FALSE) {
+    if (saveStringFromAddress(buffer, argument_ptr) == false) {
       goto emit_terminator;
     }
   }
@@ -188,11 +184,11 @@ int on_tracepoint_sys_enter_execveat(
   goto emit_truncation;
 
 emit_truncation:
-  emitVarargsTerminator(TRUE);
+  emitVarargsTerminator(true);
   goto emit_event;
 
 emit_terminator:
-  emitVarargsTerminator(FALSE);
+  emitVarargsTerminator(false);
   goto emit_event;
 
 emit_event:
@@ -202,7 +198,7 @@ emit_event:
 
 int on_tracepoint_sys_exit_execveat(
     struct tracepoint__syscalls__sys_exit_execveat* args) {
-  int event_index = saveEventHeader(EVENTID_SYSEXITEXECVEAT, TRUE, args->ret);
+  int event_index = saveEventHeader(EVENTID_SYSEXITEXECVEAT, true, args->ret);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |

@@ -22,14 +22,10 @@ BPF_PERF_OUTPUT(events);
 BPF_PERCPU_ARRAY(fd_event_data, u64, EVENT_MAP_SIZE);
 BPF_PERCPU_ARRAY(fd_cpu_index, u64, 1);
 
-#define BOOL int
-#define TRUE 1
-#define FALSE 0
-
 /// Saves the generic event header into the per-cpu map, returning the
 /// initial index
 static int saveEventHeader(u64 event_identifier,
-                           BOOL save_exit_code,
+                           bool save_exit_code,
                            int exit_code) {
   int index_key = 0U;
   u64 initial_slot = 0U;
@@ -52,7 +48,7 @@ static int saveEventHeader(u64 event_identifier,
   fd_event_data.update(&index, &field);
   INCREMENT_EVENT_DATA_INDEX(index);
 
-  if (save_exit_code == TRUE) {
+  if (save_exit_code == true) {
     field = (u64)exit_code;
     fd_event_data.update(&index, &field);
     INCREMENT_EVENT_DATA_INDEX(index);
@@ -85,21 +81,21 @@ static int saveString(const char* buffer) {
 
 /// Saves the string pointed to by the given address into the per-cpu
 /// map
-static BOOL saveStringFromAddress(char* buffer, const char* address) {
+static bool saveStringFromAddress(char* buffer, const char* address) {
   if (address == NULL) {
-    return FALSE;
+    return false;
   }
 
   bpf_probe_read(buffer, ARG_SIZE, address);
   saveString(buffer);
 
-  return TRUE;
+  return true;
 }
 
 /// creat() handler
 int on_tracepoint_sys_enter_creat(
     struct tracepoint__syscalls__sys_enter_creat* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTERCREAT, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_SYSENTERCREAT, false, 0);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |

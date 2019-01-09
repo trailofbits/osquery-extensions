@@ -459,7 +459,7 @@ struct BCCProcessEventsProgram::PrivateData final {
 BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
   try {
     // Initialize the fork_events program
-    auto status = d->fork_events_bpf.init(bcc_probe_fork_events);
+    auto status = d->fork_events_bpf.init(kBccProbe_fork_events);
     if (status.code() != 0) {
       throw osquery::Status(1, "BCC initialization error: " + status.msg());
     }
@@ -514,7 +514,7 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
     d->fork_events_perf_buffer = d->fork_events_bpf.get_perf_buffer("events");
 
     // Initialize the exec_events program
-    status = d->exec_events_bpf.init(bcc_probe_exec_events);
+    status = d->exec_events_bpf.init(kBccProbe_exec_events);
     if (status.code() != 0) {
       throw osquery::Status(1, "BCC initialization error: " + status.msg());
     }
@@ -549,7 +549,7 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
     d->exec_events_perf_buffer = d->exec_events_bpf.get_perf_buffer("events");
 
     // Initialize the fd_events program
-    status = d->fd_events_bpf.init(bcc_probe_fd_events);
+    status = d->fd_events_bpf.init(kBccProbe_fd_events);
     if (status.code() != 0) {
       throw osquery::Status(1, "BCC initialization error: " + status.msg());
     }

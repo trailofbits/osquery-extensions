@@ -35,32 +35,63 @@ function(importBccProbe probe_name)
     "${probe_path}/*.c"
   )
 
-  list(APPEND probe_files ${probe_header_file_list} ${probe_source_file_list})
+  list(APPEND probe_file_list
+    "${CMAKE_CURRENT_SOURCE_DIR}/probes/common/definitions.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/probes/common/utilities.h"
 
-  set(probe_definition_file "${CMAKE_CURRENT_BINARY_DIR}/bcc_probe_${probe_name}.h")
+    ${probe_header_file_list}
+    ${probe_source_file_list}
+  )
 
-  set(probeGenerator_sources "")
-  foreach(probe_source_file ${probe_files})
-    list(APPEND probeGenerator_sources "${probe_source_file}")
+  set(probe_definition_folder "${CMAKE_CURRENT_BINARY_DIR}/probes")
+  set(probe_definition_file "${probe_definition_folder}/${probe_name}.h")
+
+  foreach(probe_file ${probe_header_file_list})
+    list(APPEND header_command_list
+      COMMAND sh -c "cat \"${probe_file}\" >> \"${probe_definition_file}\""
+      COMMAND sh -c "echo \"\\n\\n\" >> \"${probe_definition_file}\""
+    )
   endforeach()
+
+  foreach(probe_file ${probe_file_list})
+    list(APPEND body_command_list
+      COMMAND sh -c "cat \"${probe_file}\" >> \"${probe_definition_file}\""
+      COMMAND sh -c "echo \"\\n\\n\" >> \"${probe_definition_file}\""
+    )
+  endforeach()
+
+  if(NOT TARGET probe_definition_folder_generator)
+    add_custom_command(
+      OUTPUT "${probe_definition_folder}"
+      COMMAND "${CMAKE_COMMAND}" -E make_directory "${probe_definition_folder}"
+      VERBATIM
+    )
+
+    add_custom_target(probe_definition_folder_generator DEPENDS "${probe_definition_folder}")
+  endif()
 
   add_custom_command(
     OUTPUT "${probe_definition_file}"
-    COMMAND "${CMAKE_COMMAND}"
-    ARGS "-DprobeGenerator_probeVariableName=bcc_probe_${probe_name}" "-DprobeGenerator_sources=${probeGenerator_sources}" "-DprobeGenerator_destination=${probe_definition_file}" -P "${CMAKE_CURRENT_SOURCE_DIR}/probes/cmake/probe_generator.cmake"
-    MAIN_DEPENDENCY ${probe_files}
-    COMMENT "Generating probe: ${probe_name}: ${probe_definition_file}"
+
+    COMMAND sh -c "echo -n > \"${probe_definition_file}\""
+    ${header_command_list}
+    COMMAND sh -c "echo '#include <string>\\n\\nstatic const std::string kBccProbe_${probe_name} = R\"PROBE_SOURCE(' >> '${probe_definition_file}'"
+    ${body_command_list}
+    COMMAND sh -c "echo ')PROBE_SOURCE\";' >> '${probe_definition_file}'"
+
+    DEPENDS probe_definition_folder_generator ${probe_file_list}
+    COMMENT "Generating probe: ${probe_name}"
+    WORKING_DIRECTORY "${probe_definition_folder}"
     VERBATIM
   )
 
-  add_custom_target("bcc_probe_${probe_name}_generator" DEPENDS "${probe_definition_file}")
+  add_custom_target("bcc_probe_generator_${probe_name}" DEPENDS "${probe_definition_file}")
 
   add_library("bcc_probe_${probe_name}" INTERFACE)
-
   target_include_directories("bcc_probe_${probe_name}" INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/probes"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}"
   )
 
-  add_dependencies("bcc_probe_${probe_name}" "bcc_probe_${probe_name}_generator")
+  add_dependencies("bcc_probe_${probe_name}" "bcc_probe_generator_${probe_name}")
 endfunction()

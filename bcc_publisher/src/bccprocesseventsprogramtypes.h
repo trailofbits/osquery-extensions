@@ -1,13 +1,11 @@
 #pragma once
 
-#include <bcc_probe_fork_events.h>
-#include <fork_events/fork_events.h>
+#include <probes/common/definitions.h>
+#include <probes/common/utilities.h>
 
-#include <bcc_probe_exec_events.h>
-#include <exec_events/exec_events.h>
-
-#include <bcc_probe_fd_events.h>
-#include <fd_events/fd_events.h>
+#include <probes/exec_events.h>
+#include <probes/fd_events.h>
+#include <probes/fork_events.h>
 
 #include <boost/variant.hpp>
 #include <osquery/sdk.h>

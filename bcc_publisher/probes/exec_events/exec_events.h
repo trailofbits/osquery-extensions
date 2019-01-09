@@ -20,19 +20,5 @@
 #define EVENTID_SYSENTEREXECVEAT 0xFF00FF0B
 #define EVENTID_SYSEXITEXECVEAT 0xFF00FF0C
 
-#define MAX_ARGS 11
-#define ARG_SIZE 160
-#define EVENT_MAP_SIZE 1000000
-
 #define VARARGS_TERMINATOR 0xFFFF0000FFFF0000ULL
 #define VARARGS_TRUNCATION 0x0011001100110011ULL
-
-// clang-format off
-#define INCREMENT_EVENT_DATA_INDEX_BY(idx, amount) \
-  idx = ((idx + amount) & 0x00FFFFFFUL) % EVENT_MAP_SIZE
-// clang-format on
-
-// clang-format off
-#define INCREMENT_EVENT_DATA_INDEX(idx) \
-  INCREMENT_EVENT_DATA_INDEX_BY(idx, 1)
-// clang-format on

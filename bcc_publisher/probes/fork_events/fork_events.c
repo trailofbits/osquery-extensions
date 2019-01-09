@@ -23,14 +23,10 @@ BPF_PERF_OUTPUT(events);
 BPF_PERCPU_ARRAY(fork_event_data, u64, EVENT_MAP_SIZE);
 BPF_PERCPU_ARRAY(fork_cpu_index, u64, 1);
 
-#define BOOL int
-#define TRUE 1
-#define FALSE 0
-
 /// Saves the generic event header into the per-cpu map, returning the
 /// initial index
 static int saveEventHeader(u64 event_identifier,
-                           BOOL save_exit_code,
+                           bool save_exit_code,
                            int exit_code) {
   int index_key = 0U;
   u64 initial_slot = 0U;
@@ -53,7 +49,7 @@ static int saveEventHeader(u64 event_identifier,
   fork_event_data.update(&index, &field);
   INCREMENT_EVENT_DATA_INDEX(index);
 
-  if (save_exit_code == TRUE) {
+  if (save_exit_code == true) {
     field = (u64)exit_code;
     fork_event_data.update(&index, &field);
     INCREMENT_EVENT_DATA_INDEX(index);
@@ -109,7 +105,7 @@ static int savePidNamespaceData(struct pid* pid) {
 /// clone() handler
 int on_tracepoint_sys_enter_clone(
     struct tracepoint__syscalls__sys_enter_clone* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTERCLONE, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_SYSENTERCLONE, false, 0);
   saveEventValue(args->clone_flags);
 
   u32 parent_tid = 0U;
@@ -132,7 +128,7 @@ int on_tracepoint_sys_enter_clone(
 /// clone() handler
 int on_tracepoint_sys_exit_clone(
     struct tracepoint__syscalls__sys_exit_clone* args) {
-  int event_index = saveEventHeader(EVENTID_SYSEXITCLONE, TRUE, args->ret);
+  int event_index = saveEventHeader(EVENTID_SYSEXITCLONE, true, args->ret);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -145,7 +141,7 @@ int on_tracepoint_sys_exit_clone(
 /// fork() handler
 int on_tracepoint_sys_enter_fork(
     struct tracepoint__syscalls__sys_enter_fork* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTERFORK, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_SYSENTERFORK, false, 0);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -158,7 +154,7 @@ int on_tracepoint_sys_enter_fork(
 /// fork() handler
 int on_tracepoint_sys_exit_fork(
     struct tracepoint__syscalls__sys_exit_fork* args) {
-  int event_index = saveEventHeader(EVENTID_SYSEXITFORK, TRUE, args->ret);
+  int event_index = saveEventHeader(EVENTID_SYSEXITFORK, true, args->ret);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -171,7 +167,7 @@ int on_tracepoint_sys_exit_fork(
 /// vfork() handler
 int on_tracepoint_sys_enter_vfork(
     struct tracepoint__syscalls__sys_enter_vfork* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTERVFORK, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_SYSENTERVFORK, false, 0);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -184,7 +180,7 @@ int on_tracepoint_sys_enter_vfork(
 /// vfork() handler
 int on_tracepoint_sys_exit_vfork(
     struct tracepoint__syscalls__sys_exit_vfork* args) {
-  int event_index = saveEventHeader(EVENTID_SYSEXITVFORK, TRUE, args->ret);
+  int event_index = saveEventHeader(EVENTID_SYSEXITVFORK, true, args->ret);
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
@@ -196,7 +192,7 @@ int on_tracepoint_sys_exit_vfork(
 
 /// pid_vnr() handler
 int on_kprobe_pid_vnr_enter(struct pt_regs* ctx, struct pid* pid) {
-  int event_index = saveEventHeader(EVENTID_PIDVNR, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_PIDVNR, false, 0);
   savePidNamespaceData(pid);
 
   u32 event_identifier =
@@ -210,7 +206,7 @@ int on_kprobe_pid_vnr_enter(struct pt_regs* ctx, struct pid* pid) {
 /// exit() handler
 int on_tracepoint_sys_enter_exit(
     struct tracepoint__syscalls__sys_enter_exit* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTEREXIT, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_SYSENTEREXIT, false, 0);
   saveEventValue(args->error_code);
 
   u32 event_identifier =
@@ -224,7 +220,7 @@ int on_tracepoint_sys_enter_exit(
 /// exit_group() handler
 int on_tracepoint_sys_enter_exit_group(
     struct tracepoint__syscalls__sys_enter_exit_group* args) {
-  int event_index = saveEventHeader(EVENTID_SYSENTEREXITGROUP, FALSE, 0);
+  int event_index = saveEventHeader(EVENTID_SYSENTEREXITGROUP, false, 0);
   saveEventValue(args->error_code);
 
   u32 event_identifier =
