@@ -1041,7 +1041,7 @@ void BCCProcessEventsProgram::forkPerfEventHandler(void* this_ptr,
 
   auto event_data_table =
       program.d->fork_events_bpf.get_percpu_array_table<std::uint64_t>(
-          "fork_event_data");
+          "perf_event_data");
 
   program.processPerfEvent(event_data_table,
                            event_identifiers,
@@ -1061,7 +1061,7 @@ void BCCProcessEventsProgram::execPerfEventHandler(void* this_ptr,
 
   auto event_data_table =
       program.d->exec_events_bpf.get_percpu_array_table<std::uint64_t>(
-          "exec_event_data");
+          "perf_event_data");
 
   program.processPerfEvent(event_data_table,
                            event_identifiers,
@@ -1081,7 +1081,7 @@ void BCCProcessEventsProgram::fdPerfEventHandler(void* this_ptr,
 
   auto event_data_table =
       program.d->fd_events_bpf.get_percpu_array_table<std::uint64_t>(
-          "fd_event_data");
+          "perf_event_data");
 
   program.processPerfEvent(event_data_table,
                            event_identifiers,

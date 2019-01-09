@@ -38,6 +38,7 @@ function(importBccProbe probe_name)
   list(APPEND probe_file_list
     "${CMAKE_CURRENT_SOURCE_DIR}/probes/common/definitions.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/probes/common/utilities.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/probes/common/helpers.h"
 
     ${probe_header_file_list}
     ${probe_source_file_list}

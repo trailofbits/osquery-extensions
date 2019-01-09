@@ -19,85 +19,26 @@
 #include <linux/sched.h>
 #include <uapi/linux/ptrace.h>
 
-BPF_PERF_OUTPUT(events);
-BPF_PERCPU_ARRAY(fork_event_data, u64, EVENT_MAP_SIZE);
-BPF_PERCPU_ARRAY(fork_cpu_index, u64, 1);
-
-/// Saves the generic event header into the per-cpu map, returning the
-/// initial index
-static int saveEventHeader(u64 event_identifier,
-                           bool save_exit_code,
-                           int exit_code) {
-  int index_key = 0U;
-  u64 initial_slot = 0U;
-  u64* index_ptr = fork_cpu_index.lookup_or_init(&index_key, &initial_slot);
-  int event_index = (index_ptr != NULL ? *index_ptr : initial_slot);
-
-  int index = event_index;
-  fork_event_data.update(&index, &event_identifier);
-  INCREMENT_EVENT_DATA_INDEX(index);
-
-  u64 field = bpf_ktime_get_ns();
-  fork_event_data.update(&index, &field);
-  INCREMENT_EVENT_DATA_INDEX(index);
-
-  field = bpf_get_current_pid_tgid();
-  fork_event_data.update(&index, &field);
-  INCREMENT_EVENT_DATA_INDEX(index);
-
-  field = bpf_get_current_uid_gid();
-  fork_event_data.update(&index, &field);
-  INCREMENT_EVENT_DATA_INDEX(index);
-
-  if (save_exit_code == true) {
-    field = (u64)exit_code;
-    fork_event_data.update(&index, &field);
-    INCREMENT_EVENT_DATA_INDEX(index);
-  }
-
-  initial_slot = index; // re-use the same var to avoid wasting stack space
-  fork_cpu_index.update(&index_key, &initial_slot);
-
-  return event_index;
-}
-
-/// Saves the given value to the per-cpu buffer; only use after the header
-/// has been sent
-static int saveEventValue(u64 value) {
-  int index_key = 0U;
-  u64 initial_slot = 0U;
-  u64* index_ptr = fork_cpu_index.lookup_or_init(&index_key, &initial_slot);
-  int index = (index_ptr != NULL ? *index_ptr : initial_slot);
-
-  fork_event_data.update(&index, &value);
-  INCREMENT_EVENT_DATA_INDEX(index);
-
-  initial_slot = index; // re-use the same var to avoid wasting stack space
-  fork_cpu_index.update(&index_key, &initial_slot);
-
-  return 0;
-}
-
 /// Saves namespace data into the per-cpu map
 static int savePidNamespaceData(struct pid* pid) {
   int index_key = 0U;
   u64 initial_slot = 0U;
-  u64* index_ptr = fork_cpu_index.lookup_or_init(&index_key, &initial_slot);
+  u64* index_ptr = perf_cpu_index.lookup_or_init(&index_key, &initial_slot);
   int index = (index_ptr != NULL ? *index_ptr : initial_slot);
 
   u64 field = (u64)pid->level;
-  fork_event_data.update(&index, &field);
+  perf_event_data.update(&index, &field);
   INCREMENT_EVENT_DATA_INDEX(index);
 
 #pragma unroll
   for (int i = 0; i < 3; i++) {
     field = (u64)pid->numbers[i].nr;
-    fork_event_data.update(&index, &field);
+    perf_event_data.update(&index, &field);
     INCREMENT_EVENT_DATA_INDEX(index);
   }
 
   initial_slot = index; // re-use the same var to avoid wasting stack space
-  fork_cpu_index.update(&index_key, &initial_slot);
+  perf_cpu_index.update(&index_key, &initial_slot);
 
   return 0;
 }
