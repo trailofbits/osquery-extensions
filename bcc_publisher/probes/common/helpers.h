@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#include <linux/fs.h>
+#include <linux/sched.h>
+#include <uapi/linux/ptrace.h>
+
 BPF_PERF_OUTPUT(events);
 BPF_PERCPU_ARRAY(perf_event_data, u64, EVENT_MAP_SIZE);
 BPF_PERCPU_ARRAY(perf_cpu_index, u64, 1);

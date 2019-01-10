@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-#include <linux/fs.h>
 #include <linux/pid.h>
-#include <linux/sched.h>
-#include <uapi/linux/ptrace.h>
 
 /// Saves namespace data into the per-cpu map
 static int savePidNamespaceData(struct pid* pid) {

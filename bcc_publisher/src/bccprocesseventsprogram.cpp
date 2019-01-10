@@ -35,41 +35,64 @@ struct TracepointDescriptor final {
 
 using TracepointDescriptorList = std::vector<TracepointDescriptor>;
 
-// clang-format off
-const KprobeDescriptorList kForkEventsKprobeList = {
-  {BPF_PROBE_ENTRY, "pid_vnr", false}
+struct BPFProgramDescriptor final {
+  std::string source_code;
+  KprobeDescriptorList kprobe_list;
+  TracepointDescriptorList tracepoint_list;
 };
-// clang-format on
 
 // clang-format off
-const TracepointDescriptorList kExecEventsTracepointList = {
-  {"syscalls:sys_enter_execve"},
-  {"syscalls:sys_exit_execve"},
+const std::vector<BPFProgramDescriptor> kBpfProgramDescriptorList = {
+  {
+    // Probe source
+    kBccProbe_fork_events,
 
-  {"syscalls:sys_enter_execveat"},
-  {"syscalls:sys_exit_execveat"}
-};
-// clang-format on
+    // kprobes
+    {{BPF_PROBE_ENTRY, "pid_vnr", false}},
 
-// clang-format off
-const TracepointDescriptorList kForkEventsTracepointList = {
-  {"syscalls:sys_enter_clone"},
-  {"syscalls:sys_exit_clone"},
+    // Tracepoints
+    {
+      {"syscalls:sys_enter_clone"},
+      {"syscalls:sys_exit_clone"},
 
-  {"syscalls:sys_enter_fork"},
-  {"syscalls:sys_exit_fork"},
+      {"syscalls:sys_enter_fork"},
+      {"syscalls:sys_exit_fork"},
 
-  {"syscalls:sys_enter_vfork"},
-  {"syscalls:sys_exit_vfork"},
+      {"syscalls:sys_enter_vfork"},
+      {"syscalls:sys_exit_vfork"},
 
-  {"syscalls:sys_enter_exit"},
-  {"syscalls:sys_enter_exit_group"}
-};
-// clang-format on
+      {"syscalls:sys_enter_exit"},
+      {"syscalls:sys_enter_exit_group"}
+    }
+  },
 
-// clang-format off
-const TracepointDescriptorList kFdEventsTracepointList = {
-  {"syscalls:sys_enter_creat"}
+  {
+    // Probe source
+    kBccProbe_exec_events,
+
+    // kprobes
+    {},
+
+    // Tracepoints
+    {
+      {"syscalls:sys_enter_execve"},
+      {"syscalls:sys_exit_execve"},
+
+      {"syscalls:sys_enter_execveat"},
+      {"syscalls:sys_exit_execveat"}
+    }
+  },
+
+  {
+    // Probe source
+    kBccProbe_fd_events,
+
+    // kprobes
+    {},
+
+    // Tracepoints
+    {{"syscalls:sys_enter_creat"}}
+  }
 };
 // clang-format on
 
@@ -414,6 +437,18 @@ using SyscallEventCallback = osquery::Status (*)(ProcessEvent&,
                                                  BCCProcessEventsContext& t,
                                                  const SyscallEvent&);
 
+struct BPFProgramData final {
+  ebpf::BPF bpf;
+  ebpf::BPFPerfBuffer* perf_event_buffer{nullptr};
+  BCCProcessEventsProgram* object{nullptr};
+  KprobeDescriptorList kprobe_list;
+  TracepointDescriptorList tracepoint_list;
+};
+
+using BPFProgramDataRef = std::unique_ptr<BPFProgramData>;
+
+using BPFProgramDataRefList = std::vector<BPFProgramDataRef>;
+
 // clang-format off
 const std::unordered_map<SyscallEvent::Header::Type, SyscallEventCallback> kSyscallEventHandlerMap = {
   {SyscallEvent::Header::Type::KprobePidvnr, processPidVnrSyscallEvent},
@@ -438,18 +473,7 @@ const std::unordered_map<SyscallEvent::Header::Type, SyscallEventCallback> kSysc
 } // namespace
 
 struct BCCProcessEventsProgram::PrivateData final {
-  ebpf::BPF fork_events_bpf;
-  ebpf::BPFPerfBuffer* fork_events_perf_buffer{nullptr};
-  KprobeDescriptorList fork_events_kprobes;
-  TracepointDescriptorList fork_events_tracepoints;
-
-  ebpf::BPF exec_events_bpf;
-  ebpf::BPFPerfBuffer* exec_events_perf_buffer{nullptr};
-  TracepointDescriptorList exec_events_tracepoints;
-
-  ebpf::BPF fd_events_bpf;
-  ebpf::BPFPerfBuffer* fd_events_perf_buffer{nullptr};
-  TracepointDescriptorList fd_events_tracepoints;
+  BPFProgramDataRefList bpf_program_data_list;
 
   BCCProcessEventsContext syscall_event_context;
   DockerTracker docker_tracker;
@@ -458,168 +482,109 @@ struct BCCProcessEventsProgram::PrivateData final {
 
 BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
   try {
-    // Initialize the fork_events program
-    auto status = d->fork_events_bpf.init(kBccProbe_fork_events);
-    if (status.code() != 0) {
-      throw osquery::Status(1, "BCC initialization error: " + status.msg());
-    }
+    for (const auto& program_descriptor : kBpfProgramDescriptorList) {
+      auto program_data = std::make_unique<BPFProgramData>();
+      program_data->object = this;
 
-    for (const auto& kprobe : kForkEventsKprobeList) {
-      std::string name;
-      if (kprobe.translate) {
-        name = d->fork_events_bpf.get_syscall_fnname(kprobe.name);
-      } else {
-        name = kprobe.name;
+      auto bpf_status = program_data->bpf.init(program_descriptor.source_code);
+      if (bpf_status.code() != 0) {
+        throw osquery::Status::failure("BCC initialization error: " +
+                                       bpf_status.msg());
       }
 
-      status = d->fork_events_bpf.attach_kprobe(
-          name, getKprobeEventHandlerName(kprobe), 0, kprobe.type);
+      for (const auto& tracepoint : program_descriptor.tracepoint_list) {
+        bpf_status = program_data->bpf.attach_tracepoint(
+            tracepoint.name, getTracepointEventHandlerName(tracepoint));
 
-      if (status.code() != 0) {
+        if (bpf_status.code() != 0) {
+          throw osquery::Status::failure(
+              "Failed to attach the following tracepont: " + tracepoint.name +
+              ". Error: " + bpf_status.msg());
+        }
+      }
+
+      for (const auto& kprobe : program_descriptor.kprobe_list) {
+        std::string name;
+        if (kprobe.translate) {
+          name = program_data->bpf.get_syscall_fnname(kprobe.name);
+        } else {
+          name = kprobe.name;
+        }
+
+        bpf_status = program_data->bpf.attach_kprobe(
+            name, getKprobeEventHandlerName(kprobe), 0, kprobe.type);
+
+        if (bpf_status.code() != 0) {
+          throw osquery::Status::failure(
+              "Failed to attach the following kprobe: " + name +
+              ". Error: " + bpf_status.msg());
+        }
+      }
+
+      static auto L_lostEventCallback = [](void*, std::uint64_t count) -> void {
+        LOG(ERROR) << "BCCProcessEventsProgram: Lost " << count << "events";
+      };
+
+      static auto L_eventCallback =
+          [](void* user_defined, void* data, int data_size) -> void {
+        auto program_data = reinterpret_cast<BPFProgramData*>(user_defined);
+
+        if ((data_size % 4U) != 0U) {
+          LOG(ERROR) << "Invalid data size: " << data_size;
+          return;
+        }
+
+        auto event_identifiers = static_cast<const std::uint32_t*>(data);
+
+        auto event_data_table =
+            program_data->bpf.get_percpu_array_table<std::uint64_t>(
+                "perf_event_data");
+
+        program_data->object->processPerfEvent(
+            event_data_table,
+            event_identifiers,
+            static_cast<std::size_t>(data_size / 4));
+      };
+
+      bpf_status = program_data->bpf.open_perf_buffer(
+          "events", L_eventCallback, L_lostEventCallback, program_data.get());
+
+      if (bpf_status.code() != 0) {
         throw osquery::Status::failure(
-            "Failed to attach the following kprobe: " + name +
-            ". Error: " + status.msg());
+            "Failed to open the perf event buffer: " + bpf_status.msg());
       }
 
-      d->fork_events_kprobes.push_back(kprobe);
+      program_data->perf_event_buffer =
+          program_data->bpf.get_perf_buffer("events");
+
+      d->bpf_program_data_list.push_back(std::move(program_data));
+      program_data.release();
     }
-
-    for (const auto& tracepoint : kForkEventsTracepointList) {
-      status = d->fork_events_bpf.attach_tracepoint(
-          tracepoint.name, getTracepointEventHandlerName(tracepoint));
-
-      if (status.code() != 0) {
-        throw osquery::Status::failure(
-            "Failed to attach the following tracepont: " + tracepoint.name +
-            ". Error: " + status.msg());
-      }
-
-      d->fork_events_tracepoints.push_back(tracepoint);
-    }
-
-    static auto L_lostForkEventNotifier = [](void*,
-                                             std::uint64_t count) -> void {
-      LOG(ERROR) << "BCCProcessEventsPublisher: Lost " << count
-                 << " fork/vfork/clone/exit/exit_group events";
-    };
-
-    status = d->fork_events_bpf.open_perf_buffer(
-        "events", forkPerfEventHandler, L_lostForkEventNotifier, this);
-
-    if (status.code() != 0) {
-      throw osquery::Status::failure("Failed to open the perf event buffer: " +
-                                     status.msg());
-    }
-
-    d->fork_events_perf_buffer = d->fork_events_bpf.get_perf_buffer("events");
-
-    // Initialize the exec_events program
-    status = d->exec_events_bpf.init(kBccProbe_exec_events);
-    if (status.code() != 0) {
-      throw osquery::Status(1, "BCC initialization error: " + status.msg());
-    }
-
-    for (const auto& tracepoint : kExecEventsTracepointList) {
-      status = d->exec_events_bpf.attach_tracepoint(
-          tracepoint.name, getTracepointEventHandlerName(tracepoint));
-
-      if (status.code() != 0) {
-        throw osquery::Status::failure(
-            "Failed to attach the following tracepont: " + tracepoint.name +
-            ". Error: " + status.msg());
-      }
-
-      d->exec_events_tracepoints.push_back(tracepoint);
-    }
-
-    static auto L_lostExecEventNotifier = [](void*,
-                                             std::uint64_t count) -> void {
-      LOG(ERROR) << "BCCProcessEventsPublisher: Lost " << count
-                 << " execve/execveat events";
-    };
-
-    status = d->exec_events_bpf.open_perf_buffer(
-        "events", execPerfEventHandler, L_lostExecEventNotifier, this);
-
-    if (status.code() != 0) {
-      throw osquery::Status::failure("Failed to open the perf event buffer: " +
-                                     status.msg());
-    }
-
-    d->exec_events_perf_buffer = d->exec_events_bpf.get_perf_buffer("events");
-
-    // Initialize the fd_events program
-    status = d->fd_events_bpf.init(kBccProbe_fd_events);
-    if (status.code() != 0) {
-      throw osquery::Status(1, "BCC initialization error: " + status.msg());
-    }
-
-    for (const auto& tracepoint : kFdEventsTracepointList) {
-      status = d->fd_events_bpf.attach_tracepoint(
-          tracepoint.name, getTracepointEventHandlerName(tracepoint));
-
-      if (status.code() != 0) {
-        throw osquery::Status::failure(
-            "Failed to attach the following tracepont: " + tracepoint.name +
-            ". Error: " + status.msg());
-      }
-
-      d->fd_events_tracepoints.push_back(tracepoint);
-    }
-
-    static auto L_lostFdEventNotifier = [](void*, std::uint64_t count) -> void {
-      LOG(ERROR) << "BCCProcessEventsPublisher: Lost " << count << " fd events";
-    };
-
-    status = d->fd_events_bpf.open_perf_buffer(
-        "events", fdPerfEventHandler, L_lostFdEventNotifier, this);
-
-    if (status.code() != 0) {
-      throw osquery::Status::failure("Failed to open the perf event buffer: " +
-                                     status.msg());
-    }
-
-    d->fd_events_perf_buffer = d->fd_events_bpf.get_perf_buffer("events");
 
   } catch (const osquery::Status&) {
-    detachKprobes();
-    detachTracepoints();
-
+    detachProbes();
     throw;
   }
 }
 
-void BCCProcessEventsProgram::detachKprobes() {
-  for (const auto& probe : d->fork_events_kprobes) {
-    auto status = d->fork_events_bpf.detach_kprobe(probe.name, probe.type);
-    if (status.code() != 0) {
-      LOG(ERROR) << "Failed to detach the following kprobe: " << status.msg();
+void BCCProcessEventsProgram::detachProbes() {
+  for (auto& program_data : d->bpf_program_data_list) {
+    for (auto& probe : program_data->kprobe_list) {
+      auto bpf_status = program_data->bpf.detach_kprobe(probe.name, probe.type);
+      if (bpf_status.code() != 0) {
+        LOG(ERROR) << "Failed to detach the following kprobe: " << probe.name
+                   << ". " << bpf_status.msg();
+      }
+    }
+
+    for (auto& tracepoint : program_data->tracepoint_list) {
+      auto bpf_status = program_data->bpf.detach_tracepoint(tracepoint.name);
+      if (bpf_status.code() != 0) {
+        LOG(ERROR) << "Failed to detach the following tracepoint: "
+                   << tracepoint.name << ". " << bpf_status.msg();
+      }
     }
   }
-
-  d->fork_events_kprobes.clear();
-}
-
-void BCCProcessEventsProgram::detachTracepoints() {
-  for (const auto& probe : d->fork_events_tracepoints) {
-    auto status = d->fork_events_bpf.detach_tracepoint(probe.name);
-    if (status.code() != 0) {
-      LOG(ERROR) << "Failed to detach the following tracepoint: "
-                 << status.msg();
-    }
-  }
-
-  d->fork_events_tracepoints.clear();
-
-  for (const auto& probe : d->exec_events_tracepoints) {
-    auto status = d->exec_events_bpf.detach_tracepoint(probe.name);
-    if (status.code() != 0) {
-      LOG(ERROR) << "Failed to detach the following tracepoint: "
-                 << status.msg();
-    }
-  }
-
-  d->exec_events_tracepoints.clear();
 }
 
 osquery::Status BCCProcessEventsProgram::create(
@@ -639,20 +604,14 @@ osquery::Status BCCProcessEventsProgram::create(
 }
 
 BCCProcessEventsProgram::~BCCProcessEventsProgram() {
-  detachKprobes();
-  detachTracepoints();
+  detachProbes();
 }
 
 void BCCProcessEventsProgram::update() {
   const int kPollTime = 100;
 
-  const std::vector<ebpf::BPFPerfBuffer*> kPerfBufferList = {
-      d->fork_events_perf_buffer,
-      d->exec_events_perf_buffer,
-      d->fd_events_perf_buffer};
-
-  for (auto perf_buffer : kPerfBufferList) {
-    perf_buffer->poll(kPollTime);
+  for (auto& program_data : d->bpf_program_data_list) {
+    program_data->perf_event_buffer->poll(kPollTime);
   }
 }
 
@@ -1026,66 +985,6 @@ osquery::Status BCCProcessEventsProgram::processSyscallEvent(
 
   auto syscall_handler = it->second;
   return syscall_handler(process_event, context, syscall_event);
-}
-
-void BCCProcessEventsProgram::forkPerfEventHandler(void* this_ptr,
-                                                   void* data,
-                                                   int data_size) {
-  if ((data_size % 4U) != 0U) {
-    LOG(ERROR) << "Invalid data size: " << data_size;
-    return;
-  }
-
-  auto event_identifiers = static_cast<const std::uint32_t*>(data);
-  auto& program = *static_cast<BCCProcessEventsProgram*>(this_ptr);
-
-  auto event_data_table =
-      program.d->fork_events_bpf.get_percpu_array_table<std::uint64_t>(
-          "perf_event_data");
-
-  program.processPerfEvent(event_data_table,
-                           event_identifiers,
-                           static_cast<std::size_t>(data_size / 4));
-}
-
-void BCCProcessEventsProgram::execPerfEventHandler(void* this_ptr,
-                                                   void* data,
-                                                   int data_size) {
-  if ((data_size % 4U) != 0U) {
-    LOG(ERROR) << "Invalid data size: " << data_size;
-    return;
-  }
-
-  auto event_identifiers = static_cast<const std::uint32_t*>(data);
-  auto& program = *static_cast<BCCProcessEventsProgram*>(this_ptr);
-
-  auto event_data_table =
-      program.d->exec_events_bpf.get_percpu_array_table<std::uint64_t>(
-          "perf_event_data");
-
-  program.processPerfEvent(event_data_table,
-                           event_identifiers,
-                           static_cast<std::size_t>(data_size / 4));
-}
-
-void BCCProcessEventsProgram::fdPerfEventHandler(void* this_ptr,
-                                                 void* data,
-                                                 int data_size) {
-  if ((data_size % 4U) != 0U) {
-    LOG(ERROR) << "Invalid data size: " << data_size;
-    return;
-  }
-
-  auto event_identifiers = static_cast<const std::uint32_t*>(data);
-  auto& program = *static_cast<BCCProcessEventsProgram*>(this_ptr);
-
-  auto event_data_table =
-      program.d->fd_events_bpf.get_percpu_array_table<std::uint64_t>(
-          "perf_event_data");
-
-  program.processPerfEvent(event_data_table,
-                           event_identifiers,
-                           static_cast<std::size_t>(data_size / 4));
 }
 
 void BCCProcessEventsProgram::processPerfEvent(

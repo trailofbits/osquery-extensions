@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-#include <linux/fs.h>
-#include <linux/sched.h>
-#include <uapi/linux/ptrace.h>
-
 /// Execve handlers
 int on_tracepoint_sys_enter_execve(
     struct tracepoint__syscalls__sys_enter_execve* args) {

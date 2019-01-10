@@ -28,8 +28,7 @@ using BCCProcessEventsProgramRef = std::unique_ptr<BCCProcessEventsProgram>;
 class BCCProcessEventsProgram final {
   BCCProcessEventsProgram();
 
-  void detachKprobes();
-  void detachTracepoints();
+  void detachProbes();
 
  protected:
   struct PrivateData;
@@ -114,10 +113,6 @@ class BCCProcessEventsProgram final {
   static osquery::Status processSyscallEvent(ProcessEvent& process_event,
                                              BCCProcessEventsContext& context,
                                              const SyscallEvent& syscall_event);
-
-  static void forkPerfEventHandler(void* this_ptr, void* data, int data_size);
-  static void execPerfEventHandler(void* this_ptr, void* data, int data_size);
-  static void fdPerfEventHandler(void* this_ptr, void* data, int data_size);
 
   BCCProcessEventsProgram(const BCCProcessEventsProgram& other) = delete;
   BCCProcessEventsProgram& operator=(const BCCProcessEventsProgram& other) =
