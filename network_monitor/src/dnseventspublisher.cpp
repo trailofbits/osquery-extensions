@@ -179,9 +179,8 @@ DnsEvent generateDnsEvent(pcpp::ProtocolType protocol,
 }
 
 /// Generates new DNS events from the given TCP stream
-/// Notes: we can't use const since Pcap++ expects writable buffers
-osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
-                                                  ByteVector& tcp_stream) {
+osquery::Status generateDnsEventListFromTCPStream(
+    DnsEventList& dns_event_list, const ByteVector& tcp_stream) {
   try {
     dns_event_list = {};
 
@@ -223,15 +222,15 @@ osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
   }
 }
 
-void appendDnsEventListFromTCPConversation(DnsEventList& dns_event_list,
-                                           TcpConversation& tcp_conversation) {
-  std::vector<std::reference_wrapper<ByteVector>> stream_list = {
+void appendDnsEventListFromTCPConversation(
+    DnsEventList& dns_event_list, const TcpConversation& tcp_conversation) {
+  const std::vector<std::reference_wrapper<const ByteVector>> stream_list = {
       tcp_conversation.sent_data, tcp_conversation.received_data};
 
   const auto& connection_data = tcp_conversation.connection_data;
   std::size_t side = 0;
 
-  for (auto& stream_data : stream_list) {
+  for (const auto& stream_data : stream_list) {
     DnsEventList new_events = {};
     auto status = generateDnsEventListFromTCPStream(new_events, stream_data);
 
@@ -361,7 +360,7 @@ osquery::Status DNSEventsPublisher::run() noexcept {
     const auto& timestamp = udp_request.first;
     const auto& packet_data = udp_request.second;
 
-    auto packet_data_length = static_cast<int>(packet_data.size());
+    const auto packet_data_length = static_cast<int>(packet_data.size());
 
     pcpp::RawPacket raw_packet(
         packet_data.data(), packet_data_length, timestamp, false, link_type);
@@ -399,8 +398,8 @@ osquery::Status DNSEventsPublisher::run() noexcept {
   }
 
   // Process the TCP requests
-  for (auto& p : completed_tcp_conversation_map) {
-    auto& tcp_conversation = p.second;
+  for (const auto& p : completed_tcp_conversation_map) {
+    const auto& tcp_conversation = p.second;
     appendDnsEventListFromTCPConversation(event_context->event_list,
                                           tcp_conversation);
   }
