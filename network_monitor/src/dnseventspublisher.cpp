@@ -162,7 +162,7 @@ DnsEvent generateDnsEvent(pcpp::ProtocolType protocol,
 
   const auto& dns_header = *dns_layer->getDnsHeader();
 
-  dns_event.id = dns_header.transactionID;
+  dns_event.id = ntohs(dns_header.transactionID);
   dns_event.protocol = protocol;
   dns_event.truncated = (dns_header.truncation != 0U);
   dns_event.type = (dns_header.queryOrResponse == 0) ? DnsEvent::Type::Query
