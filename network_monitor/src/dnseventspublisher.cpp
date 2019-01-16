@@ -174,6 +174,7 @@ DnsEvent generateDnsEvent(pcpp::ProtocolType protocol,
   }
 
   dns_event.answer = generateDnsAnswerList(dns_layer);
+  dns_event.responde_code = dns_header.responseCode;
   return dns_event;
 }
 

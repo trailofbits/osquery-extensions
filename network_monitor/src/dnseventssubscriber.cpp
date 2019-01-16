@@ -167,6 +167,33 @@ const char* getDnsClass(pcpp::DnsClass dns_class) {
     return "ANY";
   }
 }
+
+const char* responseCodeToString(std::uint16_t response_code) {
+  switch (response_code) {
+  case 0:
+    return "NOERROR";
+  case 1:
+    return "FORMERR";
+  case 2:
+    return "SERVFAIL";
+  case 3:
+    return "NXDOMAIN";
+  case 4:
+    return "NOTIMP";
+  case 5:
+    return "REFUSED";
+  case 6:
+    return "YXDOMAIN";
+  case 7:
+    return "XRRSET";
+  case 8:
+    return "NOTAUTH";
+  case 9:
+    return "NOTZONE";
+  }
+
+  return "UNKNOWN ERROR";
+}
 } // namespace
 
 osquery::Status DNSEventsSubscriber::create(IEventSubscriberRef& subscriber) {
@@ -234,14 +261,26 @@ osquery::Status DNSEventsSubscriber::callback(
     } else {
       row["type"] = "response";
 
-      for (const auto& answer_item : event.answer) {
-        row["record_type"] = getDnsRecordType(answer_item.record_type);
-        row["record_class"] = getDnsClass(answer_item.record_class);
-        row["record_name"] = answer_item.record_name;
+      if (event.answer.size() > 0) {
+        for (const auto& answer_item : event.answer) {
+          row["record_type"] = getDnsRecordType(answer_item.record_type);
+          row["record_class"] = getDnsClass(answer_item.record_class);
+          row["record_name"] = answer_item.record_name;
 
-        row["ttl"] = std::to_string(answer_item.ttl);
-        row["record_data"] = answer_item.record_data;
+          row["ttl"] = std::to_string(answer_item.ttl);
+          row["record_data"] = answer_item.record_data;
 
+          new_events.push_back(row);
+        }
+      } else {
+        /*
+         * There aren't any answer records; either it's a response with an
+         * error, or an empty response (if there's no IPv6 record for instance)
+         */
+        if (event.responde_code != 0) {
+          row["record_type"] = "FAILURE";
+          row["record_data"] = responseCodeToString(event.responde_code);
+        }
         new_events.push_back(row);
       }
     }

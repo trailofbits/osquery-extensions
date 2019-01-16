@@ -94,6 +94,10 @@ struct DnsEvent final {
   /// True if the request was truncated; only valid when the protocol is set to
   /// UDP
   bool truncated{false};
+
+  /// The DNS response code; this is useful if there have been no answers due to
+  /// an error
+  std::uint16_t responde_code;
 };
 
 /// A list of DNS events
