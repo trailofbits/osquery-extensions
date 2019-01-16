@@ -192,8 +192,9 @@ osquery::Status generateDnsEventListFromTCPStream(DnsEventList& dns_event_list,
         return osquery::Status::failure("Missing request size in TCP stream");
       }
 
-      auto chunk_size = *reinterpret_cast<const std::uint16_t*>(buffer_ptr);
-      chunk_size = htons(chunk_size);
+      std::uint16_t chunk_size;
+      std::memcpy(&chunk_size, buffer_ptr, sizeof(std::uint16_t));
+      chunk_size = ntohs(chunk_size);
 
       auto chunk_start = buffer_ptr + 2U;
       auto chunk_end = chunk_start + chunk_size;
