@@ -25,6 +25,7 @@ function(bccMain)
     "${BCC_REPOSITORY_ROOT}/src/cc/bpf_module.cc"
     "${BCC_REPOSITORY_ROOT}/src/cc/exported_files.cc"
     "${BCC_REPOSITORY_ROOT}/src/cc/bcc_debug.cc"
+    "${BCC_REPOSITORY_ROOT}/src/cc/bpf_module_rw_engine.cc"
     "${BCC_REPOSITORY_ROOT}/src/cc/table_storage.cc"
     "${BCC_REPOSITORY_ROOT}/src/cc/bpffs_table.cc"
     "${BCC_REPOSITORY_ROOT}/src/cc/json_map_decl_visitor.cc"
@@ -86,6 +87,7 @@ function(bccMain)
   )
 
   target_compile_options("${PROJECT_NAME}" PRIVATE -Wno-error -fvisibility=default -g0)
+  target_compile_options("${PROJECT_NAME}" INTERFACE -Wno-extern-c-compat)
 endfunction()
 
 bccMain()

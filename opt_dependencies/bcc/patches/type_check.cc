@@ -204,6 +204,7 @@ StatusTuple TypeCheck::visit_binop_expr_node(BinopExprNode *n) {
     case Tok::TCGT:
     case Tok::TCGE:
       n->bit_width_ = 1;
+      break;
     default:
       n->bit_width_ = std::max(n->lhs_->bit_width_, n->rhs_->bit_width_);
   }
@@ -551,15 +552,15 @@ StatusTuple TypeCheck::visit(Node *root) {
   // if (scopes_->top_struct()->lookup("_skbuff", true)) {
   //   return StatusTuple(-1, "_skbuff already defined");
   // }
-  // auto skb_type = std::make_unique<StructDeclStmtNode>(std::make_unique<IdentExprNode>("_skbuff"));
+  // auto skb_type = make_unique<StructDeclStmtNode>(make_unique<IdentExprNode>("_skbuff"));
   // scopes_->top_struct()->add("_skbuff", skb_type.get());
   // b->stmts_.push_back(move(skb_type));
 
   // if (scopes_->current_var()->lookup("skb", true)) {
   //   return StatusTuple(-1, "skb already defined");
   // }
-  // auto skb = std::make_unique<StructVariableDeclStmtNode>(std::make_unique<IdentExprNode>("_skbuff"),
-  //                                                    std::make_unique<IdentExprNode>("skb"));
+  // auto skb = make_unique<StructVariableDeclStmtNode>(make_unique<IdentExprNode>("_skbuff"),
+  //                                                    make_unique<IdentExprNode>("skb"));
   // skb->storage_type_ = VariableDeclStmtNode::STRUCT_REFERENCE;
   // scopes_->current_var()->add("skb", skb.get());
   // b->stmts_.push_back(move(skb));
