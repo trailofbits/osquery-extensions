@@ -73,31 +73,51 @@ osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
                                             const std::string& device_name) {
   dev_info = {};
 
-  pcap_if_t* interface_list = nullptr;
-  char error_message[PCAP_ERRBUF_SIZE] = {};
+  class PCapInterfaceList : boost::noncopyable {
+   public:
+    pcap_if_t* interface_list;
+    char error_message[PCAP_ERRBUF_SIZE];
 
-  if (pcap_findalldevs(&interface_list, error_message) != 0) {
-    return osquery::Status::failure(error_message);
+    PCapInterfaceList() : interface_list(nullptr), error_message{} {}
+
+    ~PCapInterfaceList() {
+      pcap_freealldevs(interface_list);
+    }
+
+    int initWithAllDevices() {
+      return pcap_findalldevs(&interface_list, error_message);
+    }
+
+    bool isEmpty() {
+      return interface_list == nullptr;
+    }
+
+    pcap_if_t* findDeviceByName(const std::string& device_name) {
+      auto it = interface_list;
+
+      while (it != nullptr) {
+        if (it->name == device_name) {
+          return it;
+        }
+
+        it = it->next;
+      }
+
+      return nullptr;
+    }
+  };
+
+  PCapInterfaceList interface_list;
+
+  if (interface_list.initWithAllDevices() != 0) {
+    return osquery::Status::failure(interface_list.error_message);
   }
 
-  if (interface_list == nullptr) {
+  if (interface_list.isEmpty()) {
     return osquery::Status::failure("No device found");
   }
 
-  pcap_if_t* pcap_dev_info = nullptr;
-
-  {
-    auto it = interface_list;
-
-    do {
-      if (it->name == device_name) {
-        pcap_dev_info = it;
-        break;
-      }
-
-      it = it->next;
-    } while (it != nullptr);
-  }
+  pcap_if_t* pcap_dev_info = interface_list.findDeviceByName(device_name);
 
   if (pcap_dev_info == nullptr) {
     return osquery::Status::failure("The specified device was not found");
@@ -146,7 +166,6 @@ osquery::Status getNetworkDeviceInformation(NetworkDeviceInformation& dev_info,
     }
   }
 
-  pcap_freealldevs(interface_list);
   return osquery::Status(0);
 }
 
