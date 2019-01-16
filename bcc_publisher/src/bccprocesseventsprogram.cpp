@@ -17,7 +17,10 @@
 #include "bccprocesseventsprogram.h"
 #include "dockertracker.h"
 
-#include <iomanip>
+#include <chrono>
+#include <thread>
+
+#include <future>
 
 namespace trailofbits {
 namespace {
@@ -36,37 +39,76 @@ struct TracepointDescriptor final {
 using TracepointDescriptorList = std::vector<TracepointDescriptor>;
 
 struct BPFProgramDescriptor final {
+  std::string friendly_name;
   std::string source_code;
   KprobeDescriptorList kprobe_list;
   TracepointDescriptorList tracepoint_list;
 };
 
+using SyscallEventCallback = osquery::Status (*)(ProcessEvent&,
+                                                 BCCProcessEventsContext& t,
+                                                 const SyscallEvent&);
+
+using EventDataTable = ebpf::BPFPercpuArrayTable<std::uint64_t>;
+using BPFRef = std::unique_ptr<ebpf::BPF>;
+
+struct BPFProgramInstance final {
+  BPFProgramInstance(EventDataTable event_data_table_)
+      : event_data_table(std::move(event_data_table_)) {}
+
+  std::string friendly_name;
+  BPFRef bpf;
+  ebpf::BPFPerfBuffer* perf_event_buffer{nullptr};
+  EventDataTable event_data_table;
+  BCCProcessEventsProgram* object{nullptr};
+  KprobeDescriptorList kprobe_list;
+  TracepointDescriptorList tracepoint_list;
+};
+
+using BPFProgramInstanceRef = std::unique_ptr<BPFProgramInstance>;
+
+using BPFProgramInstanceRefList = std::vector<BPFProgramInstanceRef>;
+
+using SyscallEventDataReader = osquery::Status (*)(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index);
+
 // clang-format off
 const std::vector<BPFProgramDescriptor> kBpfProgramDescriptorList = {
   {
+    // Probe name
+    "fork_events",
+
     // Probe source
     kBccProbe_fork_events,
 
     // kprobes
-    {{BPF_PROBE_ENTRY, "pid_vnr", false}},
+    {
+      { BPF_PROBE_ENTRY, "pid_vnr", false }
+    },
 
     // Tracepoints
     {
-      {"syscalls:sys_enter_clone"},
-      {"syscalls:sys_exit_clone"},
+      { "syscalls:sys_enter_clone" },
+      { "syscalls:sys_exit_clone" },
 
-      {"syscalls:sys_enter_fork"},
-      {"syscalls:sys_exit_fork"},
+      { "syscalls:sys_enter_fork" },
+      { "syscalls:sys_exit_fork" },
 
-      {"syscalls:sys_enter_vfork"},
-      {"syscalls:sys_exit_vfork"},
+      { "syscalls:sys_enter_vfork" },
+      { "syscalls:sys_exit_vfork" },
 
-      {"syscalls:sys_enter_exit"},
-      {"syscalls:sys_enter_exit_group"}
+      { "syscalls:sys_enter_exit" },
+      { "syscalls:sys_enter_exit_group" }
     }
   },
 
   {
+    // Probe name
+    "exec_events",
+
     // Probe source
     kBccProbe_exec_events,
 
@@ -75,23 +117,107 @@ const std::vector<BPFProgramDescriptor> kBpfProgramDescriptorList = {
 
     // Tracepoints
     {
-      {"syscalls:sys_enter_execve"},
-      {"syscalls:sys_exit_execve"},
+      { "syscalls:sys_enter_execve" },
+      { "syscalls:sys_exit_execve" },
 
-      {"syscalls:sys_enter_execveat"},
-      {"syscalls:sys_exit_execveat"}
+      { "syscalls:sys_enter_execveat" },
+      { "syscalls:sys_exit_execveat" }
     }
   },
 
   {
+    // Probe name
+    "open_events",
+
     // Probe source
-    kBccProbe_fd_events,
+    kBccProbe_open_events,
 
     // kprobes
     {},
 
     // Tracepoints
-    {{"syscalls:sys_enter_creat"}}
+    {
+      { "syscalls:sys_enter_open" },
+      { "syscalls:sys_exit_open" },
+
+      { "syscalls:sys_enter_openat" },
+      { "syscalls:sys_exit_openat" },
+
+      { "syscalls:sys_enter_open_by_handle_at" },
+      { "syscalls:sys_exit_open_by_handle_at" },
+
+      { "syscalls:sys_enter_name_to_handle_at" },
+      { "syscalls:sys_exit_name_to_handle_at" }
+    }
+  },
+
+  {
+    // Probe name
+    "create_mknod_events",
+
+    // Probe source
+    kBccProbe_create_mknod_events,
+
+    // kprobes
+    {},
+
+    // Tracepoints
+    {
+      { "syscalls:sys_enter_creat" },
+      { "syscalls:sys_exit_creat" },
+
+      { "syscalls:sys_enter_mknod" },
+      { "syscalls:sys_exit_mknod" },
+
+      { "syscalls:sys_enter_mknodat" },
+      { "syscalls:sys_exit_mknodat" },
+    }
+  },
+
+  {
+    // Probe name
+    "dup_close_events",
+
+    // Probe source
+    kBccProbe_dup_close_events,
+
+    // kprobes
+    {},
+
+    // Tracepoints
+    {
+      { "syscalls:sys_enter_dup" },
+      { "syscalls:sys_exit_dup" },
+
+      { "syscalls:sys_enter_dup2" },
+      { "syscalls:sys_exit_dup2" },
+
+      { "syscalls:sys_enter_dup3" },
+      { "syscalls:sys_exit_dup3" },
+
+      { "syscalls:sys_enter_close" },
+      { "syscalls:sys_exit_close" }
+    }
+  },
+
+  {
+    // Probe name
+    "socket_fd_events",
+
+    // Probe source
+    kBccProbe_socket_fd_events,
+
+    // kprobes
+    {},
+
+    // Tracepoints
+    {
+      { "syscalls:sys_enter_socket" },
+      { "syscalls:sys_exit_socket" },
+
+      { "syscalls:sys_enter_socketpair" },
+      { "syscalls:sys_exit_socketpair" }
+    }
   }
 };
 // clang-format on
@@ -433,22 +559,6 @@ osquery::Status processForkOrCloneSyscallExitEvent(
   return osquery::Status(0);
 }
 
-using SyscallEventCallback = osquery::Status (*)(ProcessEvent&,
-                                                 BCCProcessEventsContext& t,
-                                                 const SyscallEvent&);
-
-struct BPFProgramData final {
-  ebpf::BPF bpf;
-  ebpf::BPFPerfBuffer* perf_event_buffer{nullptr};
-  BCCProcessEventsProgram* object{nullptr};
-  KprobeDescriptorList kprobe_list;
-  TracepointDescriptorList tracepoint_list;
-};
-
-using BPFProgramDataRef = std::unique_ptr<BPFProgramData>;
-
-using BPFProgramDataRefList = std::vector<BPFProgramDataRef>;
-
 // clang-format off
 const std::unordered_map<SyscallEvent::Header::Type, SyscallEventCallback> kSyscallEventHandlerMap = {
   {SyscallEvent::Header::Type::KprobePidvnr, processPidVnrSyscallEvent},
@@ -470,30 +580,77 @@ const std::unordered_map<SyscallEvent::Header::Type, SyscallEventCallback> kSysc
   {SyscallEvent::Header::Type::SysExitClone, processForkOrCloneSyscallExitEvent}
 };
 // clang-format on
+
+// clang-format off
+const std::map<SyscallEvent::Header::Type, SyscallEventDataReader> kSyscallEventDataReaderMap = {
+  { SyscallEvent::Header::Type::SysEnterExecve, BCCProcessEventsProgram::readSyscallEventExecData },
+  { SyscallEvent::Header::Type::SysEnterExecveat, BCCProcessEventsProgram::readSyscallEventExecData },
+  { SyscallEvent::Header::Type::SysEnterClone, BCCProcessEventsProgram::readSyscallEventCloneData },
+  { SyscallEvent::Header::Type::SysEnterExit, BCCProcessEventsProgram::readSyscallEventExitData },
+  { SyscallEvent::Header::Type::SysEnterExitGroup, BCCProcessEventsProgram::readSyscallEventExitData },
+  { SyscallEvent::Header::Type::KprobePidvnr, BCCProcessEventsProgram::readSyscallEventPidVnrData },
+  { SyscallEvent::Header::Type::SysEnterCreat, BCCProcessEventsProgram::readSyscallEventCreatData },
+  { SyscallEvent::Header::Type::SysEnterMknod, BCCProcessEventsProgram::readSyscallEventMknodData },
+  { SyscallEvent::Header::Type::SysEnterMknodat, BCCProcessEventsProgram::readSyscallEventMknodatData },
+  { SyscallEvent::Header::Type::SysEnterOpen, BCCProcessEventsProgram::readSyscallEventOpenData },
+  { SyscallEvent::Header::Type::SysEnterOpenat, BCCProcessEventsProgram::readSyscallEventOpenatData },
+  { SyscallEvent::Header::Type::SysEnterOpen_by_handle_at, BCCProcessEventsProgram::readSyscallEventOpenByHandleAtData },
+  { SyscallEvent::Header::Type::SysEnterName_to_handle_at, BCCProcessEventsProgram::readSyscallEventNameToHandleAtData },
+  { SyscallEvent::Header::Type::SysEnterClose, BCCProcessEventsProgram::readSyscallEventCloseData },
+  { SyscallEvent::Header::Type::SysEnterDup, BCCProcessEventsProgram::readSyscallEventDupData },
+  { SyscallEvent::Header::Type::SysEnterDup2, BCCProcessEventsProgram::readSyscallEventDup2Data },
+  { SyscallEvent::Header::Type::SysEnterDup3, BCCProcessEventsProgram::readSyscallEventDup3Data },
+  { SyscallEvent::Header::Type::SysEnterSocket, BCCProcessEventsProgram::readSyscallEventSocketData },
+  { SyscallEvent::Header::Type::SysEnterSocketpair, BCCProcessEventsProgram::readSyscallEventSocketPairData },
+
+  { SyscallEvent::Header::Type::SysExitExecve, nullptr },
+  { SyscallEvent::Header::Type::SysExitExecveat, nullptr },
+  { SyscallEvent::Header::Type::SysEnterFork, nullptr },
+  { SyscallEvent::Header::Type::SysExitFork, nullptr },
+  { SyscallEvent::Header::Type::SysEnterVfork, nullptr },
+  { SyscallEvent::Header::Type::SysExitVfork, nullptr },
+  { SyscallEvent::Header::Type::SysExitClone, nullptr },
+  { SyscallEvent::Header::Type::SysExitCreat, nullptr },
+  { SyscallEvent::Header::Type::SysExitMknod, nullptr },
+  { SyscallEvent::Header::Type::SysExitMknodat, nullptr },
+  { SyscallEvent::Header::Type::SysExitOpen, nullptr },
+  { SyscallEvent::Header::Type::SysExitOpenat, nullptr },
+  { SyscallEvent::Header::Type::SysExitOpen_by_handle_at, nullptr },
+  { SyscallEvent::Header::Type::SysExitName_to_handle_at, nullptr },
+  { SyscallEvent::Header::Type::SysExitClose, nullptr },
+  { SyscallEvent::Header::Type::SysExitDup, nullptr },
+  { SyscallEvent::Header::Type::SysExitDup2, nullptr },
+  { SyscallEvent::Header::Type::SysExitDup3, nullptr },
+  { SyscallEvent::Header::Type::SysExitSocket, nullptr },
+  { SyscallEvent::Header::Type::SysExitSocketpair, nullptr }
+};
+// clang-format on
 } // namespace
 
 struct BCCProcessEventsProgram::PrivateData final {
-  BPFProgramDataRefList bpf_program_data_list;
+  BPFProgramInstanceRefList bpf_program_instance_list;
 
   BCCProcessEventsContext syscall_event_context;
   DockerTracker docker_tracker;
+
+  std::mutex syscall_event_list_mutex;
+  std::condition_variable syscall_event_list_cv;
   std::map<std::uint64_t, SyscallEvent> syscall_event_list;
 };
 
 BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
   try {
     for (const auto& program_descriptor : kBpfProgramDescriptorList) {
-      auto program_data = std::make_unique<BPFProgramData>();
-      program_data->object = this;
+      auto bpf = std::make_unique<ebpf::BPF>();
 
-      auto bpf_status = program_data->bpf.init(program_descriptor.source_code);
+      auto bpf_status = bpf->init(program_descriptor.source_code);
       if (bpf_status.code() != 0) {
         throw osquery::Status::failure("BCC initialization error: " +
                                        bpf_status.msg());
       }
 
       for (const auto& tracepoint : program_descriptor.tracepoint_list) {
-        bpf_status = program_data->bpf.attach_tracepoint(
+        bpf_status = bpf->attach_tracepoint(
             tracepoint.name, getTracepointEventHandlerName(tracepoint));
 
         if (bpf_status.code() != 0) {
@@ -506,12 +663,12 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
       for (const auto& kprobe : program_descriptor.kprobe_list) {
         std::string name;
         if (kprobe.translate) {
-          name = program_data->bpf.get_syscall_fnname(kprobe.name);
+          name = bpf->get_syscall_fnname(kprobe.name);
         } else {
           name = kprobe.name;
         }
 
-        bpf_status = program_data->bpf.attach_kprobe(
+        bpf_status = bpf->attach_kprobe(
             name, getKprobeEventHandlerName(kprobe), 0, kprobe.type);
 
         if (bpf_status.code() != 0) {
@@ -521,13 +678,26 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
         }
       }
 
-      static auto L_lostEventCallback = [](void*, std::uint64_t count) -> void {
-        LOG(ERROR) << "BCCProcessEventsProgram: Lost " << count << "events";
+      auto event_data_table =
+          bpf->get_percpu_array_table<std::uint64_t>("perf_event_data");
+
+      auto program_data =
+          std::make_unique<BPFProgramInstance>(std::move(event_data_table));
+
+      program_data->friendly_name = program_descriptor.friendly_name;
+      program_data->object = this;
+      program_data->bpf = std::move(bpf);
+
+      static auto L_lostEventCallback = [](void* user_defined,
+                                           std::uint64_t count) -> void {
+        auto program_data = reinterpret_cast<BPFProgramInstance*>(user_defined);
+        LOG(ERROR) << "BCCProcessEventsProgram/" << program_data->friendly_name
+                   << ": lost " << count << " events ";
       };
 
       static auto L_eventCallback =
           [](void* user_defined, void* data, int data_size) -> void {
-        auto program_data = reinterpret_cast<BPFProgramData*>(user_defined);
+        auto program_data = reinterpret_cast<BPFProgramInstance*>(user_defined);
 
         if ((data_size % 4U) != 0U) {
           LOG(ERROR) << "Invalid data size: " << data_size;
@@ -535,10 +705,7 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
         }
 
         auto event_identifiers = static_cast<const std::uint32_t*>(data);
-
-        auto event_data_table =
-            program_data->bpf.get_percpu_array_table<std::uint64_t>(
-                "perf_event_data");
+        auto& event_data_table = program_data->event_data_table;
 
         program_data->object->processPerfEvent(
             event_data_table,
@@ -546,7 +713,7 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
             static_cast<std::size_t>(data_size / 4));
       };
 
-      bpf_status = program_data->bpf.open_perf_buffer(
+      bpf_status = program_data->bpf->open_perf_buffer(
           "events", L_eventCallback, L_lostEventCallback, program_data.get());
 
       if (bpf_status.code() != 0) {
@@ -555,9 +722,9 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
       }
 
       program_data->perf_event_buffer =
-          program_data->bpf.get_perf_buffer("events");
+          program_data->bpf->get_perf_buffer("events");
 
-      d->bpf_program_data_list.push_back(std::move(program_data));
+      d->bpf_program_instance_list.push_back(std::move(program_data));
       program_data.release();
     }
 
@@ -568,9 +735,10 @@ BCCProcessEventsProgram::BCCProcessEventsProgram() : d(new PrivateData) {
 }
 
 void BCCProcessEventsProgram::detachProbes() {
-  for (auto& program_data : d->bpf_program_data_list) {
+  for (auto& program_data : d->bpf_program_instance_list) {
     for (auto& probe : program_data->kprobe_list) {
-      auto bpf_status = program_data->bpf.detach_kprobe(probe.name, probe.type);
+      auto bpf_status =
+          program_data->bpf->detach_kprobe(probe.name, probe.type);
       if (bpf_status.code() != 0) {
         LOG(ERROR) << "Failed to detach the following kprobe: " << probe.name
                    << ". " << bpf_status.msg();
@@ -578,7 +746,7 @@ void BCCProcessEventsProgram::detachProbes() {
     }
 
     for (auto& tracepoint : program_data->tracepoint_list) {
-      auto bpf_status = program_data->bpf.detach_tracepoint(tracepoint.name);
+      auto bpf_status = program_data->bpf->detach_tracepoint(tracepoint.name);
       if (bpf_status.code() != 0) {
         LOG(ERROR) << "Failed to detach the following tracepoint: "
                    << tracepoint.name << ". " << bpf_status.msg();
@@ -607,19 +775,46 @@ BCCProcessEventsProgram::~BCCProcessEventsProgram() {
   detachProbes();
 }
 
-void BCCProcessEventsProgram::update() {
-  const int kPollTime = 100;
+osquery::Status BCCProcessEventsProgram::initialize() {
+  static auto L_pollThread =
+      [](ebpf::BPFPerfBuffer* perf_event_buffer) -> void {
+    const int kPollTime = 100;
 
-  for (auto& program_data : d->bpf_program_data_list) {
-    program_data->perf_event_buffer->poll(kPollTime);
+    while (true) {
+      perf_event_buffer->poll(kPollTime);
+    }
+  };
+
+  try {
+    for (auto& program_instance : d->bpf_program_instance_list) {
+      auto poll_thread =
+          new std::thread(L_pollThread, program_instance->perf_event_buffer);
+      poll_thread->detach();
+    }
+
+    return osquery::Status(0);
+
+  } catch (const std::bad_alloc&) {
+    return osquery::Status::failure("Memory allocation failure");
   }
 }
 
 ProcessEventList BCCProcessEventsProgram::getEvents() {
-  ProcessEventList process_event_list;
+  std::map<std::uint64_t, SyscallEvent> syscall_event_list;
 
-  auto syscall_event_list = std::move(d->syscall_event_list);
-  d->syscall_event_list.clear();
+  {
+    std::unique_lock<std::mutex> lock(d->syscall_event_list_mutex);
+
+    if (d->syscall_event_list_cv.wait_for(lock, std::chrono::seconds(1)) !=
+        std::cv_status::no_timeout) {
+      return {};
+    }
+
+    syscall_event_list = std::move(d->syscall_event_list);
+    d->syscall_event_list.clear();
+  }
+
+  ProcessEventList process_event_list;
 
   for (const auto& p : syscall_event_list) {
     const auto& syscall_event = p.second;
@@ -632,6 +827,8 @@ ProcessEventList BCCProcessEventsProgram::getEvents() {
         syscall_event.header.type != SyscallEvent::Header::Type::KprobePidvnr) {
       d->docker_tracker.processEvent(process_event);
     }
+
+    continue;
 
     if (status.getCode() == 2) {
       continue;
@@ -682,16 +879,55 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventHeader(
     event_header.uid = static_cast<pid_t>(uid_gid_value & 0xFFFFFFFF);
     event_header.gid = static_cast<pid_t>(uid_gid_value >> 32U);
 
-    if (event_header.type == SyscallEvent::Header::Type::SysExitExecve ||
-        event_header.type == SyscallEvent::Header::Type::SysExitExecveat ||
-        event_header.type == SyscallEvent::Header::Type::SysExitFork ||
-        event_header.type == SyscallEvent::Header::Type::SysExitVfork ||
-        event_header.type == SyscallEvent::Header::Type::SysExitClone) {
+    switch (event_header.type) {
+    case SyscallEvent::Header::Type::SysExitExecve:
+    case SyscallEvent::Header::Type::SysExitExecveat:
+    case SyscallEvent::Header::Type::SysExitFork:
+    case SyscallEvent::Header::Type::SysExitVfork:
+    case SyscallEvent::Header::Type::SysExitClone:
+    case SyscallEvent::Header::Type::SysExitCreat:
+    case SyscallEvent::Header::Type::SysExitMknod:
+    case SyscallEvent::Header::Type::SysExitMknodat:
+    case SyscallEvent::Header::Type::SysExitOpen:
+    case SyscallEvent::Header::Type::SysExitOpenat:
+    case SyscallEvent::Header::Type::SysExitOpen_by_handle_at:
+    case SyscallEvent::Header::Type::SysExitName_to_handle_at:
+    case SyscallEvent::Header::Type::SysExitClose:
+    case SyscallEvent::Header::Type::SysExitDup:
+    case SyscallEvent::Header::Type::SysExitDup2:
+    case SyscallEvent::Header::Type::SysExitDup3:
+    case SyscallEvent::Header::Type::SysExitSocket:
+    case SyscallEvent::Header::Type::SysExitSocketpair: {
       int exit_code = 0;
       readSyscallEventData(
           exit_code, current_index, event_data_table, cpu_index);
 
       event_header.exit_code = exit_code;
+      break;
+    }
+
+    case SyscallEvent::Header::Type::SysEnterExecve:
+    case SyscallEvent::Header::Type::SysEnterExecveat:
+    case SyscallEvent::Header::Type::SysEnterFork:
+    case SyscallEvent::Header::Type::SysEnterVfork:
+    case SyscallEvent::Header::Type::SysEnterClone:
+    case SyscallEvent::Header::Type::SysEnterCreat:
+    case SyscallEvent::Header::Type::SysEnterMknod:
+    case SyscallEvent::Header::Type::SysEnterMknodat:
+    case SyscallEvent::Header::Type::SysEnterOpen:
+    case SyscallEvent::Header::Type::SysEnterOpenat:
+    case SyscallEvent::Header::Type::SysEnterOpen_by_handle_at:
+    case SyscallEvent::Header::Type::SysEnterName_to_handle_at:
+    case SyscallEvent::Header::Type::SysEnterClose:
+    case SyscallEvent::Header::Type::SysEnterDup:
+    case SyscallEvent::Header::Type::SysEnterDup2:
+    case SyscallEvent::Header::Type::SysEnterDup3:
+    case SyscallEvent::Header::Type::SysEnterSocket:
+    case SyscallEvent::Header::Type::SysEnterSocketpair:
+    case SyscallEvent::Header::Type::SysEnterExit:
+    case SyscallEvent::Header::Type::SysEnterExitGroup:
+    case SyscallEvent::Header::Type::KprobePidvnr:
+      break;
     }
 
     return osquery::Status(0);
@@ -745,11 +981,11 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventString(
 }
 
 osquery::Status BCCProcessEventsProgram::readSyscallEventExecData(
-    SyscallEvent::ExecData& exec_data,
+    SyscallEvent& syscall_event,
     int& current_index,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     std::size_t cpu_index) {
-  exec_data = {};
+  SyscallEvent::ExecData exec_data = {};
 
   // Read the filename; this should always be present
   auto status = readSyscallEventString(
@@ -792,15 +1028,16 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventExecData(
     exec_data.argv.push_back(buffer);
   }
 
+  syscall_event.data = exec_data;
   return osquery::Status(0);
 }
 
 osquery::Status BCCProcessEventsProgram::readSyscallEventCloneData(
-    SyscallEvent::CloneData& clone_data,
+    SyscallEvent& syscall_event,
     int& current_index,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     std::size_t cpu_index) {
-  clone_data = {};
+  SyscallEvent::CloneData clone_data = {};
 
   try {
     readSyscallEventData(
@@ -816,6 +1053,7 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventCloneData(
     clone_data.child_tid =
         static_cast<std::uint32_t>(parent_child_tid) & 0xFFFFFFFFU;
 
+    syscall_event.data = clone_data;
     return osquery::Status(0);
 
   } catch (const osquery::Status& status) {
@@ -824,16 +1062,17 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventCloneData(
 }
 
 osquery::Status BCCProcessEventsProgram::readSyscallEventExitData(
-    SyscallEvent::ExitData& exit_data,
+    SyscallEvent& syscall_event,
     int& current_index,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     std::size_t cpu_index) {
-  exit_data = {};
+  SyscallEvent::ExitData exit_data = {};
 
   try {
     readSyscallEventData(
         exit_data.error_code, current_index, event_data_table, cpu_index);
 
+    syscall_event.data = exit_data;
     return osquery::Status(0);
 
   } catch (const osquery::Status& status) {
@@ -842,11 +1081,11 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventExitData(
 }
 
 osquery::Status BCCProcessEventsProgram::readSyscallEventPidVnrData(
-    SyscallEvent::PidVnrData& pidvnr_data,
+    SyscallEvent& syscall_event,
     int& current_index,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     std::size_t cpu_index) {
-  pidvnr_data = {};
+  SyscallEvent::PidVnrData pidvnr_data = {};
 
   try {
     readSyscallEventData(pidvnr_data.namespace_count,
@@ -873,6 +1112,340 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventPidVnrData(
       pidvnr_data.namespaced_pid_list.push_back(namespaced_pid);
     }
 
+    syscall_event.data = pidvnr_data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+
+  return osquery::Status(0);
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventCreatData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::CreateData data = {};
+
+  try {
+    auto status = readSyscallEventString(
+        data.path, current_index, event_data_table, cpu_index);
+
+    if (!status.ok()) {
+      throw status;
+    }
+
+    readSyscallEventData(data.mode, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventMknodData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::MknodData data = {};
+
+  try {
+    auto status = readSyscallEventString(
+        data.path, current_index, event_data_table, cpu_index);
+
+    if (!status.ok()) {
+      throw status;
+    }
+
+    readSyscallEventData(data.mode, current_index, event_data_table, cpu_index);
+    readSyscallEventData(data.dev, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventMknodatData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::MknodatData data = {};
+
+  try {
+    readSyscallEventData(data.dfd, current_index, event_data_table, cpu_index);
+
+    auto status = readSyscallEventString(
+        data.filename, current_index, event_data_table, cpu_index);
+
+    if (!status.ok()) {
+      throw status;
+    }
+
+    readSyscallEventData(data.mode, current_index, event_data_table, cpu_index);
+    readSyscallEventData(data.dev, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventOpenData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::OpenData data = {};
+
+  try {
+    auto status = readSyscallEventString(
+        data.filename, current_index, event_data_table, cpu_index);
+
+    if (!status.ok()) {
+      throw status;
+    }
+
+    readSyscallEventData(
+        data.flags, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(data.mode, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventOpenatData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::OpenatData data = {};
+
+  try {
+    readSyscallEventData(data.dfd, current_index, event_data_table, cpu_index);
+
+    auto status = readSyscallEventString(
+        data.filename, current_index, event_data_table, cpu_index);
+
+    if (!status.ok()) {
+      throw status;
+    }
+
+    readSyscallEventData(
+        data.flags, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(data.mode, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventOpenByHandleAtData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::OpenByHandleAtData data = {};
+
+  try {
+    readSyscallEventData(
+        data.mountdirfd, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(
+        data.flags, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventNameToHandleAtData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::NameToHandleAtData data = {};
+
+  try {
+    readSyscallEventData(data.dfd, current_index, event_data_table, cpu_index);
+
+    auto status = readSyscallEventString(
+        data.name, current_index, event_data_table, cpu_index);
+
+    if (!status.ok()) {
+      throw status;
+    }
+
+    readSyscallEventData(
+        data.mntid, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(data.flag, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventCloseData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::CloseData data = {};
+
+  try {
+    readSyscallEventData(data.fd, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+
+  return osquery::Status(0);
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventDupData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::DupData data = {};
+
+  try {
+    readSyscallEventData(
+        data.fildes, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+
+  return osquery::Status(0);
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventDup2Data(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::Dup2Data data = {};
+
+  try {
+    readSyscallEventData(
+        data.oldfd, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(
+        data.newfd, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+
+  return osquery::Status(0);
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventDup3Data(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::Dup3Data data = {};
+
+  try {
+    readSyscallEventData(
+        data.oldfd, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(
+        data.newfd, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(
+        data.flags, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+
+  return osquery::Status(0);
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventSocketData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::SocketData data = {};
+
+  try {
+    readSyscallEventData(
+        data.family, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(data.type, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(
+        data.protocol, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
+    return osquery::Status(0);
+
+  } catch (const osquery::Status& status) {
+    return status;
+  }
+
+  return osquery::Status(0);
+}
+
+osquery::Status BCCProcessEventsProgram::readSyscallEventSocketPairData(
+    SyscallEvent& syscall_event,
+    int& current_index,
+    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+    std::size_t cpu_index) {
+  SyscallEvent::SocketpairData data = {};
+
+  try {
+    readSyscallEventData(
+        data.family, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(data.type, current_index, event_data_table, cpu_index);
+
+    readSyscallEventData(
+        data.protocol, current_index, event_data_table, cpu_index);
+
+    syscall_event.data = data;
     return osquery::Status(0);
 
   } catch (const osquery::Status& status) {
@@ -883,15 +1456,15 @@ osquery::Status BCCProcessEventsProgram::readSyscallEventPidVnrData(
 }
 
 osquery::Status BCCProcessEventsProgram::readSyscallEvent(
-    SyscallEvent& event,
+    SyscallEvent& syscall_event,
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     std::uint32_t event_identifier) {
-  event = {};
+  syscall_event = {};
 
   int current_index = 0;
   std::size_t cpu_index = 0U;
 
-  auto status = readSyscallEventHeader(event.header,
+  auto status = readSyscallEventHeader(syscall_event.header,
                                        current_index,
                                        cpu_index,
                                        event_data_table,
@@ -900,73 +1473,20 @@ osquery::Status BCCProcessEventsProgram::readSyscallEvent(
     return status;
   }
 
-  switch (event.header.type) {
-  // We need to capture this both to isolate the pid_vnr call and also
-  // to ignore threads
-  case SyscallEvent::Header::Type::SysEnterClone: {
-    SyscallEvent::CloneData clone_data = {};
-    status = readSyscallEventCloneData(
-        clone_data, current_index, event_data_table, cpu_index);
+  auto data_reader_it =
+      kSyscallEventDataReaderMap.find(syscall_event.header.type);
 
-    event.data = clone_data;
-    break;
+  if (data_reader_it == kSyscallEventDataReaderMap.end()) {
+    throw std::logic_error("Unhandled event type");
   }
 
-  // No processing required for these events; we grab them only to
-  // know when we need to care about pid_vnr data
-  case SyscallEvent::Header::Type::SysExitClone:
+  auto data_reader = data_reader_it->second;
 
-  case SyscallEvent::Header::Type::SysEnterFork:
-  case SyscallEvent::Header::Type::SysExitFork:
-
-  case SyscallEvent::Header::Type::SysEnterVfork:
-  case SyscallEvent::Header::Type::SysExitVfork:
+  if (data_reader != nullptr) {
+    status =
+        data_reader(syscall_event, current_index, event_data_table, cpu_index);
+  } else {
     status = osquery::Status(0);
-    break;
-
-  // We need the error code passed to the exit/exit_group syscall
-  case SyscallEvent::Header::Type::SysEnterExit:
-  case SyscallEvent::Header::Type::SysEnterExitGroup: {
-    SyscallEvent::ExitData exit_data = {};
-    status = readSyscallEventExitData(
-        exit_data, current_index, event_data_table, cpu_index);
-
-    event.data = exit_data;
-    break;
-  }
-
-  // We expect to find the filename and arguments for the launched program
-  case SyscallEvent::Header::Type::SysEnterExecve:
-  case SyscallEvent::Header::Type::SysEnterExecveat: {
-    SyscallEvent::ExecData exec_data = {};
-    status = readSyscallEventExecData(
-        exec_data, current_index, event_data_table, cpu_index);
-
-    event.data = exec_data;
-    break;
-  }
-
-  // There is no additional data for these events; they are captured
-  // so that we can take the syscall exit code
-  case SyscallEvent::Header::Type::SysExitExecve:
-  case SyscallEvent::Header::Type::SysExitExecveat:
-    status = osquery::Status(0);
-    break;
-
-  // We use this event to fill the clone/fork/vfork data with useful
-  // namespace information
-  case SyscallEvent::Header::Type::KprobePidvnr: {
-    SyscallEvent::PidVnrData pidvnr_data = {};
-    status = readSyscallEventPidVnrData(
-        pidvnr_data, current_index, event_data_table, cpu_index);
-
-    event.data = pidvnr_data;
-    break;
-  }
-
-  default:
-    status = osquery::Status::failure("Unhandled event type");
-    break;
   }
 
   return status;
@@ -991,6 +1511,8 @@ void BCCProcessEventsProgram::processPerfEvent(
     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
     const std::uint32_t* event_identifiers,
     std::size_t event_identifier_count) {
+  std::vector<SyscallEvent> new_event_list;
+
   for (std::size_t i = 0U; i < event_identifier_count; ++i) {
     SyscallEvent event = {};
     auto status =
@@ -1001,8 +1523,24 @@ void BCCProcessEventsProgram::processPerfEvent(
       continue;
     }
 
-    auto timestamp = event.header.timestamp;
-    d->syscall_event_list.insert({timestamp, std::move(event)});
+    new_event_list.push_back(std::move(event));
   }
+
+  if (new_event_list.empty()) {
+    return;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(d->syscall_event_list_mutex);
+
+    for (auto& event : new_event_list) {
+      auto timestamp = event.header.timestamp;
+      d->syscall_event_list.insert({timestamp, std::move(event)});
+    }
+
+    new_event_list.clear();
+  }
+
+  d->syscall_event_list_cv.notify_all();
 }
 } // namespace trailofbits

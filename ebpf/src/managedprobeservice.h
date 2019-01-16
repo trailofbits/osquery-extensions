@@ -16,41 +16,23 @@
 
 #pragma once
 
-#include "bccprocesseventsprogram.h"
-
+#include "managedprobe.h"
 #include <pubsub/servicemanager.h>
 
-#include <memory>
-
 namespace trailofbits {
-/// This service pulls data from the eBPF probes
-class BCCProcessEventsService final : public IService {
+class ManagedProbeService final : public IService {
   struct PrivateData;
   std::unique_ptr<PrivateData> d;
 
  public:
-  /// Constructor
-  BCCProcessEventsService();
+  ManagedProbeService(ManagedProbe& probe);
+  virtual ~ManagedProbeService() override;
 
-  /// Destructor
-  virtual ~BCCProcessEventsService() override;
-
-  /// Initialization callback; optional
   virtual osquery::Status initialize() override;
-
-  /// Configuration change
   virtual osquery::Status configure(const json11::Json& configuration);
-
-  /// Cleanup callback; optional
   virtual void release() override;
-
-  /// This is the service entry point
   virtual void run() override;
-
-  /// Returns a list of process events
-  ProcessEventList getEvents();
 };
 
-/// A reference to a BCCProcessEventsService object
-using BCCProcessEventsServiceRef = std::shared_ptr<BCCProcessEventsService>;
+using ManagedProbeServiceRef = std::shared_ptr<ManagedProbeService>;
 } // namespace trailofbits

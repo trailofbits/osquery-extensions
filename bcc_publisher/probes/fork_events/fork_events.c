@@ -63,7 +63,6 @@ int on_tracepoint_sys_enter_clone(
   return 0;
 }
 
-/// clone() handler
 int on_tracepoint_sys_exit_clone(
     struct tracepoint__syscalls__sys_exit_clone* args) {
   int event_index = saveEventHeader(EVENTID_SYSEXITCLONE, true, args->ret);
@@ -89,7 +88,6 @@ int on_tracepoint_sys_enter_fork(
   return 0;
 }
 
-/// fork() handler
 int on_tracepoint_sys_exit_fork(
     struct tracepoint__syscalls__sys_exit_fork* args) {
   int event_index = saveEventHeader(EVENTID_SYSEXITFORK, true, args->ret);
@@ -115,7 +113,6 @@ int on_tracepoint_sys_enter_vfork(
   return 0;
 }
 
-/// vfork() handler
 int on_tracepoint_sys_exit_vfork(
     struct tracepoint__syscalls__sys_exit_vfork* args) {
   int event_index = saveEventHeader(EVENTID_SYSEXITVFORK, true, args->ret);
@@ -155,7 +152,6 @@ int on_tracepoint_sys_enter_exit(
   return 0;
 }
 
-/// exit_group() handler
 int on_tracepoint_sys_enter_exit_group(
     struct tracepoint__syscalls__sys_enter_exit_group* args) {
   int event_index = saveEventHeader(EVENTID_SYSENTEREXITGROUP, false, 0);

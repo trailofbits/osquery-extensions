@@ -43,7 +43,7 @@ class BCCProcessEventsProgram final {
   static osquery::Status create(BCCProcessEventsProgramRef& object);
   ~BCCProcessEventsProgram();
 
-  void update();
+  osquery::Status initialize();
   ProcessEventList getEvents();
 
   template <typename T>
@@ -82,25 +82,103 @@ class BCCProcessEventsProgram final {
       std::size_t cpu_index);
 
   static osquery::Status readSyscallEventExecData(
-      SyscallEvent::ExecData& exec_data,
+      SyscallEvent& syscall_event,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);
 
   static osquery::Status readSyscallEventCloneData(
-      SyscallEvent::CloneData& exec_data,
+      SyscallEvent& syscall_event,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);
 
   static osquery::Status readSyscallEventExitData(
-      SyscallEvent::ExitData& exec_data,
+      SyscallEvent& syscall_event,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);
 
   static osquery::Status readSyscallEventPidVnrData(
-      SyscallEvent::PidVnrData& pidvnr_data,
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventCreatData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventMknodData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventMknodatData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventOpenData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventOpenatData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventOpenByHandleAtData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventNameToHandleAtData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventCloseData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventDupData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventDup2Data(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventDup3Data(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventSocketData(
+      SyscallEvent& syscall_event,
+      int& current_index,
+      ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
+      std::size_t cpu_index);
+
+  static osquery::Status readSyscallEventSocketPairData(
+      SyscallEvent& syscall_event,
       int& current_index,
       ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
       std::size_t cpu_index);

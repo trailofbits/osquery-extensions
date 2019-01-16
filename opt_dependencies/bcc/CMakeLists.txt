@@ -87,7 +87,17 @@ function(bccMain)
   )
 
   target_compile_options("${PROJECT_NAME}" PRIVATE -Wno-error -fvisibility=default -g0)
-  target_compile_options("${PROJECT_NAME}" INTERFACE -Wno-extern-c-compat)
+
+  target_compile_options("${PROJECT_NAME}" INTERFACE
+    -Wno-extern-c-compat
+    -Wno-shadow
+    -Wno-shadow-field-in-constructor
+    -Wno-gnu-anonymous-struct
+    -Wno-nested-anon-types
+    -Wno-reorder
+    -Wno-unused-result
+    -Wno-non-virtual-dtor
+  )
 endfunction()
 
 bccMain()

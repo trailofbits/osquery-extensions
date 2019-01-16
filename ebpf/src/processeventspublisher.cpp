@@ -14,16 +14,24 @@
  * limitations under the License.
  */
 
-#include "bccprocesseventspublisher.h"
-#include "globals.h"
+#include "processeventspublisher.h"
+#include "ebpfeventsource.h"
 
 namespace trailofbits {
-BCCProcessEventsPublisher::BCCProcessEventsPublisher() {}
+struct ProcessEventsPublisher::PrivateData final {
+  eBPFEventSourceRef event_source;
+};
 
-osquery::Status BCCProcessEventsPublisher::create(
-    IEventPublisherRef& publisher) {
+ProcessEventsPublisher::ProcessEventsPublisher() : d(new PrivateData) {
+  auto status = eBPFEventSource::create(d->event_source);
+  if (!status.ok()) {
+    throw status;
+  }
+}
+
+osquery::Status ProcessEventsPublisher::create(IEventPublisherRef& publisher) {
   try {
-    auto ptr = new BCCProcessEventsPublisher();
+    auto ptr = new ProcessEventsPublisher();
     publisher.reset(ptr);
 
     return osquery::Status(0);
@@ -36,31 +44,31 @@ osquery::Status BCCProcessEventsPublisher::create(
   }
 }
 
-osquery::Status BCCProcessEventsPublisher::initialize() noexcept {
+osquery::Status ProcessEventsPublisher::initialize() noexcept {
   return osquery::Status(0);
 }
 
-osquery::Status BCCProcessEventsPublisher::release() noexcept {
+osquery::Status ProcessEventsPublisher::release() noexcept {
   return osquery::Status(0);
 }
 
-osquery::Status BCCProcessEventsPublisher::onConfigurationChangeStart(
+osquery::Status ProcessEventsPublisher::onConfigurationChangeStart(
     const json11::Json&) noexcept {
   return osquery::Status(0);
 }
 
-osquery::Status BCCProcessEventsPublisher::onConfigurationChangeEnd(
+osquery::Status ProcessEventsPublisher::onConfigurationChangeEnd(
     const json11::Json&) noexcept {
   return osquery::Status(0);
 }
 
-osquery::Status BCCProcessEventsPublisher::onSubscriberConfigurationChange(
+osquery::Status ProcessEventsPublisher::onSubscriberConfigurationChange(
     const json11::Json&, SubscriberType&, SubscriptionContextRef) noexcept {
   return osquery::Status(0);
 }
 
-osquery::Status BCCProcessEventsPublisher::updatePublisher() noexcept {
-  auto new_events = process_events_service->getEvents();
+osquery::Status ProcessEventsPublisher::updatePublisher() noexcept {
+  auto new_events = d->event_source->getEvents();
   if (new_events.empty()) {
     return osquery::Status(0);
   }
@@ -71,13 +79,20 @@ osquery::Status BCCProcessEventsPublisher::updatePublisher() noexcept {
     return status;
   }
 
-  event_context->event_list = new_events;
+  std::stringstream buffer;
+  for (const auto& event : new_events) {
+    buffer.str("");
+    buffer << event;
+
+    event_context->string_list.push_back(buffer.str());
+  }
+
   broadcastEvent(event_context);
 
   return osquery::Status(0);
 }
 
-osquery::Status BCCProcessEventsPublisher::updateSubscriber(
+osquery::Status ProcessEventsPublisher::updateSubscriber(
     IEventSubscriberRef, SubscriptionContextRef) noexcept {
   return osquery::Status(0);
 }

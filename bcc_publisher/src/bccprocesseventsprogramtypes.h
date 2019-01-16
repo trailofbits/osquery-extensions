@@ -3,9 +3,12 @@
 #include <probes/common/definitions.h>
 #include <probes/common/utilities.h>
 
+#include <probes/create_mknod_events.h>
+#include <probes/dup_close_events.h>
 #include <probes/exec_events.h>
-#include <probes/fd_events.h>
 #include <probes/fork_events.h>
+#include <probes/open_events.h>
+#include <probes/socket_fd_events.h>
 
 #include <boost/variant.hpp>
 #include <osquery/sdk.h>
@@ -35,18 +38,43 @@ struct SyscallEvent final {
       KprobePidvnr = EVENTID_PIDVNR,
 
       SysEnterCreat = EVENTID_SYSENTERCREAT,
+      SysExitCreat = EVENTID_SYSEXITCREAT,
+
       SysEnterMknod = EVENTID_SYSENTERMKNOD,
+      SysExitMknod = EVENTID_SYSEXITMKNOD,
+
       SysEnterMknodat = EVENTID_SYSENTERMKNODAT,
+      SysExitMknodat = EVENTID_SYSEXITMKNODAT,
+
       SysEnterOpen = EVENTID_SYSENTEROPEN,
+      SysExitOpen = EVENTID_SYSEXITOPEN,
+
       SysEnterOpenat = EVENTID_SYSENTEROPENAT,
+      SysExitOpenat = EVENTID_SYSEXITOPENAT,
+
       SysEnterOpen_by_handle_at = EVENTID_SYSENTEROPEN_BY_HANDLE_AT,
+      SysExitOpen_by_handle_at = EVENTID_SYSEXITOPEN_BY_HANDLE_AT,
+
       SysEnterName_to_handle_at = EVENTID_SYSENTERNAME_TO_HANDLE_AT,
+      SysExitName_to_handle_at = EVENTID_SYSEXITNAME_TO_HANDLE_AT,
+
       SysEnterClose = EVENTID_SYSENTERCLOSE,
+      SysExitClose = EVENTID_SYSEXITCLOSE,
+
       SysEnterDup = EVENTID_SYSENTERDUP,
+      SysExitDup = EVENTID_SYSEXITDUP,
+
       SysEnterDup2 = EVENTID_SYSENTERDUP2,
+      SysExitDup2 = EVENTID_SYSEXITDUP2,
+
       SysEnterDup3 = EVENTID_SYSENTERDUP3,
+      SysExitDup3 = EVENTID_SYSEXITDUP3,
+
       SysEnterSocket = EVENTID_SYSENTERSOCKET,
-      SysEnterSocketpair = EVENTID_SYSENTERSOCKETPAIR
+      SysExitSocket = EVENTID_SYSEXITSOCKET,
+
+      SysEnterSocketpair = EVENTID_SYSENTERSOCKETPAIR,
+      SysExitSocketpair = EVENTID_SYSEXITSOCKETPAIR
     };
 
     Type type;
@@ -61,7 +89,7 @@ struct SyscallEvent final {
   struct ExecData final {
     std::string filename;
     std::vector<std::string> argv;
-    bool argv_truncated{false};
+    bool argv_truncated;
   };
 
   struct PidVnrData final {
@@ -75,23 +103,105 @@ struct SyscallEvent final {
   };
 
   struct CloneData final {
-    std::uint64_t clone_flags{0U};
-    std::uint32_t parent_tid{0U};
-    std::uint32_t child_tid{0U};
+    std::uint64_t clone_flags;
+    std::uint32_t parent_tid;
+    std::uint32_t child_tid;
   };
 
-  struct OpenCreateData final {
-    int folder_fd{-1};
-    mode_t open_mode{0};
-    int flags{0};
-    dev_t device{0};
-
+  struct CreateData final {
     std::string path;
+    mode_t mode;
+  };
+
+  struct MknodData final {
+    std::string path;
+    mode_t mode;
+    dev_t dev;
+  };
+
+  struct MknodatData final {
+    int dfd;
+    std::string filename;
+    mode_t mode;
+    dev_t dev;
+  };
+
+  struct OpenData final {
+    std::string filename;
+    int flags;
+    mode_t mode;
+  };
+
+  struct OpenatData final {
+    int dfd;
+    std::string filename;
+    int flags;
+    mode_t mode;
+  };
+
+  struct OpenByHandleAtData final {
+    int mountdirfd;
+    int flags;
+  };
+
+  struct NameToHandleAtData final {
+    int dfd;
+    std::string name;
+    int mntid;
+    int flag;
+  };
+
+  struct CloseData final {
+    int fd;
+  };
+
+  struct DupData final {
+    int fildes;
+  };
+
+  struct Dup2Data final {
+    int oldfd;
+    int newfd;
+  };
+
+  struct Dup3Data final {
+    int oldfd;
+    int newfd;
+    int flags;
+  };
+
+  struct SocketData final {
+    int family;
+    int type;
+    int protocol;
+  };
+
+  struct SocketpairData final {
+    int family;
+    int type;
+    int protocol;
+    int socketpair[2];
   };
 
   Header header;
   boost::optional<PidVnrData> namespace_data;
-  boost::variant<PidVnrData, ExecData, ExitData, CloneData, OpenCreateData>
+  boost::variant<ExecData,
+                 PidVnrData,
+                 ExitData,
+                 CloneData,
+                 CreateData,
+                 MknodData,
+                 MknodatData,
+                 OpenData,
+                 OpenatData,
+                 OpenByHandleAtData,
+                 NameToHandleAtData,
+                 CloseData,
+                 DupData,
+                 Dup2Data,
+                 Dup3Data,
+                 SocketData,
+                 SocketpairData>
       data;
 };
 

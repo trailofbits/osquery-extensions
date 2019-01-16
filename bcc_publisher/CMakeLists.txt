@@ -19,9 +19,20 @@ function(bccPublisherMain)
   ImportDependency("bcc")
 
   add_subdirectory(probes)
-  importBccProbe("fork_events")
-  importBccProbe("exec_events")
-  importBccProbe("fd_events")
+
+  set(probe_list
+    "create_mknod_events"
+    "dup_close_events"
+    "exec_events"
+    "fork_events"
+    "open_events"
+    "socket_fd_events"
+  )
+
+  foreach(probe_name ${probe_list})
+    importBccProbe("${probe_name}")
+    list(APPEND probe_target_list "bcc_probe_${probe_name}")
+  endforeach()
 
   set(source_files
     src/main.cpp
@@ -50,9 +61,7 @@ function(bccPublisherMain)
   target_link_libraries("${PROJECT_NAME}"
     pubsub
     bcc
-    bcc_probe_fork_events
-    bcc_probe_exec_events
-    bcc_probe_fd_events
+    ${probe_target_list}
   )
 
   # We have to disable some warnings for BCC to work correctly
