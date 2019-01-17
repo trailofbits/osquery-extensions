@@ -142,7 +142,19 @@ DnsEvent::AnswerList generateDnsAnswerList(pcpp::DnsLayer* dns_layer) {
     DnsEvent::Answer answer = {};
 
     answer.ttl = raw_answer->getTTL();
-    answer.record_data = raw_answer->getData()->toString();
+
+    if (raw_answer->getData()->isTypeOf<pcpp::GenericDnsResourceData>()) {
+      std::size_t answer_size = raw_answer->getDataLength();
+
+      auto answer_data = std::make_unique<std::uint8_t[]>(answer_size + 1);
+      raw_answer->getData()->toByteArr(answer_data.get(), answer_size, nullptr);
+
+      answer.record_data =
+          std::string(reinterpret_cast<char*>(answer_data.get()));
+    } else {
+      answer.record_data = raw_answer->getData()->toString();
+    }
+
     answer.record_type = raw_answer->getDnsType();
     answer.record_class = raw_answer->getDnsClass();
     answer.record_name = raw_answer->getName();
