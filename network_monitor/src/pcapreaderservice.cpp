@@ -311,8 +311,6 @@ void PcapReaderService::run() {
         std::lock_guard<std::mutex> lock(pcap_mutex);
 
         if (pcap) {
-          uninitialized = false;
-
           bool timed_out = false;
           auto status = waitForNewPackets(timed_out, pcap, 1000U);
           if (!status.ok()) {
@@ -335,6 +333,8 @@ void PcapReaderService::run() {
 
             return;
           }
+
+          uninitialized = false;
         }
       }
 
