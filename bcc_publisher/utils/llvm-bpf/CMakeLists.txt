@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(BUILD_DEPS "/usr/local/osquery")
-set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+set(LLVM_CLANG_VERSION "7.0.1")
 
 function(checkEnvironment)
   set(expected_c_compiler "${BUILD_DEPS}/bin/clang")
@@ -48,12 +49,84 @@ function(checkEnvironment)
     endforeach()
 
     message("=====")
-    message(FATAL_ERROR "Aborting...")
+    message(FATAL_ERROR "Please delete everything in the build folder and try again")
   endif()
+endfunction()
+
+function(downloadLLVM)
+  set(llvm_tarball_name "llvm-${LLVM_CLANG_VERSION}.src.tar.xz")
+  set(llvm_tarball_path "${CMAKE_CURRENT_BINARY_DIR}/${llvm_tarball_name}")
+
+  add_custom_command(
+    OUTPUT "${llvm_tarball_path}"
+    COMMAND curl "http://releases.llvm.org/${LLVM_CLANG_VERSION}/${llvm_tarball_name}" -o "${llvm_tarball_path}"
+    VERBATIM
+  )
+
+  set(cfe_tarball_name "cfe-${LLVM_CLANG_VERSION}.src.tar.xz")
+  set(cfe_tarball_path "${CMAKE_CURRENT_BINARY_DIR}/${cfe_tarball_name}")
+
+  add_custom_command(
+    OUTPUT "${cfe_tarball_path}"
+    COMMAND curl "http://releases.llvm.org/${LLVM_CLANG_VERSION}/${cfe_tarball_name}" -o "${cfe_tarball_path}"
+    VERBATIM
+  )
+
+  add_custom_target(
+    download_llvm_tarballs
+    DEPENDS "${llvm_tarball_path}" "${cfe_tarball_path}"
+  )
+endfunction()
+
+function(decompressLLVM)
+  downloadLLVM()
+
+  set(llvm_root_folder "${CMAKE_CURRENT_SOURCE_DIR}/llvm-${LLVM_CLANG_VERSION}.src")
+  
+  add_custom_command(
+    OUTPUT "${llvm_root_folder}"
+    DEPENDS download_llvm_tarballs
+    COMMAND "${CMAKE_COMMAND}" -E tar xf "${CMAKE_CURRENT_BINARY_DIR}/llvm-${LLVM_CLANG_VERSION}.src.tar.xz"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+
+  add_custom_target(
+    extract_llvm_tarball
+    DEPENDS "${llvm_root_folder}"
+  )
+
+  set(cfe_root_folder "${CMAKE_CURRENT_SOURCE_DIR}/llvm-${LLVM_CLANG_VERSION}.src/tools/cfe-${LLVM_CLANG_VERSION}.src")
+
+  add_custom_command(
+    OUTPUT "${cfe_root_folder}"
+    DEPENDS extract_llvm_tarball
+    COMMAND "${CMAKE_COMMAND}" -E tar xf "${CMAKE_CURRENT_BINARY_DIR}/cfe-${LLVM_CLANG_VERSION}.src.tar.xz"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/llvm-${LLVM_CLANG_VERSION}.src/tools"
+  )
+
+  add_custom_target(
+    extract_clang_tarball
+    DEPENDS "${cfe_root_folder}"
+  )
+
+  set(clang_tool_folder "${CMAKE_CURRENT_SOURCE_DIR}/llvm-${LLVM_CLANG_VERSION}.src/tools/clang")
+
+  add_custom_command(
+    OUTPUT "${clang_tool_folder}"
+    DEPENDS extract_clang_tarball
+    COMMAND "${CMAKE_COMMAND}" -E rename "${cfe_root_folder}" "${clang_tool_folder}"
+    VERBATIM
+  )
+
+  add_custom_target(
+    init_llvm_source
+    DEPENDS "${clang_tool_folder}"
+  )
 endfunction()
 
 function(importLLVM)
   checkEnvironment()
+  decompressLLVM()
 
   if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${BUILD_DEPS}/llvm-bpf" CACHE PATH "Install path" FORCE)
@@ -81,7 +154,7 @@ function(importLLVM)
   include_directories(SYSTEM "${BUILD_DEPS}/include/c++/v1")
   include_directories(SYSTEM "${BUILD_DEPS}/legacy/include")
   include_directories(SYSTEM "${BUILD_DEPS}/include")
-  include_directories(SYSTEM "${BUILD_DEPS}/lib/clang/4.0.0/include")
+  include_directories(SYSTEM "${BUILD_DEPS}/lib/clang/6.0.0/include")
 
   set(LLVM_TARGETS_TO_BUILD "X86;BPF" CACHE STRING "The LLVM LLVM_TARGETS_TO_BUILD setting" FORCE)
 
@@ -103,6 +176,8 @@ function(importLLVM)
     LLVM_BUILD_TOOLS
     LLVM_INSTALL_TOOLS
     LLVM_ENABLE_LIBCXX
+    HAVE_CXX_ATOMICS_WITHOUT_LIB
+    HAVE_CXX_ATOMICS64_WITH_LIB
   )
 
   foreach(variable_name ${variables_to_enable})
@@ -113,7 +188,13 @@ function(importLLVM)
     set(${variable_name} OFF CACHE BOOL "The LLVM ${variable_name} setting" FORCE)
   endforeach()
 
-  add_subdirectory(llvm-7.0.0.src "llvm")
+  set(llvm_source_folder "${CMAKE_CURRENT_SOURCE_DIR}/llvm-${LLVM_CLANG_VERSION}.src")
+  if(EXISTS "${llvm_source_folder}")
+    add_subdirectory("llvm-${LLVM_CLANG_VERSION}.src" "llvm")
+  else()
+    message(STATUS "The LLVM source folder was not found. Please run `make init_llvm_source` and then re-run CMake")
+  endif()
+
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/llvm/lib/libclang.a" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib")
 endfunction()
 
