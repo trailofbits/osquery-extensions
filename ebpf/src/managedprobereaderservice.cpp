@@ -82,6 +82,7 @@ bool readEventBuffer(BufferType& value,
 
   BufferType new_value;
   new_value.resize(string_buffer_size);
+
   auto dest_ptr = &new_value[0];
 
   for (i = 0U; i < chunk_count; ++i) {
@@ -91,6 +92,7 @@ bool readEventBuffer(BufferType& value,
 
     std::memcpy(dest_ptr, chunk_bytes, 8U);
   }
+
   auto skipped_slots = chunk_count - i;
   INCREMENT_EVENT_DATA_INDEX_BY(index, skipped_slots);
 

@@ -278,6 +278,11 @@ std::string generateTracepointHandler(
     if (parameter.type == ManagedProbeTracepoint::Parameter::Type::String ||
         parameter.type == ManagedProbeTracepoint::Parameter::Type::StringList) {
       buffer << "  save" << parameter.type << "(string_buffer, ";
+
+    } else if (parameter.type ==
+               ManagedProbeTracepoint::Parameter::Type::ByteArray) {
+      buffer << "  save" << parameter.type << "((const char *) ";
+
     } else {
       buffer << "  save" << parameter.type << "(";
     }

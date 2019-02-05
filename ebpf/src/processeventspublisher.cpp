@@ -88,7 +88,22 @@ std::ostream& operator<<(std::ostream& stream,
 
     case 3U: {
       const auto& value = boost::get<std::vector<std::uint8_t>>(field.second);
-      stream << "{ " << value.size() << " bytes }";
+
+      stream << "{ ";
+
+      auto byte_count = std::min(value.size(), 4UL);
+      bool truncated = value.size() > byte_count;
+
+      for (auto i = 0U; i < byte_count; i++) {
+        stream << std::setw(2) << std::setfill('0') << std::hex
+               << static_cast<std::uint32_t>(value.at(i)) << " ";
+      }
+
+      if (truncated) {
+        stream << "... ";
+      }
+
+      stream << "}";
       break;
     }
 
