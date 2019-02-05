@@ -16,9 +16,44 @@
 
 #pragma once
 
-#include "managedprobe.h"
+#include "ebpfprobe.h"
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include <osquery/logger.h>
 
 namespace trailofbits {
-osquery::Status generateManagedProbe(std::string& probe_source_code,
+struct ManagedProbeTracepoint final {
+  struct Parameter final {
+    enum class Type {
+      SignedInteger,
+      UnsignedInteger,
+      String,
+      ByteArray,
+      StringList
+    };
+
+    Type type{Type::SignedInteger};
+    std::string name;
+  };
+
+  std::string name;
+  std::vector<Parameter> parameter_list;
+};
+
+struct ManagedProbeDescriptor final {
+  std::string name;
+
+  std::size_t string_buffer_size{160U};
+  std::size_t string_list_size{11U};
+
+  std::vector<ManagedProbeTracepoint> tracepoint_list;
+};
+
+using ManagedProbeDescriptorList = std::vector<ManagedProbeDescriptor>;
+
+osquery::Status generateManagedProbe(eBPFProbeRef& probe,
                                      const ManagedProbeDescriptor& desc);
-}
+} // namespace trailofbits

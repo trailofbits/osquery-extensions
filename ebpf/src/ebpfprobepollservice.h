@@ -16,17 +16,18 @@
 
 #pragma once
 
-#include "managedprobe.h"
+#include "ebpfprobe.h"
+
 #include <pubsub/servicemanager.h>
 
 namespace trailofbits {
-class ManagedProbeService final : public IService {
+class eBPFProbePollService final : public IService {
   struct PrivateData;
   std::unique_ptr<PrivateData> d;
 
  public:
-  ManagedProbeService(ManagedProbe& probe);
-  virtual ~ManagedProbeService() override;
+  eBPFProbePollService(eBPFProbe& probe);
+  virtual ~eBPFProbePollService() override;
 
   virtual osquery::Status initialize() override;
   virtual osquery::Status configure(const json11::Json& configuration);
@@ -34,5 +35,5 @@ class ManagedProbeService final : public IService {
   virtual void run() override;
 };
 
-using ManagedProbeServiceRef = std::shared_ptr<ManagedProbeService>;
+using eBPFProbePollServiceRef = std::shared_ptr<eBPFProbePollService>;
 } // namespace trailofbits

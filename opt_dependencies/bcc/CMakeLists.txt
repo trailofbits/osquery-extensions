@@ -39,6 +39,14 @@ function(bccMain)
     # "bpf" library
     "${BCC_REPOSITORY_ROOT}/src/cc/libbpf.c"
     "${BCC_REPOSITORY_ROOT}/src/cc/perf_reader.c"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/src/bpf.c"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/src/bpf_prog_linfo.c"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/src/btf.c"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/src/libbpf.c"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/src/libbpf_errno.c"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/src/netlink.c"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/src/nlattr.c"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/src/str_error.c"
 
     # "bcc-loader" library
     "${BCC_REPOSITORY_ROOT}/src/cc/bcc_syms.cc"
@@ -73,6 +81,8 @@ function(bccMain)
     "${BCC_REPOSITORY_ROOT}/src/cc/frontends/clang"
     "${BCC_REPOSITORY_ROOT}/src/cc/frontends/b"
     "${BCC_REPOSITORY_ROOT}/src/cc/api"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/include"
+    "${BCC_REPOSITORY_ROOT}/src/cc/libbpf/include/uapi"
     "${CMAKE_CURRENT_BINARY_DIR}"
   )
 

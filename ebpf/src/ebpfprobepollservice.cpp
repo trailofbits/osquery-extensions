@@ -14,31 +14,31 @@
  * limitations under the License.
  */
 
-#include "managedprobeservice.h"
+#include "ebpfprobepollservice.h"
 
 namespace trailofbits {
-struct ManagedProbeService::PrivateData final {
-  ManagedProbe& probe;
+struct eBPFProbePollService::PrivateData final {
+  eBPFProbe& probe;
 
-  PrivateData(ManagedProbe& probe_) : probe(probe_) {}
+  PrivateData(eBPFProbe& probe_) : probe(probe_) {}
 };
 
-ManagedProbeService::ManagedProbeService(ManagedProbe& probe)
+eBPFProbePollService::eBPFProbePollService(eBPFProbe& probe)
     : d(new PrivateData(probe)) {}
 
-ManagedProbeService::~ManagedProbeService() {}
+eBPFProbePollService::~eBPFProbePollService() {}
 
-osquery::Status ManagedProbeService::initialize() {
+osquery::Status eBPFProbePollService::initialize() {
   return osquery::Status(0);
 }
 
-osquery::Status ManagedProbeService::configure(const json11::Json&) {
+osquery::Status eBPFProbePollService::configure(const json11::Json&) {
   return osquery::Status(0);
 }
 
-void ManagedProbeService::release() {}
+void eBPFProbePollService::release() {}
 
-void ManagedProbeService::run() {
+void eBPFProbePollService::run() {
   while (!shouldTerminate()) {
     d->probe.poll();
   }

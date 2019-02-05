@@ -340,10 +340,9 @@ osquery::Status getOsqueryPidList(std::vector<pid_t>& pid_list) {
 
   return osquery::Status(0);
 }
-} // namespace
 
-osquery::Status generateManagedProbe(std::string& probe_source_code,
-                                     const ManagedProbeDescriptor& desc) {
+osquery::Status generateManagedProbeSource(std::string& probe_source_code,
+                                           const ManagedProbeDescriptor& desc) {
   probe_source_code.clear();
 
   std::vector<pid_t> osquery_pid_list;
@@ -372,6 +371,37 @@ osquery::Status generateManagedProbe(std::string& probe_source_code,
   }
 
   probe_source_code = buffer.str();
+  return osquery::Status(0);
+}
+} // namespace
+
+osquery::Status generateManagedProbe(eBPFProbeRef& probe,
+                                     const ManagedProbeDescriptor& desc) {
+  std::string probe_source_code;
+  auto status = generateManagedProbeSource(probe_source_code, desc);
+  if (!status.ok()) {
+    return status;
+  }
+
+  eBPFProbeDescriptor probe_descriptor;
+  probe_descriptor.name = desc.name;
+  probe_descriptor.source_code = probe_source_code;
+
+  for (const auto& tracepoint : desc.tracepoint_list) {
+    eBPFProbeDescriptor::Probe probe = {};
+    probe.type = eBPFProbeDescriptor::Probe::Type::Tracepoint;
+    probe.entry = (tracepoint.name.find("sys_enter_") != std::string::npos);
+    probe.translate_name = true;
+    probe.name = tracepoint.name;
+
+    probe_descriptor.probe_list.push_back(std::move(probe));
+  }
+
+  status = eBPFProbe::create(probe, probe_descriptor);
+  if (!status.ok()) {
+    return status;
+  }
+
   return osquery::Status(0);
 }
 } // namespace trailofbits

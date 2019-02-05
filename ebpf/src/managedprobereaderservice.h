@@ -16,19 +16,11 @@
 
 #pragma once
 
-#include "ebpfprobe.h"
+#include "managed_probe_generator.h"
 
-#include <map>
-#include <string>
-#include <vector>
-
-#include <boost/optional.hpp>
-#include <boost/variant.hpp>
+#include <pubsub/servicemanager.h>
 
 namespace trailofbits {
-class ManagedProbe;
-using ManagedProbeRef = std::unique_ptr<ManagedProbe>;
-
 struct SystemCallEvent final {
   struct StringList final {
     bool truncated{false};
@@ -55,27 +47,24 @@ struct SystemCallEvent final {
 
 using SystemCallEventList = std::vector<SystemCallEvent>;
 
-class ManagedProbe final {
+class ManagedProbeReaderService final : public IService {
   struct PrivateData;
   std::unique_ptr<PrivateData> d;
 
-  ManagedProbe(const ManagedProbeDescriptor& desc);
-
-  static void callbackDispatcher(void* callback_data,
-                                 void* data,
-                                 int data_size);
-
-  void callback(const std::uint32_t* data, std::size_t data_size);
-
  public:
-  static osquery::Status create(ManagedProbeRef& object,
-                                const ManagedProbeDescriptor& desc);
-  ~ManagedProbe();
+  ManagedProbeReaderService(eBPFProbe& probe, ManagedProbeDescriptor desc);
+  virtual ~ManagedProbeReaderService() override;
 
-  ManagedProbe(const ManagedProbe&) = delete;
-  ManagedProbe& operator=(const ManagedProbe&) = delete;
+  virtual osquery::Status initialize() override;
+  virtual osquery::Status configure(const json11::Json& configuration);
+  virtual void release() override;
+  virtual void run() override;
+
+  SystemCallEventList getSystemCallEvents();
+
+ private:
+  void processPerfEvents(const std::vector<std::uint32_t>& perf_event_data);
 };
 
-std::ostream& operator<<(std::ostream& stream,
-                         const SystemCallEvent& system_call_event);
+using ManagedProbeReaderServiceRef = std::shared_ptr<ManagedProbeReaderService>;
 } // namespace trailofbits

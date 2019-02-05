@@ -74,6 +74,10 @@ struct eBPFProbe::PrivateData final {
   std::unordered_map<std::string, int> attached_kprobe_list;
   std::vector<std::string> attached_tracepoint_list;
 
+  std::vector<std::uint32_t> perf_event_data;
+  std::mutex perf_event_data_mutex;
+  std::condition_variable perf_event_data_cv;
+
   PrivateData(BPFRef bpf_,
               ebpf::BPFPercpuArrayTable<std::uint64_t> event_data_table_)
       : bpf(std::move(bpf_)), event_data_table(std::move(event_data_table_)) {}
@@ -96,10 +100,8 @@ eBPFProbe::eBPFProbe(const eBPFProbeDescriptor& probe_descriptor) {
                << " events";
   };
 
-  bpf_status = bpf->open_perf_buffer("events",
-                                     probe_descriptor.callback,
-                                     L_lostEventCallback,
-                                     probe_descriptor.callback_data);
+  bpf_status = bpf->open_perf_buffer(
+      "events", &eBPFProbe::eventCallbackDispatcher, L_lostEventCallback, this);
 
   if (bpf_status.code() != 0) {
     throw osquery::Status::failure("eBPF initialization error: " +
@@ -152,8 +154,47 @@ void eBPFProbe::poll() {
   d->perf_event_buffer->poll(kPollTime);
 }
 
+std::vector<std::uint32_t> eBPFProbe::getPerfEventData() {
+  std::vector<std::uint32_t> perf_event_data;
+
+  std::unique_lock<std::mutex> lock(d->perf_event_data_mutex);
+
+  if (d->perf_event_data_cv.wait_for(lock, std::chrono::seconds(1)) ==
+      std::cv_status::no_timeout) {
+    perf_event_data = std::move(d->perf_event_data);
+    d->perf_event_data.clear();
+  }
+
+  return perf_event_data;
+}
+
 ebpf::BPFPercpuArrayTable<std::uint64_t>& eBPFProbe::eventDataTable() {
   return d->event_data_table;
+}
+
+void eBPFProbe::eventCallbackDispatcher(void* callback_data,
+                                        void* data,
+                                        int data_size) {
+  auto& this_obj = *reinterpret_cast<eBPFProbe*>(callback_data);
+  this_obj.eventCallback(data, data_size);
+}
+
+void eBPFProbe::eventCallback(void* data, int data_size) {
+  if ((data_size % 4) != 0) {
+    LOG(ERROR) << "Invalid data size";
+    return;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(d->perf_event_data_mutex);
+
+    auto perf_event_data_ptr = reinterpret_cast<const std::uint32_t*>(data);
+    for (auto i = 0; i < (data_size / 4); i++) {
+      d->perf_event_data.push_back(perf_event_data_ptr[i]);
+    }
+  }
+
+  d->perf_event_data_cv.notify_one();
 }
 
 osquery::Status eBPFProbe::attachProbes() {

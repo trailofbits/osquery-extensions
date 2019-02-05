@@ -15,12 +15,12 @@
  */
 
 #include "ebpfeventsource.h"
-#include "managedprobeservice.h"
+#include "ebpfprobepollservice.h"
+#include "managed_probe_generator.h"
+#include "managedprobereaderservice.h"
 
 namespace trailofbits {
 namespace {
-using ManagedProbeDescriptorList = std::vector<ManagedProbeDescriptor>;
-
 // clang-format off
 const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
   {
@@ -141,8 +141,9 @@ const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
 } // namespace
 
 struct eBPFEventSource::PrivateData final {
-  std::vector<ManagedProbeRef> probe_list;
-  std::vector<ManagedProbeServiceRef> service_list;
+  std::vector<eBPFProbeRef> probe_list;
+  std::vector<eBPFProbePollServiceRef> poll_service_list;
+  std::vector<ManagedProbeReaderServiceRef> reader_service_list;
 };
 
 eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
@@ -152,23 +153,33 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
   for (const auto& desc : kManagedProbeDescriptorList) {
     LOG(INFO) << "Generating probe: " << desc.name;
 
-    ManagedProbeRef probe;
-    auto status = trailofbits::ManagedProbe::create(probe, desc);
+    eBPFProbeRef probe;
+    auto status = generateManagedProbe(probe, desc);
+    if (!status) {
+      throw status;
+    }
+
+    eBPFProbePollServiceRef poll_service;
+    status = ServiceManager::instance().createService<eBPFProbePollService>(
+        poll_service, *probe.get());
     if (!status.ok()) {
       throw status;
     }
 
-    ManagedProbeServiceRef service;
-    status = ServiceManager::instance().createService<ManagedProbeService>(
-        service, *probe.get());
+    d->poll_service_list.push_back(poll_service);
+
+    ManagedProbeReaderServiceRef reader_service;
+    status =
+        ServiceManager::instance().createService<ManagedProbeReaderService>(
+            reader_service, *probe.get(), desc);
     if (!status.ok()) {
       throw status;
     }
+
+    d->reader_service_list.push_back(reader_service);
 
     d->probe_list.push_back(std::move(probe));
     probe.reset();
-
-    d->service_list.push_back(service);
   }
 }
 
@@ -190,19 +201,19 @@ osquery::Status eBPFEventSource::create(eBPFEventSourceRef& object) {
 }
 
 SystemCallEventList eBPFEventSource::getEvents() {
-  SystemCallEventList new_events;
+  SystemCallEventList syscall_event_list;
 
-  for (auto& probe : d->probe_list) {
-    auto probe_events = probe->getEvents();
+  for (auto& reader_service : d->reader_service_list) {
+    auto new_events = reader_service->getSystemCallEvents();
 
-    new_events.reserve(new_events.size() + probe_events.size());
+    syscall_event_list.reserve(syscall_event_list.size() + new_events.size());
 
-    new_events.insert(new_events.end(),
-                      std::make_move_iterator(probe_events.begin()),
-                      std::make_move_iterator(probe_events.end()));
+    syscall_event_list.insert(syscall_event_list.end(),
+                              std::make_move_iterator(new_events.begin()),
+                              std::make_move_iterator(new_events.end()));
   }
 
-  return new_events;
+  return syscall_event_list;
 }
 
 eBPFEventSource::~eBPFEventSource() {}

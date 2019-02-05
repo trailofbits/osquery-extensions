@@ -27,10 +27,6 @@ namespace trailofbits {
 class eBPFProbe;
 using eBPFProbeRef = std::unique_ptr<eBPFProbe>;
 
-using BPFEventCallback = void (*)(void* callback_data,
-                                  void* data,
-                                  int data_size);
-
 struct eBPFProbeDescriptor final {
   struct Probe final {
     enum class Type {
@@ -48,9 +44,6 @@ struct eBPFProbeDescriptor final {
   std::string source_code;
 
   std::vector<Probe> probe_list;
-
-  BPFEventCallback callback;
-  void* callback_data{nullptr};
 };
 
 class eBPFProbe final {
@@ -71,9 +64,16 @@ class eBPFProbe final {
   const eBPFProbeDescriptor& probeDescriptor() const;
   void poll();
 
+  std::vector<std::uint32_t> getPerfEventData();
   ebpf::BPFPercpuArrayTable<std::uint64_t>& eventDataTable();
 
   eBPFProbe(const eBPFProbe&) = delete;
   eBPFProbe& operator=(const eBPFProbe&) = delete;
+
+ private:
+  static void eventCallbackDispatcher(void* callback_data,
+                                      void* data,
+                                      int data_size);
+  void eventCallback(void* data, int data_size);
 };
 } // namespace trailofbits

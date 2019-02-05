@@ -28,11 +28,11 @@ function(ebpfMain)
     src/managed_probe_generator.h
     src/managed_probe_generator.cpp
 
-    src/managedprobe.h
-    src/managedprobe.cpp
+    src/ebpfprobepollservice.h
+    src/ebpfprobepollservice.cpp
 
-    src/managedprobeservice.h
-    src/managedprobeservice.cpp
+    src/managedprobereaderservice.h
+    src/managedprobereaderservice.cpp
 
     src/processeventspublisher.h
     src/processeventspublisher.cpp

@@ -17,7 +17,122 @@
 #include "processeventspublisher.h"
 #include "ebpfeventsource.h"
 
+#include <iomanip>
+#include <iostream>
+
+#include <asm/unistd_64.h>
+
 namespace trailofbits {
+namespace {
+const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
+    {__NR_close, "close"},
+    {__NR_dup, "dup"},
+    {__NR_dup2, "dup2"},
+    {__NR_dup3, "dup3"},
+    {__NR_execve, "execve"},
+    {__NR_execveat, "execveat"},
+    {__NR_socket, "socket"},
+    {__NR_bind, "bind"},
+    {__NR_connect, "connect"}};
+
+std::ostream& operator<<(std::ostream& stream,
+                         const SystemCallEvent& system_call_event) {
+  static auto L_syscallName = [](std::uint64_t syscall_number) -> const char* {
+    auto it = kSyscallNameTable.find(syscall_number);
+    if (it == kSyscallNameTable.end()) {
+      return "<UNKNOWN_SYSCALL_NAME>";
+    }
+
+    return it->second;
+  };
+
+  stream << std::setfill(' ') << std::setw(16) << system_call_event.timestamp
+         << " ";
+
+  stream << std::setfill(' ') << std::setw(8) << system_call_event.uid << " ";
+  stream << std::setfill(' ') << std::setw(8) << system_call_event.gid << " ";
+  stream << std::setfill(' ') << std::setw(8) << system_call_event.tgid << " ";
+  stream << std::setfill(' ') << std::setw(8) << system_call_event.pid << " ";
+
+  stream << std::setfill(' ') << std::setw(8)
+         << system_call_event.syscall_number << " ";
+
+  stream << std::setfill(' ') << std::setw(16)
+         << L_syscallName(system_call_event.syscall_number) << "(";
+
+  bool add_separator = false;
+  for (const auto& field : system_call_event.field_list) {
+    if (add_separator) {
+      stream << ", ";
+    }
+
+    stream << field.first << "=";
+    switch (field.second.which()) {
+    case 0U: {
+      const auto& value = boost::get<std::int64_t>(field.second);
+      stream << value;
+      break;
+    }
+
+    case 1U: {
+      const auto& value = boost::get<std::uint64_t>(field.second);
+      stream << value;
+      break;
+    }
+
+    case 2U: {
+      const auto& value = boost::get<std::string>(field.second);
+      stream << "\"" << value << "\"";
+      break;
+    }
+
+    case 3U: {
+      const auto& value = boost::get<std::vector<std::uint8_t>>(field.second);
+      stream << "{ " << value.size() << " bytes }";
+      break;
+    }
+
+    case 4U: {
+      const auto& value = boost::get<SystemCallEvent::StringList>(field.second);
+      stream << "{";
+
+      bool add_separator = false;
+      for (const auto& s : value.data) {
+        if (add_separator) {
+          stream << ", ";
+        }
+
+        stream << "\"" << s << "\"";
+
+        add_separator = true;
+      }
+
+      if (value.truncated) {
+        if (add_separator) {
+          stream << ", ";
+        }
+
+        stream << "...";
+      }
+
+      stream << "}";
+      break;
+    }
+    }
+
+    add_separator = true;
+  }
+
+  stream << ")";
+
+  if (system_call_event.exit_code) {
+    stream << " -> " << system_call_event.exit_code.get();
+  }
+
+  return stream;
+}
+} // namespace
+
 struct ProcessEventsPublisher::PrivateData final {
   eBPFEventSourceRef event_source;
 };

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "managedprobe.h"
+#include "managedprobereaderservice.h"
 
 #include <memory>
 
