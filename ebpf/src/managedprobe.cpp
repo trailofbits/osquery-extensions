@@ -29,6 +29,17 @@
 
 namespace trailofbits {
 namespace {
+const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
+    {__NR_close, "close"},
+    {__NR_dup, "dup"},
+    {__NR_dup2, "dup2"},
+    {__NR_dup3, "dup3"},
+    {__NR_execve, "execve"},
+    {__NR_execveat, "execveat"},
+    {__NR_socket, "socket"},
+    {__NR_bind, "bind"},
+    {__NR_connect, "connect"}};
+
 bool readEventSlot(std::vector<std::uint64_t>& table_data,
                    int& index,
                    std::size_t cpu_id,
@@ -439,16 +450,13 @@ SystemCallEventList ManagedProbe::getEvents() {
 
 std::ostream& operator<<(std::ostream& stream,
                          const SystemCallEvent& system_call_event) {
-  static const auto L_syscallName =
-      [](std::uint64_t syscall_number) -> const char* {
-    switch (syscall_number) {
-    case __NR_execve:
-      return "execve";
-    case __NR_open:
-      return "open";
-    default:
-      return "UNKNOWN";
+  static auto L_syscallName = [](std::uint64_t syscall_number) -> const char* {
+    auto it = kSyscallNameTable.find(syscall_number);
+    if (it == kSyscallNameTable.end()) {
+      return "<UNKNOWN_SYSCALL_NAME>";
     }
+
+    return it->second;
   };
 
   stream << std::setfill(' ') << std::setw(16) << system_call_event.timestamp
@@ -464,13 +472,7 @@ std::ostream& operator<<(std::ostream& stream,
 
   stream << std::setfill(' ') << std::setw(16)
          << L_syscallName(system_call_event.syscall_number) << "(";
-  enum class Type {
-    SignedInteger,
-    UnsignedInteger,
-    String,
-    ByteArray,
-    StringList
-  };
+
   bool add_separator = false;
   for (const auto& field : system_call_event.field_list) {
     if (add_separator) {
