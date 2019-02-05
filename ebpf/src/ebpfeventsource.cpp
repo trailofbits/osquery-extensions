@@ -24,55 +24,6 @@ using ManagedProbeDescriptorList = std::vector<ManagedProbeDescriptor>;
 // clang-format off
 const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
   {
-    "open_events", 256U, 0U,
-
-    {
-      {
-        "sys_enter_open",
-        {
-          { ManagedProbeTracepoint::Parameter::Type::String, "filename"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "flags"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "mode"}
-        }
-      },
-
-      {
-        "sys_enter_openat",
-        {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "dfd"},
-          { ManagedProbeTracepoint::Parameter::Type::String, "filename"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "flags"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "mode"}
-        }
-      },
-
-      {
-        // TODO(alessandro): struct file_handle
-        "sys_enter_open_by_handle_at",
-        {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "mountdirfd"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "flags"}
-        }
-      },
-
-      {
-        // TODO(alessandro): struct file_handle, mnt_id
-        "sys_enter_name_to_handle_at",
-        {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "dfd"},
-          { ManagedProbeTracepoint::Parameter::Type::String, "name"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "flag"}
-        }
-      },
-
-      { "sys_exit_open", {} },
-      { "sys_exit_openat", {} },
-      { "sys_exit_open_by_handle_at", {} },
-      { "sys_exit_name_to_handle_at", {} }
-    }
-  },
-
-  {
     "close_dup_events", 0U, 0U,
 
     {
@@ -148,42 +99,7 @@ const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
     }
   },
 
-  {
-    "create_mkdnod_events", 160U, 0U,
-
-    {
-      {
-        "sys_enter_creat",
-        {
-          { ManagedProbeTracepoint::Parameter::Type::String, "pathname"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "mode"}
-        }
-      },
-
-      {
-        "sys_enter_mknod",
-        {
-          { ManagedProbeTracepoint::Parameter::Type::String, "filename"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "mode"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "dev"}
-        }
-      },
-
-      {
-        "sys_enter_mknodat",
-        {
-          { ManagedProbeTracepoint::Parameter::Type::String, "filename"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "mode"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "dev"}
-        }
-      },
-
-      { "sys_exit_creat", {} },
-      { "sys_exit_mknod", {} },
-      { "sys_exit_mknodat", {} }
-    }
-  },
-
+  // Missing: socketpair, accept, accept4
   {
     "socket_events", 0U, 0U,
 
@@ -198,17 +114,26 @@ const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
       },
 
       {
-        // TODO(alessandro): usockvec
-        "sys_enter_socketpair",
+        "sys_enter_bind",
         {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "family"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "type"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "protocol"}
+          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "fd" },
+          { ManagedProbeTracepoint::Parameter::Type::ByteArray, "umyaddr"},
+          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "addrlen" }
+        }
+      },
+
+      {
+        "sys_enter_connect",
+        {
+          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "fd" },
+          { ManagedProbeTracepoint::Parameter::Type::ByteArray, "uservaddr" },
+          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "addrlen" }
         }
       },
 
       { "sys_exit_socket", {} },
-      { "sys_exit_socketpair", {} }
+      { "sys_exit_bind", {} },
+      { "sys_exit_connect", {} }
     }
   }
 };
@@ -221,6 +146,9 @@ struct eBPFEventSource::PrivateData final {
 };
 
 eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
+  LOG(INFO) << "eBPF probes will now be generated and compiled. This may use "
+               "some CPU";
+
   for (const auto& desc : kManagedProbeDescriptorList) {
     LOG(INFO) << "Generating probe: " << desc.name;
 

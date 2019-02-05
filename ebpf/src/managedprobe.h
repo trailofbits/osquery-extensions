@@ -35,8 +35,11 @@ struct SystemCallEvent final {
     std::vector<std::string> data;
   };
 
-  using FieldValue =
-      boost::variant<std::uint64_t, std::int64_t, std::string, StringList>;
+  using FieldValue = boost::variant<std::int64_t,
+                                    std::uint64_t,
+                                    std::string,
+                                    std::vector<std::uint8_t>,
+                                    StringList>;
 
   using FieldList = std::map<std::string, FieldValue>;
 
@@ -54,7 +57,13 @@ using SystemCallEventList = std::vector<SystemCallEvent>;
 
 struct ManagedProbeTracepoint final {
   struct Parameter final {
-    enum class Type { SignedInteger, UnsignedInteger, String, StringList };
+    enum class Type {
+      SignedInteger,
+      UnsignedInteger,
+      String,
+      ByteArray,
+      StringList
+    };
 
     Type type{Type::SignedInteger};
     std::string name;

@@ -123,6 +123,8 @@ static bool saveString(char* buffer, const char* address) {
   return true;
 }
 
+#define saveByteArray saveStringBuffer
+
 /// Saves the truncation identifier into the per-cpu map; used for varargs
 /// functions likes execve
 static int emitVarargsTerminator(bool truncated) {
@@ -201,6 +203,10 @@ std::ostream& operator<<(
 
   case ManagedProbeTracepoint::Parameter::Type::StringList:
     stream << "StringList";
+    break;
+
+  case ManagedProbeTracepoint::Parameter::Type::ByteArray:
+    stream << "ByteArray";
     break;
 
   default:

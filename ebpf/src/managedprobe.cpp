@@ -66,7 +66,8 @@ bool readEventData(T& value,
   return true;
 }
 
-bool readEventString(std::string& value,
+template <typename BufferType>
+bool readEventBuffer(BufferType& value,
                      std::vector<std::uint64_t>& table_data,
                      int& index,
                      std::size_t cpu_id,
@@ -75,37 +76,35 @@ bool readEventString(std::string& value,
   value.clear();
 
   union {
-    std::uint64_t string_chunk;
-    char string_chunk_bytes[8U];
+    std::uint64_t chunk;
+    char chunk_bytes[8U];
   };
 
   std::size_t i = 0U;
-  bool terminate = false;
   auto chunk_count = (string_buffer_size / 8U);
 
-  for (i = 0U; i < chunk_count && !terminate; ++i) {
-    string_chunk = 0U;
-    if (!readEventData(
-            string_chunk, table_data, index, cpu_id, event_data_table)) {
+  BufferType new_value;
+  new_value.resize(string_buffer_size);
+  auto dest_ptr = &new_value[0];
+
+  for (i = 0U; i < chunk_count; ++i) {
+    if (!readEventData(chunk, table_data, index, cpu_id, event_data_table)) {
       return false;
     }
 
-    value.reserve(value.size() + 8U);
-    for (auto k = 0U; k < sizeof(string_chunk_bytes); k++) {
-      if (string_chunk_bytes[k] == 0) {
-        terminate = true;
-        break;
-      }
-
-      value.push_back(string_chunk_bytes[k]);
-    }
+    std::memcpy(dest_ptr, chunk_bytes, 8U);
+    dest_ptr += 8U;
   }
 
   auto skipped_slots = chunk_count - i;
   INCREMENT_EVENT_DATA_INDEX_BY(index, skipped_slots);
 
+  value = std::move(new_value);
   return true;
 }
+
+constexpr auto readEventString = &readEventBuffer<std::string>;
+constexpr auto readEventByteArray = &readEventBuffer<std::vector<std::uint8_t>>;
 
 bool readEventStringList(
     SystemCallEvent::StringList& value,
@@ -350,6 +349,21 @@ void ManagedProbe::callback(const std::uint32_t* data, std::size_t data_size) {
 
         system_call_event.field_list.insert({parameter.name, value});
 
+      } else if (parameter.type ==
+                 ManagedProbeTracepoint::Parameter::Type::ByteArray) {
+        std::vector<std::uint8_t> value;
+        if (!readEventByteArray(value,
+                                table_data,
+                                index,
+                                cpu_id,
+                                event_data_table,
+                                d->desc.string_buffer_size)) {
+          parameter_read_error = true;
+          break;
+        }
+
+        system_call_event.field_list.insert({parameter.name, value});
+
       } else {
         LOG(ERROR) << "Invalid parameter from the following tracepoint: "
                    << d->desc.name;
@@ -450,7 +464,13 @@ std::ostream& operator<<(std::ostream& stream,
 
   stream << std::setfill(' ') << std::setw(16)
          << L_syscallName(system_call_event.syscall_number) << "(";
-
+  enum class Type {
+    SignedInteger,
+    UnsignedInteger,
+    String,
+    ByteArray,
+    StringList
+  };
   bool add_separator = false;
   for (const auto& field : system_call_event.field_list) {
     if (add_separator) {
@@ -460,25 +480,31 @@ std::ostream& operator<<(std::ostream& stream,
     stream << field.first << "=";
     switch (field.second.which()) {
     case 0U: {
-      auto value = boost::get<std::uint64_t>(field.second);
+      const auto& value = boost::get<std::int64_t>(field.second);
       stream << value;
       break;
     }
 
     case 1U: {
-      auto value = boost::get<std::int64_t>(field.second);
+      const auto& value = boost::get<std::uint64_t>(field.second);
       stream << value;
       break;
     }
 
     case 2U: {
-      auto value = boost::get<std::string>(field.second);
+      const auto& value = boost::get<std::string>(field.second);
       stream << "\"" << value << "\"";
       break;
     }
 
     case 3U: {
-      auto value = boost::get<SystemCallEvent::StringList>(field.second);
+      const auto& value = boost::get<std::vector<std::uint8_t>>(field.second);
+      stream << "{ " << value.size() << " bytes }";
+      break;
+    }
+
+    case 4U: {
+      const auto& value = boost::get<SystemCallEvent::StringList>(field.second);
       stream << "{";
 
       bool add_separator = false;
