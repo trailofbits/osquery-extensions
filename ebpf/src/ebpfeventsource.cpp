@@ -15,14 +15,14 @@
  */
 
 #include "ebpfeventsource.h"
+#include "bcc_probe_generator.h"
 #include "ebpfprobepollservice.h"
-#include "managed_probe_generator.h"
 #include "managedprobereaderservice.h"
 
 namespace trailofbits {
 namespace {
 // clang-format off
-const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
+const ManagedTracepointProbeList kManagedProbeDescriptorList = {
   {
     "close_dup_events", 0U, 0U,
 
@@ -30,31 +30,31 @@ const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
       {
         "sys_enter_close",
         {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "fd"}
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd"}
         }
       },
 
       {
         "sys_enter_dup",
         {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "fildes"}
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fildes"}
         }
       },
 
       {
         "sys_enter_dup2",
         {
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "oldfd"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "newfd"}
+          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "oldfd"},
+          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "newfd"}
         }
       },
 
       {
         "sys_enter_dup3",
         {
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "oldfd"},
-          { ManagedProbeTracepoint::Parameter::Type::UnsignedInteger, "newfd"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "flags"}
+          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "oldfd"},
+          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "newfd"},
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "flags"}
         }
       },
 
@@ -72,8 +72,8 @@ const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
       {
         "sys_enter_execve",
         {
-          { ManagedProbeTracepoint::Parameter::Type::String, "filename"},
-          { ManagedProbeTracepoint::Parameter::Type::StringList, "argv"}
+          { ManagedTracepointDescriptor::Parameter::Type::String, "filename"},
+          { ManagedTracepointDescriptor::Parameter::Type::StringList, "argv"}
         }
       },
 
@@ -88,10 +88,10 @@ const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
       {
         "sys_enter_execveat",
         {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "fd"},
-          { ManagedProbeTracepoint::Parameter::Type::String, "filename"},
-          { ManagedProbeTracepoint::Parameter::Type::StringList, "argv"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "flags"}
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd"},
+          { ManagedTracepointDescriptor::Parameter::Type::String, "filename"},
+          { ManagedTracepointDescriptor::Parameter::Type::StringList, "argv"},
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "flags"}
         }
       },
 
@@ -101,33 +101,33 @@ const ManagedProbeDescriptorList kManagedProbeDescriptorList = {
 
   // Missing: socketpair, accept, accept4
   {
-    "socket_events", 0U, 0U,
+    "socket_events", 160U, 0U,
 
     {
       {
         "sys_enter_socket",
         {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "family"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "type"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "protocol"}
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "family"},
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "type"},
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "protocol"}
         }
       },
 
       {
         "sys_enter_bind",
         {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "fd" },
-          { ManagedProbeTracepoint::Parameter::Type::ByteArray, "umyaddr"},
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "addrlen" }
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd" },
+          { ManagedTracepointDescriptor::Parameter::Type::ByteArray, "umyaddr"},
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "addrlen" }
         }
       },
 
       {
         "sys_enter_connect",
         {
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "fd" },
-          { ManagedProbeTracepoint::Parameter::Type::ByteArray, "uservaddr" },
-          { ManagedProbeTracepoint::Parameter::Type::SignedInteger, "addrlen" }
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd" },
+          { ManagedTracepointDescriptor::Parameter::Type::ByteArray, "uservaddr" },
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "addrlen" }
         }
       },
 
@@ -154,7 +154,7 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
     LOG(INFO) << "Generating probe: " << desc.name;
 
     eBPFProbeRef probe;
-    auto status = generateManagedProbe(probe, desc);
+    auto status = generateManagedTracepointProbe(probe, desc);
     if (!status) {
       throw status;
     }

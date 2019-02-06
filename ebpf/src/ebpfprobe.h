@@ -74,6 +74,7 @@ class eBPFProbe final {
   static void eventCallbackDispatcher(void* callback_data,
                                       void* data,
                                       int data_size);
+
   void eventCallback(void* data, int data_size);
 };
 } // namespace trailofbits

@@ -25,8 +25,8 @@ function(ebpfMain)
 
     src/main.cpp
 
-    src/managed_probe_generator.h
-    src/managed_probe_generator.cpp
+    src/bcc_probe_generator.h
+    src/bcc_probe_generator.cpp
 
     src/ebpfprobepollservice.h
     src/ebpfprobepollservice.cpp

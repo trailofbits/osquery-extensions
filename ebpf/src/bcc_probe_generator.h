@@ -25,7 +25,7 @@
 #include <osquery/logger.h>
 
 namespace trailofbits {
-struct ManagedProbeTracepoint final {
+struct ManagedTracepointDescriptor final {
   struct Parameter final {
     enum class Type {
       SignedInteger,
@@ -43,17 +43,17 @@ struct ManagedProbeTracepoint final {
   std::vector<Parameter> parameter_list;
 };
 
-struct ManagedProbeDescriptor final {
+struct ManagedTracepointProbe final {
   std::string name;
 
   std::size_t string_buffer_size{160U};
   std::size_t string_list_size{11U};
 
-  std::vector<ManagedProbeTracepoint> tracepoint_list;
+  std::vector<ManagedTracepointDescriptor> tracepoint_list;
 };
 
-using ManagedProbeDescriptorList = std::vector<ManagedProbeDescriptor>;
+using ManagedTracepointProbeList = std::vector<ManagedTracepointProbe>;
 
-osquery::Status generateManagedProbe(eBPFProbeRef& probe,
-                                     const ManagedProbeDescriptor& desc);
+osquery::Status generateManagedTracepointProbe(
+    eBPFProbeRef& probe, const ManagedTracepointProbe& desc);
 } // namespace trailofbits

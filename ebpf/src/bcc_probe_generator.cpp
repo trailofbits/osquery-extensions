@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "managed_probe_generator.h"
+#include "bcc_probe_generator.h"
 
 #include <fstream>
 #include <iostream>
@@ -123,7 +123,7 @@ static bool saveString(char* buffer, const char* address) {
   return true;
 }
 
-#define saveByteArray saveStringBuffer
+#define saveByteArray saveString
 
 /// Saves the truncation identifier into the per-cpu map; used for varargs
 /// functions likes execve
@@ -187,25 +187,25 @@ emit_terminator:
 
 std::ostream& operator<<(
     std::ostream& stream,
-    ManagedProbeTracepoint::Parameter::Type tracepoint_param_type) {
+    ManagedTracepointDescriptor::Parameter::Type tracepoint_param_type) {
   switch (tracepoint_param_type) {
-  case ManagedProbeTracepoint::Parameter::Type::SignedInteger:
+  case ManagedTracepointDescriptor::Parameter::Type::SignedInteger:
     stream << "SignedInteger";
     break;
 
-  case ManagedProbeTracepoint::Parameter::Type::UnsignedInteger:
+  case ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger:
     stream << "UnsignedInteger";
     break;
 
-  case ManagedProbeTracepoint::Parameter::Type::String:
+  case ManagedTracepointDescriptor::Parameter::Type::String:
     stream << "String";
     break;
 
-  case ManagedProbeTracepoint::Parameter::Type::StringList:
+  case ManagedTracepointDescriptor::Parameter::Type::StringList:
     stream << "StringList";
     break;
 
-  case ManagedProbeTracepoint::Parameter::Type::ByteArray:
+  case ManagedTracepointDescriptor::Parameter::Type::ByteArray:
     stream << "ByteArray";
     break;
 
@@ -218,15 +218,19 @@ std::ostream& operator<<(
 }
 
 std::string generateTracepointHandler(
-    const ManagedProbeTracepoint& tracepoint_desc,
+    const ManagedTracepointDescriptor& tracepoint_desc,
     std::uint16_t tracepoint_id,
     std::size_t string_buffer_size,
     const std::vector<pid_t>& osquery_pid_list) {
   bool enable_string_buffer = false;
 
   for (const auto& parameter : tracepoint_desc.parameter_list) {
-    if (parameter.type == ManagedProbeTracepoint::Parameter::Type::String ||
-        parameter.type == ManagedProbeTracepoint::Parameter::Type::StringList) {
+    if (parameter.type ==
+            ManagedTracepointDescriptor::Parameter::Type::String ||
+        parameter.type ==
+            ManagedTracepointDescriptor::Parameter::Type::ByteArray ||
+        parameter.type ==
+            ManagedTracepointDescriptor::Parameter::Type::StringList) {
       enable_string_buffer = true;
       break;
     }
@@ -275,13 +279,15 @@ std::string generateTracepointHandler(
   }
 
   for (const auto& parameter : tracepoint_desc.parameter_list) {
-    if (parameter.type == ManagedProbeTracepoint::Parameter::Type::String ||
-        parameter.type == ManagedProbeTracepoint::Parameter::Type::StringList) {
+    if (parameter.type ==
+            ManagedTracepointDescriptor::Parameter::Type::String ||
+        parameter.type ==
+            ManagedTracepointDescriptor::Parameter::Type::StringList) {
       buffer << "  save" << parameter.type << "(string_buffer, ";
 
     } else if (parameter.type ==
-               ManagedProbeTracepoint::Parameter::Type::ByteArray) {
-      buffer << "  save" << parameter.type << "((const char *) ";
+               ManagedTracepointDescriptor::Parameter::Type::ByteArray) {
+      buffer << "  save" << parameter.type << "(string_buffer, (const char *) ";
 
     } else {
       buffer << "  save" << parameter.type << "(";
@@ -346,8 +352,8 @@ osquery::Status getOsqueryPidList(std::vector<pid_t>& pid_list) {
   return osquery::Status(0);
 }
 
-osquery::Status generateManagedProbeSource(std::string& probe_source_code,
-                                           const ManagedProbeDescriptor& desc) {
+osquery::Status generateManagedTracepointProbeSource(
+    std::string& probe_source_code, const ManagedTracepointProbe& desc) {
   probe_source_code.clear();
 
   std::vector<pid_t> osquery_pid_list;
@@ -380,10 +386,10 @@ osquery::Status generateManagedProbeSource(std::string& probe_source_code,
 }
 } // namespace
 
-osquery::Status generateManagedProbe(eBPFProbeRef& probe,
-                                     const ManagedProbeDescriptor& desc) {
+osquery::Status generateManagedTracepointProbe(
+    eBPFProbeRef& probe, const ManagedTracepointProbe& desc) {
   std::string probe_source_code;
-  auto status = generateManagedProbeSource(probe_source_code, desc);
+  auto status = generateManagedTracepointProbeSource(probe_source_code, desc);
   if (!status.ok()) {
     return status;
   }

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "managed_probe_generator.h"
+#include "bcc_probe_generator.h"
 
 #include <pubsub/servicemanager.h>
 
@@ -52,7 +52,7 @@ class ManagedProbeReaderService final : public IService {
   std::unique_ptr<PrivateData> d;
 
  public:
-  ManagedProbeReaderService(eBPFProbe& probe, ManagedProbeDescriptor desc);
+  ManagedProbeReaderService(eBPFProbe& probe, ManagedTracepointProbe desc);
   virtual ~ManagedProbeReaderService() override;
 
   virtual osquery::Status initialize() override;

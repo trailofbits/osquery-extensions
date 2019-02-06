@@ -152,18 +152,18 @@ bool readEventStringList(
 
 struct ManagedProbeReaderService::PrivateData final {
   eBPFProbe& probe;
-  ManagedProbeDescriptor desc;
+  ManagedTracepointProbe desc;
 
   std::vector<SystemCallEvent> syscall_event_list;
   std::mutex syscall_event_list_mutex;
   std::condition_variable syscall_event_list_cv;
 
-  PrivateData(eBPFProbe& probe_, ManagedProbeDescriptor desc_)
+  PrivateData(eBPFProbe& probe_, ManagedTracepointProbe desc_)
       : probe(probe_), desc(std::move(desc_)) {}
 };
 
 ManagedProbeReaderService::ManagedProbeReaderService(
-    eBPFProbe& probe, ManagedProbeDescriptor desc)
+    eBPFProbe& probe, ManagedTracepointProbe desc)
     : d(new PrivateData(probe, desc)) {}
 
 ManagedProbeReaderService::~ManagedProbeReaderService() {}
@@ -286,7 +286,8 @@ void ManagedProbeReaderService::processPerfEvents(
     bool parameter_read_error = false;
 
     for (const auto& parameter : tracepoint_desc.parameter_list) {
-      if (parameter.type == ManagedProbeTracepoint::Parameter::Type::String) {
+      if (parameter.type ==
+          ManagedTracepointDescriptor::Parameter::Type::String) {
         std::string value;
         if (!readEventString(value,
                              table_data,
@@ -301,7 +302,7 @@ void ManagedProbeReaderService::processPerfEvents(
         system_call_event.field_list.insert({parameter.name, value});
 
       } else if (parameter.type ==
-                 ManagedProbeTracepoint::Parameter::Type::SignedInteger) {
+                 ManagedTracepointDescriptor::Parameter::Type::SignedInteger) {
         std::int64_t value;
         if (!readEventData(
                 value, table_data, index, cpu_id, event_data_table)) {
@@ -311,8 +312,8 @@ void ManagedProbeReaderService::processPerfEvents(
 
         system_call_event.field_list.insert({parameter.name, value});
 
-      } else if (parameter.type ==
-                 ManagedProbeTracepoint::Parameter::Type::UnsignedInteger) {
+      } else if (parameter.type == ManagedTracepointDescriptor::Parameter::
+                                       Type::UnsignedInteger) {
         std::uint64_t value;
         if (!readEventData(
                 value, table_data, index, cpu_id, event_data_table)) {
@@ -323,7 +324,7 @@ void ManagedProbeReaderService::processPerfEvents(
         system_call_event.field_list.insert({parameter.name, value});
 
       } else if (parameter.type ==
-                 ManagedProbeTracepoint::Parameter::Type::StringList) {
+                 ManagedTracepointDescriptor::Parameter::Type::StringList) {
         SystemCallEvent::StringList value;
         if (!readEventStringList(value,
                                  table_data,
@@ -339,7 +340,7 @@ void ManagedProbeReaderService::processPerfEvents(
         system_call_event.field_list.insert({parameter.name, value});
 
       } else if (parameter.type ==
-                 ManagedProbeTracepoint::Parameter::Type::ByteArray) {
+                 ManagedTracepointDescriptor::Parameter::Type::ByteArray) {
         std::vector<std::uint8_t> value;
         if (!readEventByteArray(value,
                                 table_data,
