@@ -24,16 +24,24 @@
 
 namespace trailofbits {
 namespace {
+// clang-format off
 const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
-    {__NR_close, "close"},
-    {__NR_dup, "dup"},
-    {__NR_dup2, "dup2"},
-    {__NR_dup3, "dup3"},
-    {__NR_execve, "execve"},
-    {__NR_execveat, "execveat"},
-    {__NR_socket, "socket"},
-    {__NR_bind, "bind"},
-    {__NR_connect, "connect"}};
+  { __NR_close, "close" },
+  { __NR_dup, "dup" },
+  { __NR_dup2, "dup2" },
+  { __NR_dup3, "dup3" },
+  { __NR_execve, "execve" },
+  { __NR_execveat, "execveat" },
+  { __NR_socket, "socket" },
+  { __NR_bind, "bind" },
+  { __NR_connect, "connect" },
+  { __NR_fork, "fork" },
+  { __NR_vfork, "vfork" },
+  { __NR_clone, "clone" },
+  { __NR_exit, "exit" },
+  { __NR_exit_group, "exit_group" }
+};
+// clang-format on
 
 std::ostream& operator<<(std::ostream& stream,
                          const SystemCallEvent& system_call_event) {

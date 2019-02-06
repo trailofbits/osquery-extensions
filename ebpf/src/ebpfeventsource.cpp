@@ -21,6 +21,7 @@
 
 namespace trailofbits {
 namespace {
+// Missing: socketpair, accept, accept4, pid_vnr
 // clang-format off
 const ManagedTracepointProbeList kManagedProbeDescriptorList = {
   {
@@ -30,31 +31,31 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
       {
         "sys_enter_close",
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd"}
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd" }
         }
       },
 
       {
         "sys_enter_dup",
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fildes"}
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fildes" }
         }
       },
 
       {
         "sys_enter_dup2",
         {
-          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "oldfd"},
-          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "newfd"}
+          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "oldfd" },
+          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "newfd" }
         }
       },
 
       {
         "sys_enter_dup3",
         {
-          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "oldfd"},
-          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "newfd"},
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "flags"}
+          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "oldfd" },
+          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "newfd" },
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "flags" }
         }
       },
 
@@ -72,8 +73,8 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
       {
         "sys_enter_execve",
         {
-          { ManagedTracepointDescriptor::Parameter::Type::String, "filename"},
-          { ManagedTracepointDescriptor::Parameter::Type::StringList, "argv"}
+          { ManagedTracepointDescriptor::Parameter::Type::String, "filename" },
+          { ManagedTracepointDescriptor::Parameter::Type::StringList, "argv" }
         }
       },
 
@@ -88,10 +89,10 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
       {
         "sys_enter_execveat",
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd"},
-          { ManagedTracepointDescriptor::Parameter::Type::String, "filename"},
-          { ManagedTracepointDescriptor::Parameter::Type::StringList, "argv"},
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "flags"}
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd" },
+          { ManagedTracepointDescriptor::Parameter::Type::String, "filename" },
+          { ManagedTracepointDescriptor::Parameter::Type::StringList, "argv" },
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "flags" }
         }
       },
 
@@ -99,7 +100,37 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
     }
   },
 
-  // Missing: socketpair, accept, accept4
+  {
+    "fork_exit_events", 0U, 0U,
+
+    {
+      { "sys_enter_fork", {} },
+      { "sys_enter_vfork", {} },
+
+      { "sys_enter_clone",
+        {
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "clone_flags" }
+        }
+      },
+
+      { "sys_enter_exit",
+        {
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "error_code" }
+        }
+      },
+
+      { "sys_enter_exit_group",
+        {
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "error_code" }
+        }
+      },
+
+      { "sys_exit_fork", {} },
+      { "sys_exit_vfork", {} },
+      { "sys_exit_clone", {} }
+    }
+  },
+
   {
     "socket_events", 160U, 0U,
 
@@ -107,9 +138,9 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
       {
         "sys_enter_socket",
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "family"},
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "type"},
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "protocol"}
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "family" },
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "type" },
+          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "protocol" }
         }
       },
 
