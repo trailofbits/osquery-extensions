@@ -16,6 +16,8 @@ cmake_minimum_required(VERSION 3.12)
 project(ebpf)
 
 function(ebpfMain)
+  add_subdirectory("probes")
+
   set(source_files
     src/ebpfeventsource.h
     src/ebpfeventsource.cpp
@@ -42,7 +44,7 @@ function(ebpfMain)
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})
-  target_link_libraries("${PROJECT_NAME}" pubsub)
+  target_link_libraries("${PROJECT_NAME}" pubsub bcc_probe_api)
 
   ImportDependency("bcc")
   target_link_libraries("${PROJECT_NAME}" bcc)

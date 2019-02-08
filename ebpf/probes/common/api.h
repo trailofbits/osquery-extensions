@@ -18,8 +18,14 @@
 #include <linux/sched.h>
 #include <uapi/linux/ptrace.h>
 
+/// perf output, used to send event indexes
 BPF_PERF_OUTPUT(events);
+
+/// per-cpu map containing data and parameters
 BPF_PERCPU_ARRAY(perf_event_data, u64, EVENT_MAP_SIZE);
+
+/// per-cpu map used to keep track of the index of the last write inside the
+/// data map
 BPF_PERCPU_ARRAY(perf_cpu_index, u64, 1);
 
 /// Saves the generic event header into the per-cpu map, returning the
@@ -65,14 +71,14 @@ static int saveEventHeader(u64 event_identifier,
 }
 
 /// Saves the given string into the per-cpu map
-static int saveStringBuffer(const char* buffer, const int buffer_size) {
+static int saveStringBuffer(const char* buffer) {
   int index_key = 0U;
   u64 initial_slot = 0U;
   u64* index_ptr = perf_cpu_index.lookup_or_init(&index_key, &initial_slot);
   int index = (index_ptr != NULL ? *index_ptr : initial_slot);
 
 #pragma unroll
-  for (int i = 0; i < buffer_size / 8; i++) {
+  for (int i = 0; i < STRING_BUFFER_SIZE / 8; i++) {
     perf_event_data.update(&index, (u64*)&buffer[i * 8]);
     INCREMENT_EVENT_DATA_INDEX(index);
   }
@@ -84,18 +90,18 @@ static int saveStringBuffer(const char* buffer, const int buffer_size) {
 }
 
 /// Saves the string pointed to by the given address into the per-cpu map
-static bool saveString(char* buffer,
-                       const int buffer_size,
-                       const char* address) {
+static bool saveString(char* buffer, const char* address) {
   if (address == NULL) {
     return false;
   }
 
-  bpf_probe_read(buffer, buffer_size, address);
-  saveStringBuffer(buffer, buffer_size);
+  bpf_probe_read(buffer, STRING_BUFFER_SIZE, address);
+  saveStringBuffer(buffer);
 
   return true;
 }
+
+#define saveByteArray saveString
 
 /// Saves the truncation identifier into the per-cpu map; used for varargs
 /// functions likes execve
@@ -134,16 +140,13 @@ static int saveEventValue(u64 value) {
   return 0;
 }
 
-static int saveStringList(char* buffer,
-                          const int buffer_size,
-                          const char* const* string_list,
-                          const int string_list_size) {
+static int saveStringList(char* buffer, const char* const* string_list) {
   const char* argument_ptr = NULL;
 
 #pragma unroll
-  for (int i = 1; i < string_list_size; i++) {
+  for (int i = 1; i < STRING_LIST_SIZE; i++) {
     bpf_probe_read(&argument_ptr, sizeof(argument_ptr), &string_list[i]);
-    if (saveString(buffer, buffer_size, argument_ptr) == false) {
+    if (saveString(buffer, argument_ptr) == false) {
       goto emit_terminator;
     }
   }
