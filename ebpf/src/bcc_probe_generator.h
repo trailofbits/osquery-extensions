@@ -25,22 +25,25 @@
 #include <osquery/logger.h>
 
 namespace trailofbits {
-struct ManagedTracepointDescriptor final {
-  struct Parameter final {
-    enum class Type {
-      SignedInteger,
-      UnsignedInteger,
-      String,
-      ByteArray,
-      StringList
-    };
-
-    Type type{Type::SignedInteger};
-    std::string name;
+struct ProbeParameter final {
+  enum class Type {
+    SignedInteger,
+    UnsignedInteger,
+    String,
+    ByteArray,
+    StringList
   };
 
+  Type type{Type::SignedInteger};
   std::string name;
-  std::vector<Parameter> parameter_list;
+};
+
+using ProbeParameterList = std::vector<ProbeParameter>;
+
+struct ManagedTracepointDescriptor final {
+  std::string name;
+  bool entry{true};
+  ProbeParameterList parameter_list;
 };
 
 struct ManagedTracepointProbe final {
@@ -54,6 +57,25 @@ struct ManagedTracepointProbe final {
 
 using ManagedTracepointProbeList = std::vector<ManagedTracepointProbe>;
 
+struct KprobeDescriptor final {
+  std::string name;
+  bool translate_name{false};
+  bool entry{true};
+  ProbeParameterList parameter_list;
+};
+
+struct KprobeProbe final {
+  std::string name;
+  std::string source_code;
+
+  std::vector<KprobeDescriptor> kprobe_list;
+};
+
+using KprobeProbeList = std::vector<KprobeProbe>;
+
 osquery::Status generateManagedTracepointProbe(
     eBPFProbeRef& probe, const ManagedTracepointProbe& desc);
+
+osquery::Status generateKprobeProbe(eBPFProbeRef& probe,
+                                    const KprobeProbe& desc);
 } // namespace trailofbits

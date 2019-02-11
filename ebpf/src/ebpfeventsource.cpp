@@ -17,11 +17,13 @@
 #include "ebpfeventsource.h"
 #include "bcc_probe_generator.h"
 #include "ebpfprobepollservice.h"
-#include "managedprobereaderservice.h"
+
+#include <bcc_probe_kprobe_group.h>
+#include <probes/kprobe_group/header.h>
 
 namespace trailofbits {
 namespace {
-// Missing: socketpair, accept, accept4, pid_vnr
+// Missing: socketpair, accept, accept4
 // clang-format off
 const ManagedTracepointProbeList kManagedProbeDescriptorList = {
   {
@@ -30,39 +32,43 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
     {
       {
         "sys_enter_close",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd" }
+          { ProbeParameter::Type::SignedInteger, "fd" }
         }
       },
 
       {
         "sys_enter_dup",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fildes" }
+          { ProbeParameter::Type::SignedInteger, "fildes" }
         }
       },
 
       {
         "sys_enter_dup2",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "oldfd" },
-          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "newfd" }
+          { ProbeParameter::Type::UnsignedInteger, "oldfd" },
+          { ProbeParameter::Type::UnsignedInteger, "newfd" }
         }
       },
 
       {
         "sys_enter_dup3",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "oldfd" },
-          { ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger, "newfd" },
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "flags" }
+          { ProbeParameter::Type::UnsignedInteger, "oldfd" },
+          { ProbeParameter::Type::UnsignedInteger, "newfd" },
+          { ProbeParameter::Type::SignedInteger, "flags" }
         }
       },
 
-      { "sys_exit_close", {} },
-      { "sys_exit_dup", {} },
-      { "sys_exit_dup2", {} },
-      { "sys_exit_dup3", {} }
+      { "sys_exit_close", false, {} },
+      { "sys_exit_dup", false, {} },
+      { "sys_exit_dup2", false, {} },
+      { "sys_exit_dup3", false, {} }
     }
   },
 
@@ -72,13 +78,14 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
     {
       {
         "sys_enter_execve",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::String, "filename" },
-          { ManagedTracepointDescriptor::Parameter::Type::StringList, "argv" }
+          { ProbeParameter::Type::String, "filename" },
+          { ProbeParameter::Type::StringList, "argv" }
         }
       },
 
-      { "sys_exit_execve", {} }
+      { "sys_exit_execve", false, {} }
     }
   },
 
@@ -88,15 +95,16 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
     {
       {
         "sys_enter_execveat",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd" },
-          { ManagedTracepointDescriptor::Parameter::Type::String, "filename" },
-          { ManagedTracepointDescriptor::Parameter::Type::StringList, "argv" },
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "flags" }
+          { ProbeParameter::Type::SignedInteger, "fd" },
+          { ProbeParameter::Type::String, "filename" },
+          { ProbeParameter::Type::StringList, "argv" },
+          { ProbeParameter::Type::SignedInteger, "flags" }
         }
       },
 
-      { "sys_exit_execveat", {} }
+      { "sys_exit_execveat", false, {} }
     }
   },
 
@@ -104,30 +112,33 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
     "fork_exit_events", 0U, 0U,
 
     {
-      { "sys_enter_fork", {} },
-      { "sys_enter_vfork", {} },
+      { "sys_enter_fork", true, {} },
+      { "sys_enter_vfork", true, {} },
 
       { "sys_enter_clone",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "clone_flags" }
+          { ProbeParameter::Type::SignedInteger, "clone_flags" }
         }
       },
 
       { "sys_enter_exit",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "error_code" }
+          { ProbeParameter::Type::SignedInteger, "error_code" }
         }
       },
 
       { "sys_enter_exit_group",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "error_code" }
+          { ProbeParameter::Type::SignedInteger, "error_code" }
         }
       },
 
-      { "sys_exit_fork", {} },
-      { "sys_exit_vfork", {} },
-      { "sys_exit_clone", {} }
+      { "sys_exit_fork", false, {} },
+      { "sys_exit_vfork", false, {} },
+      { "sys_exit_clone", false, {} }
     }
   },
 
@@ -137,34 +148,60 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
     {
       {
         "sys_enter_socket",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "family" },
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "type" },
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "protocol" }
+          { ProbeParameter::Type::SignedInteger, "family" },
+          { ProbeParameter::Type::SignedInteger, "type" },
+          { ProbeParameter::Type::SignedInteger, "protocol" }
         }
       },
 
       {
         "sys_enter_bind",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd" },
-          { ManagedTracepointDescriptor::Parameter::Type::ByteArray, "umyaddr"},
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "addrlen" }
+          { ProbeParameter::Type::SignedInteger, "fd" },
+          { ProbeParameter::Type::ByteArray, "umyaddr"},
+          { ProbeParameter::Type::SignedInteger, "addrlen" }
         }
       },
 
       {
         "sys_enter_connect",
+        true,
         {
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "fd" },
-          { ManagedTracepointDescriptor::Parameter::Type::ByteArray, "uservaddr" },
-          { ManagedTracepointDescriptor::Parameter::Type::SignedInteger, "addrlen" }
+          { ProbeParameter::Type::SignedInteger, "fd" },
+          { ProbeParameter::Type::ByteArray, "uservaddr" },
+          { ProbeParameter::Type::SignedInteger, "addrlen" }
         }
       },
 
-      { "sys_exit_socket", {} },
-      { "sys_exit_bind", {} },
-      { "sys_exit_connect", {} }
+      { "sys_exit_socket", false, {} },
+      { "sys_exit_bind", false, {} },
+      { "sys_exit_connect", false, {} }
+    }
+  }
+};
+// clang-format on
+
+// clang-format off
+const KprobeProbeList kKprobeList = {
+  {
+    "kprobe_group",
+    kBccProbe_kprobe_group,
+
+    {
+      {
+        "pid_vnr",
+        false,
+        true,
+        {
+          { ProbeParameter::Type::SignedInteger, "pid_count" },
+          { ProbeParameter::Type::SignedInteger, "pid1" },
+          { ProbeParameter::Type::SignedInteger, "pid2" },
+          { ProbeParameter::Type::SignedInteger, "pid3" }
+        }
+      }
     }
   }
 };
@@ -174,7 +211,7 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
 struct eBPFEventSource::PrivateData final {
   std::vector<eBPFProbeRef> probe_list;
   std::vector<eBPFProbePollServiceRef> poll_service_list;
-  std::vector<ManagedProbeReaderServiceRef> reader_service_list;
+  std::vector<ProbeReaderServiceRef> reader_service_list;
 };
 
 eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
@@ -182,7 +219,7 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
                "some CPU";
 
   for (const auto& desc : kManagedProbeDescriptorList) {
-    LOG(INFO) << "Generating probe: " << desc.name;
+    LOG(INFO) << "Generating tracepoint probe for: " << desc.name;
 
     eBPFProbeRef probe;
     auto status = generateManagedTracepointProbe(probe, desc);
@@ -199,10 +236,9 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
 
     d->poll_service_list.push_back(poll_service);
 
-    ManagedProbeReaderServiceRef reader_service;
-    status =
-        ServiceManager::instance().createService<ManagedProbeReaderService>(
-            reader_service, *probe.get(), desc);
+    ProbeReaderServiceRef reader_service;
+    status = ServiceManager::instance().createService<ProbeReaderService>(
+        reader_service, *probe.get(), desc);
     if (!status.ok()) {
       throw status;
     }
@@ -211,6 +247,25 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
 
     d->probe_list.push_back(std::move(probe));
     probe.reset();
+  }
+
+  for (const auto& desc : kKprobeList) {
+    LOG(INFO) << "Generating kprobe for: " << desc.name;
+
+    eBPFProbeRef probe;
+    auto status = generateKprobeProbe(probe, desc);
+    if (!status.ok()) {
+      throw status;
+    }
+
+    eBPFProbePollServiceRef poll_service;
+    status = ServiceManager::instance().createService<eBPFProbePollService>(
+        poll_service, *probe.get());
+    if (!status.ok()) {
+      throw status;
+    }
+
+    d->poll_service_list.push_back(poll_service);
   }
 }
 
@@ -231,20 +286,20 @@ osquery::Status eBPFEventSource::create(eBPFEventSourceRef& object) {
   }
 }
 
-SystemCallEventList eBPFEventSource::getEvents() {
-  SystemCallEventList syscall_event_list;
+ProbeEventList eBPFEventSource::getEvents() {
+  ProbeEventList probe_event_list;
 
   for (auto& reader_service : d->reader_service_list) {
-    auto new_events = reader_service->getSystemCallEvents();
+    auto new_events = reader_service->getProbeEvents();
 
-    syscall_event_list.reserve(syscall_event_list.size() + new_events.size());
+    probe_event_list.reserve(probe_event_list.size() + new_events.size());
 
-    syscall_event_list.insert(syscall_event_list.end(),
-                              std::make_move_iterator(new_events.begin()),
-                              std::make_move_iterator(new_events.end()));
+    probe_event_list.insert(probe_event_list.end(),
+                            std::make_move_iterator(new_events.begin()),
+                            std::make_move_iterator(new_events.end()));
   }
 
-  return syscall_event_list;
+  return probe_event_list;
 }
 
 eBPFEventSource::~eBPFEventSource() {}

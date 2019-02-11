@@ -21,7 +21,7 @@
 #include <pubsub/servicemanager.h>
 
 namespace trailofbits {
-struct SystemCallEvent final {
+struct ProbeEvent final {
   struct StringList final {
     bool truncated{false};
     std::vector<std::string> data;
@@ -36,6 +36,7 @@ struct SystemCallEvent final {
   using FieldList = std::map<std::string, FieldValue>;
 
   std::uint64_t timestamp{0U};
+  std::uint64_t event_identifier{0U};
   std::uint64_t syscall_number{0U};
   pid_t pid{0U};
   pid_t tgid{0U};
@@ -45,26 +46,28 @@ struct SystemCallEvent final {
   FieldList field_list;
 };
 
-using SystemCallEventList = std::vector<SystemCallEvent>;
+using ProbeEventList = std::vector<ProbeEvent>;
 
-class ManagedProbeReaderService final : public IService {
+class ProbeReaderService final : public IService {
   struct PrivateData;
   std::unique_ptr<PrivateData> d;
 
  public:
-  ManagedProbeReaderService(eBPFProbe& probe, ManagedTracepointProbe desc);
-  virtual ~ManagedProbeReaderService() override;
+  ProbeReaderService(eBPFProbe& probe, ManagedTracepointProbe desc);
+  ProbeReaderService(eBPFProbe& probe, KprobeProbe desc);
+
+  virtual ~ProbeReaderService() override;
 
   virtual osquery::Status initialize() override;
   virtual osquery::Status configure(const json11::Json& configuration);
   virtual void release() override;
   virtual void run() override;
 
-  SystemCallEventList getSystemCallEvents();
+  ProbeEventList getProbeEvents();
 
  private:
   void processPerfEvents(const std::vector<std::uint32_t>& perf_event_data);
 };
 
-using ManagedProbeReaderServiceRef = std::shared_ptr<ManagedProbeReaderService>;
+using ProbeReaderServiceRef = std::shared_ptr<ProbeReaderService>;
 } // namespace trailofbits

@@ -16,8 +16,6 @@ cmake_minimum_required(VERSION 3.12)
 project(ebpf)
 
 function(ebpfMain)
-  add_subdirectory("probes")
-
   set(source_files
     src/ebpfeventsource.h
     src/ebpfeventsource.cpp
@@ -33,8 +31,8 @@ function(ebpfMain)
     src/ebpfprobepollservice.h
     src/ebpfprobepollservice.cpp
 
-    src/managedprobereaderservice.h
-    src/managedprobereaderservice.cpp
+    src/probereaderservice.h
+    src/probereaderservice.cpp
 
     src/processeventspublisher.h
     src/processeventspublisher.cpp
@@ -44,12 +42,16 @@ function(ebpfMain)
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})
-  target_link_libraries("${PROJECT_NAME}" pubsub bcc_probe_api)
+  target_link_libraries("${PROJECT_NAME}" pubsub bcc_probe_api bcc_kprobe_header)
 
   ImportDependency("bcc")
   target_link_libraries("${PROJECT_NAME}" bcc)
 
   target_include_directories("${PROJECT_NAME}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+  add_subdirectory("probes")
+  generateBccProbe("kprobe_group")
+  target_link_libraries("${PROJECT_NAME}" bcc_probe_kprobe_group)
 endfunction()
 
 ebpfMain()

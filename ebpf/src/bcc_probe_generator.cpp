@@ -15,6 +15,8 @@
  */
 
 #include "bcc_probe_generator.h"
+
+#include <bcc_kprobe_header.h>
 #include <bcc_probe_api.h>
 
 #include <fstream>
@@ -29,27 +31,26 @@ namespace boostfs = boost::filesystem;
 
 namespace trailofbits {
 namespace {
-std::ostream& operator<<(
-    std::ostream& stream,
-    ManagedTracepointDescriptor::Parameter::Type tracepoint_param_type) {
+std::ostream& operator<<(std::ostream& stream,
+                         ProbeParameter::Type tracepoint_param_type) {
   switch (tracepoint_param_type) {
-  case ManagedTracepointDescriptor::Parameter::Type::SignedInteger:
+  case ProbeParameter::Type::SignedInteger:
     stream << "SignedInteger";
     break;
 
-  case ManagedTracepointDescriptor::Parameter::Type::UnsignedInteger:
+  case ProbeParameter::Type::UnsignedInteger:
     stream << "UnsignedInteger";
     break;
 
-  case ManagedTracepointDescriptor::Parameter::Type::String:
+  case ProbeParameter::Type::String:
     stream << "String";
     break;
 
-  case ManagedTracepointDescriptor::Parameter::Type::StringList:
+  case ProbeParameter::Type::StringList:
     stream << "StringList";
     break;
 
-  case ManagedTracepointDescriptor::Parameter::Type::ByteArray:
+  case ProbeParameter::Type::ByteArray:
     stream << "ByteArray";
     break;
 
@@ -69,12 +70,9 @@ std::string generateTracepointHandler(
   bool enable_string_buffer = false;
 
   for (const auto& parameter : tracepoint_desc.parameter_list) {
-    if (parameter.type ==
-            ManagedTracepointDescriptor::Parameter::Type::String ||
-        parameter.type ==
-            ManagedTracepointDescriptor::Parameter::Type::ByteArray ||
-        parameter.type ==
-            ManagedTracepointDescriptor::Parameter::Type::StringList) {
+    if (parameter.type == ProbeParameter::Type::String ||
+        parameter.type == ProbeParameter::Type::ByteArray ||
+        parameter.type == ProbeParameter::Type::StringList) {
       enable_string_buffer = true;
       break;
     }
@@ -123,14 +121,11 @@ std::string generateTracepointHandler(
   }
 
   for (const auto& parameter : tracepoint_desc.parameter_list) {
-    if (parameter.type ==
-            ManagedTracepointDescriptor::Parameter::Type::String ||
-        parameter.type ==
-            ManagedTracepointDescriptor::Parameter::Type::StringList) {
+    if (parameter.type == ProbeParameter::Type::String ||
+        parameter.type == ProbeParameter::Type::StringList) {
       buffer << "  save" << parameter.type << "(string_buffer, ";
 
-    } else if (parameter.type ==
-               ManagedTracepointDescriptor::Parameter::Type::ByteArray) {
+    } else if (parameter.type == ProbeParameter::Type::ByteArray) {
       buffer << "  save" << parameter.type << "(string_buffer, (const char *) ";
 
     } else {
@@ -250,6 +245,30 @@ osquery::Status generateManagedTracepointProbe(
   }
 
   status = eBPFProbe::create(probe, probe_descriptor);
+  if (!status.ok()) {
+    return status;
+  }
+
+  return osquery::Status(0);
+}
+
+osquery::Status generateKprobeProbe(eBPFProbeRef& probe,
+                                    const KprobeProbe& desc) {
+  eBPFProbeDescriptor probe_descriptor;
+  probe_descriptor.name = desc.name;
+  probe_descriptor.source_code = kBccKprobeHeader + "\n\n" + desc.source_code;
+
+  for (const auto& kprobe : desc.kprobe_list) {
+    eBPFProbeDescriptor::Probe probe = {};
+    probe.type = eBPFProbeDescriptor::Probe::Type::Kprobe;
+    probe.entry = kprobe.entry;
+    probe.translate_name = kprobe.translate_name;
+    probe.name = kprobe.name;
+
+    probe_descriptor.probe_list.push_back(std::move(probe));
+  }
+
+  auto status = eBPFProbe::create(probe, probe_descriptor);
   if (!status.ok()) {
     return status;
   }

@@ -43,8 +43,7 @@ const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
 };
 // clang-format on
 
-std::ostream& operator<<(std::ostream& stream,
-                         const SystemCallEvent& system_call_event) {
+std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
   static auto L_syscallName = [](std::uint64_t syscall_number) -> const char* {
     auto it = kSyscallNameTable.find(syscall_number);
     if (it == kSyscallNameTable.end()) {
@@ -54,22 +53,21 @@ std::ostream& operator<<(std::ostream& stream,
     return it->second;
   };
 
-  stream << std::setfill(' ') << std::setw(16) << system_call_event.timestamp
+  stream << std::setfill(' ') << std::setw(16) << probe_event.timestamp << " ";
+
+  stream << std::setfill(' ') << std::setw(8) << probe_event.uid << " ";
+  stream << std::setfill(' ') << std::setw(8) << probe_event.gid << " ";
+  stream << std::setfill(' ') << std::setw(8) << probe_event.tgid << " ";
+  stream << std::setfill(' ') << std::setw(8) << probe_event.pid << " ";
+
+  stream << std::setfill(' ') << std::setw(8) << probe_event.syscall_number
          << " ";
 
-  stream << std::setfill(' ') << std::setw(8) << system_call_event.uid << " ";
-  stream << std::setfill(' ') << std::setw(8) << system_call_event.gid << " ";
-  stream << std::setfill(' ') << std::setw(8) << system_call_event.tgid << " ";
-  stream << std::setfill(' ') << std::setw(8) << system_call_event.pid << " ";
-
-  stream << std::setfill(' ') << std::setw(8)
-         << system_call_event.syscall_number << " ";
-
   stream << std::setfill(' ') << std::setw(16)
-         << L_syscallName(system_call_event.syscall_number) << "(";
+         << L_syscallName(probe_event.syscall_number) << "(";
 
   bool add_separator = false;
-  for (const auto& field : system_call_event.field_list) {
+  for (const auto& field : probe_event.field_list) {
     if (add_separator) {
       stream << ", ";
     }
@@ -116,7 +114,7 @@ std::ostream& operator<<(std::ostream& stream,
     }
 
     case 4U: {
-      const auto& value = boost::get<SystemCallEvent::StringList>(field.second);
+      const auto& value = boost::get<ProbeEvent::StringList>(field.second);
       stream << "{";
 
       bool add_separator = false;
@@ -148,8 +146,8 @@ std::ostream& operator<<(std::ostream& stream,
 
   stream << ")";
 
-  if (system_call_event.exit_code) {
-    stream << " -> " << system_call_event.exit_code.get();
+  if (probe_event.exit_code) {
+    stream << " -> " << probe_event.exit_code.get();
   }
 
   return stream;

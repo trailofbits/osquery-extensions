@@ -56,17 +56,17 @@ int main(int argc, char* argv[]) {
 
   osquery::Initializer runner(argc, argv, osquery::ToolType::EXTENSION);
 
-  auto status = trailofbits::SubscriberRegistry::instance().initialize();
+  auto status = osquery::startExtension("ebpf", "1.0.0");
+  if (!status.ok()) {
+    LOG(ERROR) << status.getMessage();
+    runner.requestShutdown(status.getCode());
+  }
+
+  status = trailofbits::SubscriberRegistry::instance().initialize();
   if (!status.ok()) {
     std::cerr << "Pubsub initialization error: " << status.getMessage() << "\n";
 
     return 1;
-  }
-
-  status = osquery::startExtension("ebpf", "1.0.0");
-  if (!status.ok()) {
-    LOG(ERROR) << status.getMessage();
-    runner.requestShutdown(status.getCode());
   }
 
   auto active_publishers =

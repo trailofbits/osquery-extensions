@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "managedprobereaderservice.h"
+#include "probereaderservice.h"
 
 #include <memory>
 
@@ -36,7 +36,7 @@ class eBPFEventSource final {
   static osquery::Status create(eBPFEventSourceRef& object);
   ~eBPFEventSource();
 
-  SystemCallEventList getEvents();
+  ProbeEventList getEvents();
 
   eBPFEventSource(const eBPFEventSource&) = delete;
   eBPFEventSource& operator=(const eBPFEventSource&) = delete;
