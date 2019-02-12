@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 
-#define STRING_BUFFER_SIZE 160
-#define STRING_LIST_SIZE 0
-
 #define EVENTID_PIDVNR BASE_EVENT_TYPE
 #define EVENTID_SOCKETPAIR BASE_EVENT_TYPE | 0x01
 #define EVENTID_ACCEPT BASE_EVENT_TYPE | 0x02

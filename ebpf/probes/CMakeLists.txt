@@ -101,11 +101,13 @@ function(generateKprobeHeader)
     DEPENDS "${defs_file}" "${api_file}"
 
     COMMAND "${CMAKE_COMMAND}" -E echo "static const std::string kBccKprobeHeader = R\"KPROBE_HEADER(" > "${output_file}"
+    COMMAND "${CMAKE_COMMAND}" -E echo "#define STRING_BUFFER_SIZE 0" >> "${output_file}"
+    COMMAND "${CMAKE_COMMAND}" -E echo "#define STRING_LIST_SIZE 0" >> "${output_file}"
 
     COMMAND "/usr/bin/env" bash -c "cat \"${defs_file}\"" >> "${output_file}"
     COMMAND "${CMAKE_COMMAND}" -E echo >> "${output_file}"
 
-    COMMAND "/usr/bin/env" bash -c "cat \"${defs_file}\"" >> "${output_file}"
+    COMMAND "/usr/bin/env" bash -c "cat \"${api_file}\"" >> "${output_file}"
     COMMAND "${CMAKE_COMMAND}" -E echo >> "${output_file}"
 
     COMMAND "${CMAKE_COMMAND}" -E echo ")KPROBE_HEADER\";" >> "${output_file}"

@@ -171,8 +171,6 @@ osquery::Status getOsqueryPidList(std::vector<pid_t>& pid_list) {
       continue;
     }
 
-    std::cout << process_name << std::endl;
-
     auto pid =
         osquery::tryTo<pid_t>(entry.path().filename().string(), 10).takeOr(0);
     if (pid != 0) {
@@ -217,7 +215,6 @@ osquery::Status generateManagedTracepointProbeSource(
   }
 
   probe_source_code = buffer.str();
-  std::cout << "\n\n\n\n" << probe_source_code << "\n\n\n\n" << std::endl;
   return osquery::Status(0);
 }
 } // namespace
@@ -229,6 +226,8 @@ osquery::Status generateManagedTracepointProbe(
   if (!status.ok()) {
     return status;
   }
+
+  std::cout << probe_source_code << "\n\n" << std::endl;
 
   eBPFProbeDescriptor probe_descriptor;
   probe_descriptor.name = desc.name;

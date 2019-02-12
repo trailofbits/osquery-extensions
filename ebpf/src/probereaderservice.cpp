@@ -81,20 +81,34 @@ bool readEventBuffer(BufferType& value,
   auto chunk_count = (string_buffer_size / 8U);
 
   BufferType new_value;
-  new_value.resize(string_buffer_size);
+  new_value.reserve(string_buffer_size);
 
-  auto dest_ptr = &new_value[0];
+  auto str_index = index;
+  INCREMENT_EVENT_DATA_INDEX_BY(index, chunk_count);
 
   for (i = 0U; i < chunk_count; ++i) {
-    if (!readEventData(chunk, table_data, index, cpu_id, event_data_table)) {
+    if (!readEventData(
+            chunk, table_data, str_index, cpu_id, event_data_table)) {
       return false;
     }
 
-    std::memcpy(dest_ptr, chunk_bytes, 8U);
-  }
+    bool terminate = false;
 
-  auto skipped_slots = chunk_count - i;
-  INCREMENT_EVENT_DATA_INDEX_BY(index, skipped_slots);
+    for (auto c : chunk_bytes) {
+      if (std::is_same<BufferType, std::string>::value) {
+        if (c == '\0') {
+          terminate = true;
+          break;
+        }
+      }
+
+      new_value.push_back(c);
+    }
+
+    if (terminate) {
+      break;
+    }
+  }
 
   value = std::move(new_value);
   return true;

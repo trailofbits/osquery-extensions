@@ -16,6 +16,8 @@
 
 #include "processeventspublisher.h"
 #include "ebpfeventsource.h"
+#include "probes/common/defs.h"
+#include "probes/kprobe_group/header.h"
 
 #include <iomanip>
 #include <iostream>
@@ -44,8 +46,13 @@ const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
 // clang-format on
 
 std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
-  static auto L_syscallName = [](std::uint64_t syscall_number) -> const char* {
-    auto it = kSyscallNameTable.find(syscall_number);
+  static auto L_getEventName =
+      [](const ProbeEvent& probe_event) -> const char* {
+    if (probe_event.event_identifier == EVENTID_PIDVNR) {
+      return "pid_vnr";
+    }
+
+    auto it = kSyscallNameTable.find(probe_event.syscall_number);
     if (it == kSyscallNameTable.end()) {
       return "<UNKNOWN_SYSCALL_NAME>";
     }
@@ -63,8 +70,11 @@ std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
   stream << std::setfill(' ') << std::setw(8) << probe_event.syscall_number
          << " ";
 
-  stream << std::setfill(' ') << std::setw(16)
-         << L_syscallName(probe_event.syscall_number) << "(";
+  stream << std::setfill(' ') << std::setw(8) << probe_event.event_identifier
+         << " ";
+
+  stream << std::setfill(' ') << std::setw(16) << L_getEventName(probe_event)
+         << "(";
 
   bool add_separator = false;
   for (const auto& field : probe_event.field_list) {

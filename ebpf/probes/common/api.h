@@ -125,6 +125,7 @@ static int emitVarargsTerminator(bool truncated) {
 /// has been sent
 #define saveSignedInteger saveEventValue
 #define saveUnsignedInteger saveEventValue
+
 static int saveEventValue(u64 value) {
   int index_key = 0U;
   u64 initial_slot = 0U;
