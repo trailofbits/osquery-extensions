@@ -210,6 +210,7 @@ osquery::Status eBPFProbe::attachProbes() {
 
       auto bpf_status =
           d->bpf->attach_kprobe(event_name, handler_name, 0, bpf_probe_type);
+
       if (bpf_status.code() != 0) {
         return osquery::Status::failure(
             "Failed to attach the following kprobe: " + event_name + "/" +
@@ -241,7 +242,7 @@ void eBPFProbe::detachProbes() {
     auto bpf_status =
         d->bpf->detach_kprobe(name, static_cast<bpf_probe_attach_type>(type));
     if (bpf_status.code() != 0) {
-      LOG(ERROR) << "Failed to attach the following kprobe: " << name
+      LOG(ERROR) << "Failed to detach the following kprobe: " << name
                  << (type == BPF_PROBE_ENTRY ? " (entry)" : " (return)")
                  << ". Error: " << bpf_status.msg();
     }
@@ -252,7 +253,7 @@ void eBPFProbe::detachProbes() {
   for (const auto& tracepoint : d->attached_tracepoint_list) {
     auto bpf_status = d->bpf->detach_tracepoint(tracepoint);
     if (bpf_status.code() != 0) {
-      LOG(ERROR) << "Failed to attach the following tracepoint: " << tracepoint
+      LOG(ERROR) << "Failed to detach the following tracepoint: " << tracepoint
                  << ". Error: " << bpf_status.msg();
     }
   }

@@ -227,8 +227,6 @@ osquery::Status generateManagedTracepointProbe(
     return status;
   }
 
-  std::cout << probe_source_code << "\n\n" << std::endl;
-
   eBPFProbeDescriptor probe_descriptor;
   probe_descriptor.name = desc.name;
   probe_descriptor.source_code = probe_source_code;
@@ -255,7 +253,7 @@ osquery::Status generateKprobeProbe(eBPFProbeRef& probe,
                                     const KprobeProbe& desc) {
   eBPFProbeDescriptor probe_descriptor;
   probe_descriptor.name = desc.name;
-  probe_descriptor.source_code = kBccKprobeHeader + "\n\n" + desc.source_code;
+  probe_descriptor.source_code = kBccKprobeHeader + "\n" + desc.source_code;
 
   for (const auto& kprobe : desc.kprobe_list) {
     eBPFProbeDescriptor::Probe probe = {};

@@ -255,19 +255,19 @@ void ProbeReaderService::processPerfEvents(
 
     std::vector<std::uint64_t> table_data;
 
-    std::uint64_t event_type;
+    std::uint64_t original_event_type;
     if (!readEventData(
-            event_type, table_data, index, cpu_id, event_data_table)) {
+            original_event_type, table_data, index, cpu_id, event_data_table)) {
       continue;
     }
 
-    if ((event_type & 0xFFFFFFFFFFFF0000ULL) != BASE_EVENT_TYPE) {
-      LOG(ERROR) << "Broken event type: " << std::hex << event_type
+    if ((original_event_type & 0xFFFFFFFFFFFF0000ULL) != BASE_EVENT_TYPE) {
+      LOG(ERROR) << "Broken event type: " << std::hex << original_event_type
                  << " from the following tracepoint: " << d->probe_name;
       continue;
     }
 
-    event_type &= 0xFFFF;
+    auto event_type = original_event_type & 0xFFFF;
 
     if (event_type >= probe_list_size) {
       LOG(ERROR) << "Invalid event type: " << std::hex << event_type
@@ -283,7 +283,7 @@ void ProbeReaderService::processPerfEvents(
 
     // Read the header
     ProbeEvent probe_event = {};
-    probe_event.event_identifier = event_type;
+    probe_event.event_identifier = original_event_type;
 
     if (!readEventData(probe_event.syscall_number,
                        table_data,

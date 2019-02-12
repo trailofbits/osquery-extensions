@@ -48,8 +48,10 @@ const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
 std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
   static auto L_getEventName =
       [](const ProbeEvent& probe_event) -> const char* {
-    if (probe_event.event_identifier == EVENTID_PIDVNR) {
-      return "pid_vnr";
+    if (probe_event.syscall_number == static_cast<std::uint64_t>(-1)) {
+      if (probe_event.event_identifier == EVENTID_PIDVNR) {
+        return "pid_vnr";
+      }
     }
 
     auto it = kSyscallNameTable.find(probe_event.syscall_number);

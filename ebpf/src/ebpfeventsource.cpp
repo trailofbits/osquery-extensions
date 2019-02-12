@@ -218,7 +218,7 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
   LOG(INFO) << "eBPF probes will now be generated and compiled. This may use "
                "some CPU";
 
-  /*for (const auto& desc : kKprobeList) {
+  for (const auto& desc : kKprobeList) {
     LOG(INFO) << "Generating kprobe for: " << desc.name;
 
     eBPFProbeRef probe;
@@ -236,16 +236,20 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
 
     d->poll_service_list.push_back(poll_service);
 
-    d->probe_list.push_back(std::move(probe));
-    probe.reset();
-  }*/
-
-  for (const auto& desc : kManagedProbeDescriptorList) {
-    if (!(desc.name.find("execve") != std::string::npos &&
-          desc.name.find("execveat") == std::string::npos)) {
-      continue;
+    ProbeReaderServiceRef reader_service;
+    status = ServiceManager::instance().createService<ProbeReaderService>(
+        reader_service, *probe.get(), desc);
+    if (!status.ok()) {
+      throw status;
     }
 
+    d->reader_service_list.push_back(reader_service);
+
+    d->probe_list.push_back(std::move(probe));
+    probe.reset();
+  }
+
+  for (const auto& desc : kManagedProbeDescriptorList) {
     LOG(INFO) << "Generating tracepoint probe for: " << desc.name;
 
     eBPFProbeRef probe;
