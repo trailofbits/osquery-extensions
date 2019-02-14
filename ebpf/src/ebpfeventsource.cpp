@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Trail of Bits, Inc.
+ * Copyright (c) 2019-present Trail of Bits, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -197,9 +197,9 @@ const KprobeProbeList kKprobeList = {
         true,
         {
           { ProbeParameter::Type::SignedInteger, "pid_count" },
+          { ProbeParameter::Type::SignedInteger, "host_pid" },
           { ProbeParameter::Type::SignedInteger, "pid1" },
-          { ProbeParameter::Type::SignedInteger, "pid2" },
-          { ProbeParameter::Type::SignedInteger, "pid3" }
+          { ProbeParameter::Type::SignedInteger, "pid2" }
         }
       }
     }

@@ -46,6 +46,7 @@ static int savePidNamespaceData(struct pid* pid) {
 int kprobe_pid_vnr_enter(struct pt_regs* ctx, struct pid* pid) {
   int event_index =
       saveEventHeader(EVENTID_PIDVNR, KPROBE_PIDVNR_CALL, false, 0);
+
   savePidNamespaceData(pid);
 
   u32 event_identifier =
