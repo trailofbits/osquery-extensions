@@ -15,7 +15,7 @@
  */
 
 #include "probereaderservice.h"
-#include "probes/common/defs.h"
+#include "probe_reader_utils.h"
 
 #include <condition_variable>
 #include <iomanip>
@@ -25,145 +25,6 @@
 #include <osquery/logger.h>
 
 namespace trailofbits {
-namespace {
-bool readEventSlot(std::vector<std::uint64_t>& table_data,
-                   int& index,
-                   std::size_t cpu_id,
-                   ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table) {
-  table_data.clear();
-
-  auto status = event_data_table.get_value(index, table_data);
-  if (status.code() != 0) {
-    LOG(ERROR) << "Read has failed: " << status.msg();
-    return false;
-  }
-
-  if (cpu_id >= table_data.size()) {
-    LOG(ERROR) << "Invalid CPU index: " << cpu_id;
-    return false;
-  }
-
-  INCREMENT_EVENT_DATA_INDEX(index);
-  return true;
-}
-
-template <typename T>
-bool readEventData(T& value,
-                   std::vector<std::uint64_t>& table_data,
-                   int& index,
-                   std::size_t cpu_id,
-                   ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table) {
-  value = {};
-
-  if (!readEventSlot(table_data, index, cpu_id, event_data_table)) {
-    return false;
-  }
-
-  value = static_cast<T>(table_data[cpu_id]);
-  return true;
-}
-
-template <typename BufferType>
-bool readEventBuffer(BufferType& value,
-                     std::vector<std::uint64_t>& table_data,
-                     int& index,
-                     std::size_t cpu_id,
-                     ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
-                     std::size_t string_buffer_size) {
-  value.clear();
-
-  union {
-    std::uint64_t chunk;
-    char chunk_bytes[8U];
-  };
-
-  std::size_t i = 0U;
-  auto chunk_count = (string_buffer_size / 8U);
-
-  BufferType new_value;
-  new_value.reserve(string_buffer_size);
-
-  auto str_index = index;
-  INCREMENT_EVENT_DATA_INDEX_BY(index, chunk_count);
-
-  for (i = 0U; i < chunk_count; ++i) {
-    if (!readEventData(
-            chunk, table_data, str_index, cpu_id, event_data_table)) {
-      return false;
-    }
-
-    bool terminate = false;
-
-    for (auto c : chunk_bytes) {
-      if (std::is_same<BufferType, std::string>::value) {
-        if (c == '\0') {
-          terminate = true;
-          break;
-        }
-      }
-
-      new_value.push_back(c);
-    }
-
-    if (terminate) {
-      break;
-    }
-  }
-
-  value = std::move(new_value);
-  return true;
-}
-
-constexpr auto readEventString = &readEventBuffer<std::string>;
-constexpr auto readEventByteArray = &readEventBuffer<std::vector<std::uint8_t>>;
-
-bool readEventStringList(
-    ProbeEvent::StringList& value,
-    std::vector<std::uint64_t>& table_data,
-    int& index,
-    std::size_t cpu_id,
-    ebpf::BPFPercpuArrayTable<std::uint64_t>& event_data_table,
-    std::size_t string_buffer_size,
-    std::size_t string_list_size) {
-  value = {};
-
-  for (std::size_t string_index = 0U; string_index < string_list_size;
-       string_index++) {
-    std::uint64_t next_qword;
-    auto temp_index = index;
-    if (!readEventData(
-            next_qword, table_data, temp_index, cpu_id, event_data_table)) {
-      return false;
-    }
-
-    if (next_qword == VARARGS_TRUNCATION) {
-      value.truncated = true;
-      index = temp_index;
-      break;
-
-    } else if (next_qword == VARARGS_TERMINATOR) {
-      value.truncated = false;
-      index = temp_index;
-      break;
-    }
-
-    std::string str = {};
-    if (!readEventString(str,
-                         table_data,
-                         index,
-                         cpu_id,
-                         event_data_table,
-                         string_buffer_size)) {
-      return false;
-    }
-
-    value.data.push_back(std::move(str));
-  }
-
-  return true;
-}
-} // namespace
-
 struct ProbeReaderService::PrivateData final {
   eBPFProbe& probe;
 
@@ -285,7 +146,7 @@ void ProbeReaderService::processPerfEvents(
     ProbeEvent probe_event = {};
     probe_event.event_identifier = original_event_type;
 
-    if (!readEventData(probe_event.syscall_number,
+    if (!readEventData(probe_event.function_identifier,
                        table_data,
                        index,
                        cpu_id,

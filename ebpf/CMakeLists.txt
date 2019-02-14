@@ -31,6 +31,9 @@ function(ebpfMain)
     src/ebpfprobepollservice.h
     src/ebpfprobepollservice.cpp
 
+    src/probe_reader_utils.h
+    src/probe_reader_utils.cpp
+
     src/probereaderservice.h
     src/probereaderservice.cpp
 

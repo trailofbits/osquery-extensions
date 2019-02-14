@@ -37,7 +37,7 @@ struct ProbeEvent final {
 
   std::uint64_t timestamp{0U};
   std::uint64_t event_identifier{0U};
-  std::uint64_t syscall_number{0U};
+  std::uint64_t function_identifier{0U};
   pid_t pid{0U};
   pid_t tgid{0U};
   uid_t uid{0U};

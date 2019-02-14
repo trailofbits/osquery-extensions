@@ -31,7 +31,7 @@ BPF_PERCPU_ARRAY(perf_cpu_index, u64, 1);
 /// Saves the generic event header into the per-cpu map, returning the
 /// initial index
 static int saveEventHeader(u64 event_identifier,
-                           u64 syscall_number,
+                           u64 function_identifier,
                            bool save_exit_code,
                            int exit_code) {
   int index_key = 0U;
@@ -43,7 +43,7 @@ static int saveEventHeader(u64 event_identifier,
   perf_event_data.update(&index, &event_identifier);
   INCREMENT_EVENT_DATA_INDEX(index);
 
-  perf_event_data.update(&index, &syscall_number);
+  perf_event_data.update(&index, &function_identifier);
   INCREMENT_EVENT_DATA_INDEX(index);
 
   u64 field = bpf_ktime_get_ns();

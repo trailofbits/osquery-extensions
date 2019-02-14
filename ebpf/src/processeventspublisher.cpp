@@ -41,20 +41,15 @@ const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
   { __NR_vfork, "vfork" },
   { __NR_clone, "clone" },
   { __NR_exit, "exit" },
-  { __NR_exit_group, "exit_group" }
+  { __NR_exit_group, "exit_group" },
+  { KPROBE_PIDVNR_CALL, "pid_vnr" }
 };
 // clang-format on
 
 std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
   static auto L_getEventName =
       [](const ProbeEvent& probe_event) -> const char* {
-    if (probe_event.syscall_number == static_cast<std::uint64_t>(-1)) {
-      if (probe_event.event_identifier == EVENTID_PIDVNR) {
-        return "pid_vnr";
-      }
-    }
-
-    auto it = kSyscallNameTable.find(probe_event.syscall_number);
+    auto it = kSyscallNameTable.find(probe_event.function_identifier);
     if (it == kSyscallNameTable.end()) {
       return "<UNKNOWN_SYSCALL_NAME>";
     }
@@ -69,7 +64,7 @@ std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
   stream << std::setfill(' ') << std::setw(8) << probe_event.tgid << " ";
   stream << std::setfill(' ') << std::setw(8) << probe_event.pid << " ";
 
-  stream << std::setfill(' ') << std::setw(8) << probe_event.syscall_number
+  stream << std::setfill(' ') << std::setw(8) << probe_event.function_identifier
          << " ";
 
   stream << std::setfill(' ') << std::setw(8) << probe_event.event_identifier

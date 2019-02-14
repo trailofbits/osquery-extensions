@@ -16,6 +16,8 @@
 
 #include <linux/pid.h>
 
+#define EVENTID_PIDVNR BASE_EVENT_TYPE
+
 /// Saves namespace data into the per-cpu map
 static int savePidNamespaceData(struct pid* pid) {
   int index_key = 0U;
@@ -42,7 +44,8 @@ static int savePidNamespaceData(struct pid* pid) {
 
 /// pid_vnr() handler
 int kprobe_pid_vnr_enter(struct pt_regs* ctx, struct pid* pid) {
-  int event_index = saveEventHeader(EVENTID_PIDVNR, -1, false, 0);
+  int event_index =
+      saveEventHeader(EVENTID_PIDVNR, KPROBE_PIDVNR_CALL, false, 0);
   savePidNamespaceData(pid);
 
   u32 event_identifier =
