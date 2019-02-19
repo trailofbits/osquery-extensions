@@ -87,27 +87,9 @@ osquery::Status ProbeEventReassembler::create(ProbeEventReassemblerRef& obj) {
 
 ProbeEventReassembler::~ProbeEventReassembler() {}
 
-osquery::Status ProbeEventReassembler::processProbeEventList(
-    ProbeEventList& processed_probe_event_list,
-    const ProbeEventList& probe_event_list) {
-  processed_probe_event_list = {};
-
-  bool error = false;
-  for (const auto& probe_event : probe_event_list) {
-    auto status =
-        processProbeEvent(processed_probe_event_list, d->context, probe_event);
-    if (!status.ok()) {
-      LOG(ERROR) << status.getMessage();
-      error = true;
-    }
-  }
-
-  if (error) {
-    return osquery::Status::failure(
-        "One or more probe events could not be successfully handled");
-  }
-
-  return osquery::Status(0);
+osquery::Status ProbeEventReassembler::processProbeEvent(
+    ProbeEventList& processed_probe_event_list, const ProbeEvent& probe_event) {
+  return processProbeEvent(processed_probe_event_list, d->context, probe_event);
 }
 
 osquery::Status ProbeEventReassembler::processProbeEvent(
@@ -128,24 +110,26 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
 
     auto p =
         context.process_context_map.insert({process_id, new_process_context});
+
     process_context_it = p.first;
   }
 
   auto& process_context = process_context_it->second;
 
-  // Get or create the event tracker map for the current event
-  auto event_tracker_map_it =
-      process_context.event_tracker_map.find(probe_event.function_identifier);
-  if (event_tracker_map_it == process_context.event_tracker_map.end()) {
-    auto p = process_context.event_tracker_map.insert(
-        {probe_event.function_identifier, {}});
-    event_tracker_map_it = p.first;
+  // Get or create the thread context
+  ThreadID thread_id = probe_event.pid;
+
+  auto thread_context_it = process_context.thread_context_map.find(thread_id);
+
+  if (thread_context_it == process_context.thread_context_map.end()) {
+    auto p = process_context.thread_context_map.insert({thread_id, {}});
+
+    thread_context_it = p.first;
   }
 
-  auto& event_tracker_map = event_tracker_map_it->second;
+  auto& thread_context = thread_context_it->second;
 
-  // Generate the new events or update the internal state
-  ThreadID thread_id = probe_event.pid;
+  // Generate new events or update the internal state
   bool exit_event = (probe_event.exit_code ? true : false);
 
   if (exit_event) {
@@ -153,55 +137,108 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
       return osquery::Status::failure("Invalid event type received");
     }
 
+    // Ignore failed forks! Also ignore them when exiting from the child process
+    // side
+    if (probe_event.function_identifier == __NR_fork ||
+        probe_event.function_identifier == __NR_vfork ||
+        probe_event.function_identifier == __NR_clone) {
+      auto exit_code = probe_event.exit_code.get();
+      if (exit_code == 0 || exit_code == -1) {
+        return osquery::Status(0);
+      }
+    }
+
     // Get the enter event
-    auto enter_event_it = event_tracker_map.find(thread_id);
-    if (enter_event_it == event_tracker_map.end()) {
-      return osquery::Status::failure("Failed to locate the enter event");
+    auto enter_event_it = thread_context.find(probe_event.function_identifier);
+    if (enter_event_it == thread_context.end()) {
+      auto error_message =
+          std::string("failed to locate the enter event for function #") +
+          std::to_string(probe_event.function_identifier) + " at timestamp " +
+          std::to_string(probe_event.timestamp);
+      return osquery::Status::failure(error_message);
     }
 
     auto enter_event = enter_event_it->second;
-    event_tracker_map.erase(enter_event_it);
+    thread_context.erase(enter_event_it);
+
+    // Skip thread creation events
+    bool thread_creation_event = false;
+
+    if (enter_event.function_identifier == __NR_clone) {
+      auto clone_flags_it = enter_event.field_list.find("clone_flags");
+      if (clone_flags_it == enter_event.field_list.end()) {
+        return osquery::Status::failure(
+            "Missing clone_flags field in clone event");
+      }
+
+      const auto& clone_flags_var = clone_flags_it->second;
+      auto clone_flags = boost::get<std::int64_t>(clone_flags_var);
+
+      thread_creation_event = ((clone_flags & CLONE_THREAD) != 0);
+    }
+
+    if (thread_creation_event) {
+      return osquery::Status(0);
+    }
 
     // Complete the enter event with the exit data
     enter_event.exit_code = probe_event.exit_code;
 
-    for (const auto& p : probe_event.field_list) {
-      const auto& field_name = p.first;
-      const auto& field_value = p.second;
-
-      enter_event.field_list.insert({field_name, field_value});
+    for (const auto& field : probe_event.field_list) {
+      enter_event.field_list.insert({field.first, field.second});
     }
 
-    processed_probe_event_list.push_back(probe_event);
+    processed_probe_event_list.push_back(enter_event);
+
+    // Process forks (fork, vfork, clone)
+    if (enter_event.function_identifier == __NR_fork ||
+        enter_event.function_identifier == __NR_vfork ||
+        enter_event.function_identifier == __NR_clone) {
+      auto host_pid_it = enter_event.field_list.find("host_pid");
+      if (host_pid_it == enter_event.field_list.end()) {
+        return osquery::Status::failure(
+            "Missing host_pid field in fork/vfork/clone event");
+      }
+
+      const auto& host_pid_variant =
+          boost::get<std::int64_t>(host_pid_it->second);
+      auto host_pid = boost::get<std::int64_t>(host_pid_variant);
+      context.process_context_map.insert(
+          {static_cast<ThreadID>(host_pid), process_context});
+    }
 
   } else {
-    // Events that have no exit data can be emitted as they are; they other ones
-    // are saved for later
-    if (isEntryOnlyFunction(probe_event.function_identifier)) {
-      processed_probe_event_list.push_back(probe_event);
+    // pid_vnr events are used to add additional data to previous
+    // fork/vfork/clone system calls
+    if (probe_event.function_identifier == KPROBE_PIDVNR_CALL) {
+      for (auto prev_event_type : {__NR_fork, __NR_vfork, __NR_clone}) {
+        auto prev_event_it = thread_context.find(prev_event_type);
+        if (prev_event_it == thread_context.end()) {
+          continue;
+        }
+
+        auto& prev_probe_event = prev_event_it->second;
+        for (const auto& field : probe_event.field_list) {
+          prev_probe_event.field_list.insert({field.first, field.second});
+        }
+      }
+
     } else {
-      event_tracker_map.insert({thread_id, probe_event});
+      // Events that have no exit data can be emitted as they are; the other
+      // ones are saved for later
+      if (isEntryOnlyFunction(probe_event.function_identifier)) {
+        processed_probe_event_list.push_back(probe_event);
+
+        // Process exits will just drop the contexts we no longer need.
+        if (probe_event.function_identifier == __NR_exit ||
+            probe_event.function_identifier == __NR_exit_group) {
+          context.process_context_map.erase(process_context_it);
+        }
+
+      } else {
+        thread_context.insert({probe_event.function_identifier, probe_event});
+      }
     }
-  }
-
-  // Process forks (fork, vfork, clone) will duplicate the process state.
-  // Process exits will just drop the contexts we no longer need.
-  if (exit_event && (probe_event.function_identifier == __NR_fork ||
-                     probe_event.function_identifier == __NR_vfork ||
-                     probe_event.function_identifier == __NR_clone)) {
-    auto host_pid_it = probe_event.field_list.find("host_pid");
-    if (host_pid_it == probe_event.field_list.end()) {
-      return osquery::Status::failure(
-          "Missing host_pid field in fork/vfork/clone event");
-    }
-
-    ThreadID new_process_id = probe_event.exit_code.get();
-    context.process_context_map.insert({new_process_id, process_context});
-
-  } else if (!exit_event &&
-             (probe_event.function_identifier == __NR_exit ||
-              probe_event.function_identifier == __NR_exit_group)) {
-    context.process_context_map.erase(process_context_it);
   }
 
   return osquery::Status(0);

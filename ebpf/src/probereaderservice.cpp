@@ -170,6 +170,14 @@ void ProbeReaderService::processPerfEvents(
     probe_event.pid = static_cast<pid_t>(pid_tgid & 0xFFFFFFFF);
     probe_event.tgid = static_cast<pid_t>(pid_tgid >> 32U);
 
+    if (!readEventData(probe_event.parent_tgid,
+                       table_data,
+                       index,
+                       cpu_id,
+                       event_data_table)) {
+      continue;
+    }
+
     std::uint64_t uid_gid;
     if (!readEventData(uid_gid, table_data, index, cpu_id, event_data_table)) {
       continue;

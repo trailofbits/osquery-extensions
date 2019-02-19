@@ -22,13 +22,13 @@ namespace trailofbits {
 using ProcessID = std::uint64_t;
 using ThreadID = std::uint64_t;
 
-using ProbeEventTracker = std::unordered_map<ThreadID, ProbeEvent>;
-using ProbeEventTrackerMap =
-    std::unordered_map<std::uint64_t, ProbeEventTracker>;
+using ThreadContext = std::unordered_map<std::uint64_t, ProbeEvent>;
+
+using ThreadContextMap = std::unordered_map<ThreadID, ThreadContext>;
 
 struct ProcessContext final {
   std::uint64_t process_id{0U};
-  ProbeEventTrackerMap event_tracker_map;
+  ThreadContextMap thread_context_map;
 };
 
 using ProcessContextMap = std::unordered_map<ProcessID, ProcessContext>;
@@ -50,9 +50,9 @@ class ProbeEventReassembler final {
   static osquery::Status create(ProbeEventReassemblerRef& obj);
   ~ProbeEventReassembler();
 
-  osquery::Status processProbeEventList(
-      ProbeEventList& processed_probe_event_list,
-      const ProbeEventList& probe_event_list);
+  osquery::Status processProbeEvent(ProbeEventList& processed_probe_event_list,
+                                    const ProbeEvent& probe_event);
+
   static osquery::Status processProbeEvent(
       ProbeEventList& processed_probe_event_list,
       ProbeEventReassemblerContext& context,

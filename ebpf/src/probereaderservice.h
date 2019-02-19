@@ -20,6 +20,8 @@
 
 #include <pubsub/servicemanager.h>
 
+#include <set>
+
 namespace trailofbits {
 struct ProbeEvent final {
   struct StringList final {
@@ -40,6 +42,7 @@ struct ProbeEvent final {
   std::uint64_t function_identifier{0U};
   pid_t pid{0U};
   pid_t tgid{0U};
+  pid_t parent_tgid{0U};
   uid_t uid{0U};
   gid_t gid{0U};
   boost::optional<int> exit_code;

@@ -16,6 +16,7 @@
 
 #include "processeventspublisher.h"
 #include "ebpfeventsource.h"
+#include "probeeventreassembler.h"
 #include "probes/common/defs.h"
 #include "probes/kprobe_group/header.h"
 
@@ -42,7 +43,10 @@ const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
   { __NR_clone, "clone" },
   { __NR_exit, "exit" },
   { __NR_exit_group, "exit_group" },
-  { KPROBE_PIDVNR_CALL, "pid_vnr" }
+  { KPROBE_PIDVNR_CALL, "pid_vnr" },
+  { KPROBE_FORK_CALL, "fork" },
+  { KPROBE_VFORK_CALL, "vfork" },
+  { KPROBE_CLONE_CALL, "clone" },
 };
 // clang-format on
 
@@ -63,11 +67,9 @@ std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
   stream << std::setfill(' ') << std::setw(8) << probe_event.gid << " ";
   stream << std::setfill(' ') << std::setw(8) << probe_event.tgid << " ";
   stream << std::setfill(' ') << std::setw(8) << probe_event.pid << " ";
+  stream << std::setfill(' ') << std::setw(8) << probe_event.parent_tgid << " ";
 
   stream << std::setfill(' ') << std::setw(8) << probe_event.function_identifier
-         << " ";
-
-  stream << std::setfill(' ') << std::setw(8) << probe_event.event_identifier
          << " ";
 
   stream << std::setfill(' ') << std::setw(16) << L_getEventName(probe_event)
@@ -159,14 +161,24 @@ std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
 
   return stream;
 }
+
+bool compareProbeEvents(const ProbeEvent& lhs, const ProbeEvent& rhs) {
+  return lhs.timestamp < rhs.timestamp;
+}
 } // namespace
 
 struct ProcessEventsPublisher::PrivateData final {
   eBPFEventSourceRef event_source;
+  ProbeEventReassemblerRef event_reassembler;
 };
 
 ProcessEventsPublisher::ProcessEventsPublisher() : d(new PrivateData) {
   auto status = eBPFEventSource::create(d->event_source);
+  if (!status.ok()) {
+    throw status;
+  }
+
+  status = ProbeEventReassembler::create(d->event_reassembler);
   if (!status.ok()) {
     throw status;
   }
@@ -211,8 +223,30 @@ osquery::Status ProcessEventsPublisher::onSubscriberConfigurationChange(
 }
 
 osquery::Status ProcessEventsPublisher::updatePublisher() noexcept {
-  auto new_events = d->event_source->getEvents();
-  if (new_events.empty()) {
+  // Acquire the unprocessed events
+  auto unprocessed_event_list = d->event_source->getEvents();
+  if (unprocessed_event_list.empty()) {
+    return osquery::Status(0);
+  }
+
+  std::sort(unprocessed_event_list.begin(),
+            unprocessed_event_list.end(),
+            compareProbeEvents);
+
+  // Generate the new events
+  ProbeEventList processed_event_list;
+
+  for (const auto& probe_event : unprocessed_event_list) {
+    auto status = d->event_reassembler->processProbeEvent(processed_event_list,
+                                                          probe_event);
+    if (!status.ok()) {
+      LOG(ERROR) << "An error has occurred while the reassembled events were "
+                    "being processed: "
+                 << status.getMessage();
+    }
+  }
+
+  if (processed_event_list.empty()) {
     return osquery::Status(0);
   }
 
@@ -223,7 +257,7 @@ osquery::Status ProcessEventsPublisher::updatePublisher() noexcept {
   }
 
   std::stringstream buffer;
-  for (const auto& event : new_events) {
+  for (const auto& event : processed_event_list) {
     buffer.str("");
     buffer << event;
 

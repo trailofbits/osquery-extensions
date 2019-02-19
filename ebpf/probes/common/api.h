@@ -54,6 +54,12 @@ static int saveEventHeader(u64 event_identifier,
   perf_event_data.update(&index, &field);
   INCREMENT_EVENT_DATA_INDEX(index);
 
+  const struct task_struct* t =
+      (const struct task_struct*)bpf_get_current_task();
+  field = t->real_parent->tgid;
+  perf_event_data.update(&index, &field);
+  INCREMENT_EVENT_DATA_INDEX(index);
+
   field = bpf_get_current_uid_gid();
   perf_event_data.update(&index, &field);
   INCREMENT_EVENT_DATA_INDEX(index);

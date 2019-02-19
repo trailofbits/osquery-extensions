@@ -18,6 +18,15 @@
 
 #define EVENTID_PIDVNR BASE_EVENT_TYPE
 
+#define EVENTID_FORK_ENTER (BASE_EVENT_TYPE + 1U)
+#define EVENTID_FORK_EXIT (BASE_EVENT_TYPE + 2U)
+
+#define EVENTID_VFORK_ENTER (BASE_EVENT_TYPE + 3U)
+#define EVENTID_VFORK_EXIT (BASE_EVENT_TYPE + 4U)
+
+#define EVENTID_CLONE_ENTER (BASE_EVENT_TYPE + 5U)
+#define EVENTID_CLONE_EXIT (BASE_EVENT_TYPE + 6U)
+
 /// Saves namespace data into the per-cpu map
 static int savePidNamespaceData(struct pid* pid) {
   int index_key = 0U;
@@ -48,6 +57,84 @@ int kprobe_pid_vnr_enter(struct pt_regs* ctx, struct pid* pid) {
       saveEventHeader(EVENTID_PIDVNR, KPROBE_PIDVNR_CALL, false, 0);
 
   savePidNamespaceData(pid);
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(ctx, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+/// fork() handlers
+int kprobe_fork_enter(struct pt_regs* ctx, struct pid* pid) {
+  int event_index =
+      saveEventHeader(EVENTID_FORK_ENTER, KPROBE_FORK_CALL, false, 0);
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(ctx, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+int kprobe_fork_exit(struct pt_regs* ctx, struct pid* pid) {
+  int event_index = saveEventHeader(
+      EVENTID_FORK_EXIT, KPROBE_FORK_CALL, true, PT_REGS_RC(ctx));
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(ctx, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+/// vfork() handlers
+int kprobe_vfork_enter(struct pt_regs* ctx, struct pid* pid) {
+  int event_index =
+      saveEventHeader(EVENTID_VFORK_ENTER, KPROBE_VFORK_CALL, false, 0);
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(ctx, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+int kprobe_vfork_exit(struct pt_regs* ctx, struct pid* pid) {
+  int event_index = saveEventHeader(
+      EVENTID_VFORK_EXIT, KPROBE_VFORK_CALL, true, PT_REGS_RC(ctx));
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(ctx, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+/// clone() handlers
+int kprobe_clone_enter(struct pt_regs* ctx, struct pid* pid) {
+  int event_index =
+      saveEventHeader(EVENTID_CLONE_ENTER, KPROBE_CLONE_CALL, false, 0);
+
+  u64 clone_flags = 0U;
+  saveEventValue(clone_flags);
+
+  u32 event_identifier =
+      (((struct task_struct*)bpf_get_current_task())->cpu << 28) |
+      (event_index & 0x00FFFFFF);
+
+  events.perf_submit(ctx, &event_identifier, sizeof(event_identifier));
+  return 0;
+}
+
+int kprobe_clone_exit(struct pt_regs* ctx, struct pid* pid) {
+  int event_index = saveEventHeader(
+      EVENTID_CLONE_EXIT, KPROBE_CLONE_CALL, true, PT_REGS_RC(ctx));
 
   u32 event_identifier =
       (((struct task_struct*)bpf_get_current_task())->cpu << 28) |

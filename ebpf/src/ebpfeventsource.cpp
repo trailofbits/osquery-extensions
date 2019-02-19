@@ -109,19 +109,9 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
   },
 
   {
-    "fork_exit_events", 0U, 0U,
+    "exit_events", 0U, 0U,
 
     {
-      { "sys_enter_fork", true, {} },
-      { "sys_enter_vfork", true, {} },
-
-      { "sys_enter_clone",
-        true,
-        {
-          { ProbeParameter::Type::SignedInteger, "clone_flags" }
-        }
-      },
-
       { "sys_enter_exit",
         true,
         {
@@ -135,10 +125,6 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
           { ProbeParameter::Type::SignedInteger, "error_code" }
         }
       },
-
-      { "sys_exit_fork", false, {} },
-      { "sys_exit_vfork", false, {} },
-      { "sys_exit_clone", false, {} }
     }
   },
 
@@ -201,7 +187,24 @@ const KprobeProbeList kKprobeList = {
           { ProbeParameter::Type::SignedInteger, "pid1" },
           { ProbeParameter::Type::SignedInteger, "pid2" }
         }
-      }
+      },
+
+      { "fork", true, true, { } },
+      { "fork", true, false, { } },
+
+      { "vfork", true, true, { } },
+      { "vfork", true, false, { } },
+
+      {
+        "clone",
+        true,
+        true,
+        {
+          { ProbeParameter::Type::SignedInteger, "clone_flags" }
+        }
+      },
+      
+      { "clone", true, false, { } }
     }
   }
 };

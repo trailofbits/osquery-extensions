@@ -15,7 +15,7 @@
  */
 
 /// The size of the per-CPU map used to store events
-#define EVENT_MAP_SIZE 1000000
+#define EVENT_MAP_SIZE 100000
 
 /// The terminator used by StringList types
 #define VARARGS_TERMINATOR 0xFFFF0000FFFF0000ULL
