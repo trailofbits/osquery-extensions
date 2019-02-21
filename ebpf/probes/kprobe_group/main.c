@@ -53,6 +53,10 @@ static int savePidNamespaceData(struct pid* pid) {
 
 /// pid_vnr() handler
 int kprobe_pid_vnr_enter(struct pt_regs* ctx, struct pid* pid) {
+  if (isIgnoredProcess()) {
+    return 0;
+  }
+
   int event_index =
       saveEventHeader(EVENTID_PIDVNR, KPROBE_PIDVNR_CALL, false, 0);
 
@@ -68,6 +72,10 @@ int kprobe_pid_vnr_enter(struct pt_regs* ctx, struct pid* pid) {
 
 /// fork() handlers
 int kprobe_fork_enter(struct pt_regs* ctx, struct pid* pid) {
+  if (isIgnoredProcess()) {
+    return 0;
+  }
+
   int event_index =
       saveEventHeader(EVENTID_FORK_ENTER, KPROBE_FORK_CALL, false, 0);
 
@@ -80,6 +88,10 @@ int kprobe_fork_enter(struct pt_regs* ctx, struct pid* pid) {
 }
 
 int kprobe_fork_exit(struct pt_regs* ctx, struct pid* pid) {
+  if (isIgnoredProcess()) {
+    return 0;
+  }
+
   int event_index = saveEventHeader(
       EVENTID_FORK_EXIT, KPROBE_FORK_CALL, true, PT_REGS_RC(ctx));
 
@@ -93,6 +105,10 @@ int kprobe_fork_exit(struct pt_regs* ctx, struct pid* pid) {
 
 /// vfork() handlers
 int kprobe_vfork_enter(struct pt_regs* ctx, struct pid* pid) {
+  if (isIgnoredProcess()) {
+    return 0;
+  }
+
   int event_index =
       saveEventHeader(EVENTID_VFORK_ENTER, KPROBE_VFORK_CALL, false, 0);
 
@@ -105,6 +121,10 @@ int kprobe_vfork_enter(struct pt_regs* ctx, struct pid* pid) {
 }
 
 int kprobe_vfork_exit(struct pt_regs* ctx, struct pid* pid) {
+  if (isIgnoredProcess()) {
+    return 0;
+  }
+
   int event_index = saveEventHeader(
       EVENTID_VFORK_EXIT, KPROBE_VFORK_CALL, true, PT_REGS_RC(ctx));
 
@@ -118,6 +138,10 @@ int kprobe_vfork_exit(struct pt_regs* ctx, struct pid* pid) {
 
 /// clone() handlers
 int kprobe_clone_enter(struct pt_regs* ctx, struct pid* pid) {
+  if (isIgnoredProcess()) {
+    return 0;
+  }
+
   int event_index =
       saveEventHeader(EVENTID_CLONE_ENTER, KPROBE_CLONE_CALL, false, 0);
 
@@ -133,6 +157,10 @@ int kprobe_clone_enter(struct pt_regs* ctx, struct pid* pid) {
 }
 
 int kprobe_clone_exit(struct pt_regs* ctx, struct pid* pid) {
+  if (isIgnoredProcess()) {
+    return 0;
+  }
+
   int event_index = saveEventHeader(
       EVENTID_CLONE_EXIT, KPROBE_CLONE_CALL, true, PT_REGS_RC(ctx));
 

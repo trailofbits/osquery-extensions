@@ -16,7 +16,6 @@
 
 #include "processeventspublisher.h"
 #include "ebpfeventsource.h"
-#include "probeeventreassembler.h"
 #include "probes/common/defs.h"
 #include "probes/kprobe_group/header.h"
 
@@ -161,24 +160,14 @@ std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
 
   return stream;
 }
-
-bool compareProbeEvents(const ProbeEvent& lhs, const ProbeEvent& rhs) {
-  return lhs.timestamp < rhs.timestamp;
-}
 } // namespace
 
 struct ProcessEventsPublisher::PrivateData final {
   eBPFEventSourceRef event_source;
-  ProbeEventReassemblerRef event_reassembler;
 };
 
 ProcessEventsPublisher::ProcessEventsPublisher() : d(new PrivateData) {
   auto status = eBPFEventSource::create(d->event_source);
-  if (!status.ok()) {
-    throw status;
-  }
-
-  status = ProbeEventReassembler::create(d->event_reassembler);
   if (!status.ok()) {
     throw status;
   }
@@ -223,30 +212,8 @@ osquery::Status ProcessEventsPublisher::onSubscriberConfigurationChange(
 }
 
 osquery::Status ProcessEventsPublisher::updatePublisher() noexcept {
-  // Acquire the unprocessed events
-  auto unprocessed_event_list = d->event_source->getEvents();
-  if (unprocessed_event_list.empty()) {
-    return osquery::Status(0);
-  }
-
-  std::sort(unprocessed_event_list.begin(),
-            unprocessed_event_list.end(),
-            compareProbeEvents);
-
-  // Generate the new events
-  ProbeEventList processed_event_list;
-
-  for (const auto& probe_event : unprocessed_event_list) {
-    auto status = d->event_reassembler->processProbeEvent(processed_event_list,
-                                                          probe_event);
-    if (!status.ok()) {
-      LOG(ERROR) << "An error has occurred while the reassembled events were "
-                    "being processed: "
-                 << status.getMessage();
-    }
-  }
-
-  if (processed_event_list.empty()) {
+  auto event_list = d->event_source->getEvents();
+  if (event_list.empty()) {
     return osquery::Status(0);
   }
 
@@ -257,7 +224,7 @@ osquery::Status ProcessEventsPublisher::updatePublisher() noexcept {
   }
 
   std::stringstream buffer;
-  for (const auto& event : processed_event_list) {
+  for (const auto& event : event_list) {
     buffer.str("");
     buffer << event;
 

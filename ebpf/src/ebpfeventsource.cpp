@@ -17,6 +17,7 @@
 #include "ebpfeventsource.h"
 #include "bcc_probe_generator.h"
 #include "ebpfprobepollservice.h"
+#include "probeeventreassembler.h"
 
 #include <bcc_probe_kprobe_group.h>
 #include <probes/kprobe_group/header.h>
@@ -27,7 +28,7 @@ namespace {
 // clang-format off
 const ManagedTracepointProbeList kManagedProbeDescriptorList = {
   {
-    "close_dup_events", 0U, 0U,
+    "close_events", 0U, 0U,
 
     {
       {
@@ -38,6 +39,14 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
         }
       },
 
+      { "sys_exit_close", false, {} },
+    }
+  },
+
+  {
+    "dup_events", 0U, 0U,
+
+    {
       {
         "sys_enter_dup",
         true,
@@ -65,7 +74,6 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
         }
       },
 
-      { "sys_exit_close", false, {} },
       { "sys_exit_dup", false, {} },
       { "sys_exit_dup2", false, {} },
       { "sys_exit_dup3", false, {} }
@@ -215,6 +223,8 @@ struct eBPFEventSource::PrivateData final {
   std::vector<eBPFProbeRef> probe_list;
   std::vector<eBPFProbePollServiceRef> poll_service_list;
   std::vector<ProbeReaderServiceRef> reader_service_list;
+
+  ProbeEventReassemblerRef event_reassembler;
 };
 
 eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
@@ -282,6 +292,11 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
     d->probe_list.push_back(std::move(probe));
     probe.reset();
   }
+
+  auto status = ProbeEventReassembler::create(d->event_reassembler);
+  if (!status.ok()) {
+    throw status;
+  }
 }
 
 osquery::Status eBPFEventSource::create(eBPFEventSourceRef& object) {
@@ -305,16 +320,40 @@ ProbeEventList eBPFEventSource::getEvents() {
   ProbeEventList probe_event_list;
 
   for (auto& reader_service : d->reader_service_list) {
-    auto new_events = reader_service->getProbeEvents();
+    auto new_event_list = reader_service->getProbeEvents();
 
-    probe_event_list.reserve(probe_event_list.size() + new_events.size());
+    // clang-format off
+    std::sort(
+      new_event_list.begin(),
+      new_event_list.end(),
+
+      [](const ProbeEvent& lhs, const ProbeEvent& rhs) -> bool {
+        return lhs.timestamp < rhs.timestamp;
+      }
+    );
+    // clang-format on
+
+    probe_event_list.reserve(probe_event_list.size() + new_event_list.size());
 
     probe_event_list.insert(probe_event_list.end(),
-                            std::make_move_iterator(new_events.begin()),
-                            std::make_move_iterator(new_events.end()));
+                            std::make_move_iterator(new_event_list.begin()),
+                            std::make_move_iterator(new_event_list.end()));
   }
 
-  return probe_event_list;
+  // Generate the new events
+  ProbeEventList processed_event_list;
+
+  for (const auto& probe_event : probe_event_list) {
+    auto status = d->event_reassembler->processProbeEvent(processed_event_list,
+                                                          probe_event);
+    if (!status.ok()) {
+      LOG(ERROR) << "An error has occurred while the reassembled events were "
+                    "being processed: "
+                 << status.getMessage();
+    }
+  }
+
+  return processed_event_list;
 }
 
 eBPFEventSource::~eBPFEventSource() {}

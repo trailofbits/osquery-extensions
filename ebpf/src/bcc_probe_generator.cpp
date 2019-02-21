@@ -173,6 +173,7 @@ osquery::Status getOsqueryPidList(std::vector<pid_t>& pid_list) {
 
     auto pid =
         osquery::tryTo<pid_t>(entry.path().filename().string(), 10).takeOr(0);
+
     if (pid != 0) {
       pid_list.push_back(pid);
     }
@@ -251,9 +252,33 @@ osquery::Status generateManagedTracepointProbe(
 
 osquery::Status generateKprobeProbe(eBPFProbeRef& probe,
                                     const KprobeProbe& desc) {
+  std::stringstream probe_source;
+  probe_source << kBccKprobeHeader << "\n\n";
+
+  probe_source << "static bool isIgnoredProcess() {\n";
+  probe_source << "  u64 current_tgid = (bpf_get_current_pid_tgid() >> 32) & "
+                  "0xFFFFFFFF;\n";
+
+  std::vector<pid_t> osquery_pid_list;
+  auto status = getOsqueryPidList(osquery_pid_list);
+  if (!status.ok()) {
+    return status;
+  }
+
+  osquery_pid_list.push_back(getpid());
+
+  for (auto pid : osquery_pid_list) {
+    probe_source << "  if (current_tgid == " << pid << ") { return true; }\n";
+  }
+
+  probe_source << "  return false;\n";
+  probe_source << "}\n\n";
+
+  probe_source << desc.source_code;
+
   eBPFProbeDescriptor probe_descriptor;
   probe_descriptor.name = desc.name;
-  probe_descriptor.source_code = kBccKprobeHeader + "\n" + desc.source_code;
+  probe_descriptor.source_code = probe_source.str();
 
   for (const auto& kprobe : desc.kprobe_list) {
     eBPFProbeDescriptor::Probe probe = {};
@@ -265,7 +290,7 @@ osquery::Status generateKprobeProbe(eBPFProbeRef& probe,
     probe_descriptor.probe_list.push_back(std::move(probe));
   }
 
-  auto status = eBPFProbe::create(probe, probe_descriptor);
+  status = eBPFProbe::create(probe, probe_descriptor);
   if (!status.ok()) {
     return status;
   }
