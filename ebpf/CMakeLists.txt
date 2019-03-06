@@ -45,6 +45,9 @@ function(ebpfMain)
 
     src/probeeventreassembler.h
     src/probeeventreassembler.cpp
+
+    src/filedescriptortracker.h
+    src/filedescriptortracker.cpp
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})

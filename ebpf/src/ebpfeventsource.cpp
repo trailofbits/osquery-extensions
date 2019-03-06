@@ -17,6 +17,7 @@
 #include "ebpfeventsource.h"
 #include "bcc_probe_generator.h"
 #include "ebpfprobepollservice.h"
+#include "filedescriptortracker.h"
 #include "probeeventreassembler.h"
 
 #include <bcc_probe_kprobe_group.h>
@@ -225,6 +226,7 @@ struct eBPFEventSource::PrivateData final {
   std::vector<ProbeReaderServiceRef> reader_service_list;
 
   ProbeEventReassemblerRef event_reassembler;
+  FileDescriptorTrackerRef file_descriptor_tracker;
 };
 
 eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
@@ -297,6 +299,11 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
   if (!status.ok()) {
     throw status;
   }
+
+  status = FileDescriptorTracker::create(d->file_descriptor_tracker);
+  if (!status.ok()) {
+    throw status;
+  }
 }
 
 osquery::Status eBPFEventSource::create(eBPFEventSourceRef& object) {
@@ -347,6 +354,18 @@ ProbeEventList eBPFEventSource::getEvents() {
     auto status = d->event_reassembler->processProbeEvent(processed_event_list,
                                                           probe_event);
     if (!status.ok()) {
+      LOG(ERROR) << "An error has occurred while the reassembled events were "
+                    "being processed: "
+                 << status.getMessage();
+
+      continue;
+    }
+  }
+
+  for (const auto& probe_event : processed_event_list) {
+    bool verbose = true;
+    auto status = d->file_descriptor_tracker->processProbeEvent(probe_event);
+    if (!status.ok() && verbose) {
       LOG(ERROR) << "An error has occurred while the reassembled events were "
                     "being processed: "
                  << status.getMessage();

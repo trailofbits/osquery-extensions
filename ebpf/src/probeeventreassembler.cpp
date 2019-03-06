@@ -202,7 +202,9 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
 
       const auto& host_pid_variant =
           boost::get<std::int64_t>(host_pid_it->second);
+
       auto host_pid = boost::get<std::int64_t>(host_pid_variant);
+
       context.process_context_map.insert(
           {static_cast<ThreadID>(host_pid), process_context});
     }
