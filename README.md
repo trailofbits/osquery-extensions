@@ -80,7 +80,7 @@ Here are example steps for each platform:
 
 ### macOS or Linux
 
-Note: Due to the current way `bison` is built, you may need to add some symlinks to your system. This is only necessary if you want to build the `network_monitor` extension.
+Note: Due to the current way `bison` is built, you may need to add some symlinks to your system. This is only necessary if you want to build the `network_monitor` extension, or all building all extensions.
 
 ```
 /home/linuxbrew/.linuxbrew/Cellar -> /usr/local/osquery/Cellar
