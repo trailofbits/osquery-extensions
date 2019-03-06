@@ -80,6 +80,15 @@ Here are example steps for each platform:
 
 ### macOS or Linux
 
+Note: Due to the current way `bison` is built, you may need to add some symlinks to your system. This is only necessary if you want to build the `network_monitor` extension.
+
+```
+/home/linuxbrew/.linuxbrew/Cellar -> /usr/local/osquery/Cellar
+/home/linuxbrew/.linuxbrew/opt -> /usr/local/osquery/opt
+```
+
+Then you can run the following commands.
+
 ```
 cd /src
 git clone https://github.com/facebook/osquery.git
