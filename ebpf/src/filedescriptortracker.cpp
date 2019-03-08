@@ -19,6 +19,7 @@
 #include <map>
 
 #include <asm/unistd_64.h>
+#include <fcntl.h>
 
 namespace trailofbits {
 namespace {
@@ -28,6 +29,8 @@ using ProbeEventHandler = osquery::Status (*)(FileDescriptorTrackerContext&,
 // clang-format off
 const std::map<int, ProbeEventHandler> kProbeEventHandlerMap = {
   { __NR_close, &FileDescriptorTracker::processCloseSyscallEvent },
+
+  { __NR_fcntl, &FileDescriptorTracker::processFcntlSyscallEvent },
 
   { __NR_dup, &FileDescriptorTracker::processDupSyscallEvent },
   { __NR_dup2, &FileDescriptorTracker::processDupSyscallEvent },
@@ -175,6 +178,98 @@ osquery::Status FileDescriptorTracker::processCloseSyscallEvent(
   }
 
   fd_table.erase(fd_it);
+  return osquery::Status(0);
+}
+
+osquery::Status FileDescriptorTracker::processFcntlSyscallEvent(
+    FileDescriptorTrackerContext& context, const ProbeEvent& probe_event) {
+  if (probe_event.function_identifier != __NR_fcntl) {
+    return osquery::Status::failure("Invalid system call");
+  }
+
+  // Get the file descriptor
+  auto fd_var_it = probe_event.field_list.find("fd");
+  if (fd_var_it == probe_event.field_list.end()) {
+    return osquery::Status::failure("The fd parameter is missing");
+  }
+
+  const auto& fd_var = fd_var_it->second;
+  auto fd = boost::get<std::uint64_t>(fd_var);
+
+  auto& fd_table = getFileDescriptorTable(probe_event.tgid, context);
+
+  auto fd_it = fd_table.find(fd);
+  if (fd_it == fd_table.end()) {
+    return osquery::Status::failure("Unknown file descriptor");
+  }
+
+  // Get the command
+  auto cmd_var_it = probe_event.field_list.find("cmd");
+  if (cmd_var_it == probe_event.field_list.end()) {
+    return osquery::Status::failure("The cmd parameter is missing");
+  }
+
+  const auto& cmd_var = cmd_var_it->second;
+  auto cmd = boost::get<std::uint64_t>(cmd_var);
+
+  // Get the arg value
+  auto arg_var_it = probe_event.field_list.find("arg");
+  if (arg_var_it == probe_event.field_list.end()) {
+    return osquery::Status::failure("The arg parameter is missing");
+  }
+
+  const auto& arg_var = arg_var_it->second;
+  auto arg = boost::get<std::uint64_t>(arg_var);
+
+  // Actually handle the cmd operation
+  auto& fd_information = fd_it->second;
+
+  switch (cmd) {
+  case F_DUPFD:
+  case F_DUPFD_CLOEXEC: {
+    auto new_fd_info = fd_information;
+    auto new_fd = probe_event.exit_code.get();
+
+    if (cmd == F_DUPFD_CLOEXEC) {
+      new_fd_info.fd_flags |= FD_CLOEXEC;
+    }
+
+    fd_table.insert({new_fd, new_fd_info});
+    break;
+  }
+
+  case F_GETFD: {
+    fd_information.fd_flags = probe_event.exit_code.get();
+    break;
+  }
+
+  case F_SETFD: {
+    fd_information.fd_flags = arg;
+    break;
+  }
+
+  case F_SETFL: {
+    if (!fd_information.status_flags_ref) {
+      fd_information.status_flags_ref = std::make_shared<FileStatusFlags>();
+    }
+
+    fd_information.status_flags_ref->flags = static_cast<int>(arg);
+    break;
+  }
+
+  case F_GETFL: {
+    if (!fd_information.status_flags_ref) {
+      fd_information.status_flags_ref = std::make_shared<FileStatusFlags>();
+    }
+
+    fd_information.status_flags_ref->flags = probe_event.exit_code.get();
+    break;
+  }
+
+  default:
+    break;
+  }
+
   return osquery::Status(0);
 }
 

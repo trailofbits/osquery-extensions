@@ -138,6 +138,23 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
   },
 
   {
+    "fcntl_events", 0U, 0U,
+
+    {
+      { "sys_enter_fcntl",
+        true,
+        {
+          { ProbeParameter::Type::UnsignedInteger, "fd" },
+          { ProbeParameter::Type::UnsignedInteger, "cmd" },
+          { ProbeParameter::Type::UnsignedInteger, "arg" }
+        }
+      },
+
+      { "sys_exit_fcntl", false, {} }
+    }
+  },
+
+  {
     "socket_events", 160U, 0U,
 
     {

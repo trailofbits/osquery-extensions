@@ -37,6 +37,7 @@ bool isKnownFunction(std::uint64_t function_identifier) {
   case __NR_clone:
   case __NR_exit:
   case __NR_exit_group:
+  case __NR_fcntl:
     return true;
 
   case KPROBE_PIDVNR_CALL:

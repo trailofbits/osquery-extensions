@@ -42,6 +42,7 @@ const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
   { __NR_clone, "clone" },
   { __NR_exit, "exit" },
   { __NR_exit_group, "exit_group" },
+  { __NR_fcntl, "fcntl" },
   { KPROBE_PIDVNR_CALL, "pid_vnr" },
   { KPROBE_FORK_CALL, "fork" },
   { KPROBE_VFORK_CALL, "vfork" },

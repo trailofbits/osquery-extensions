@@ -26,6 +26,12 @@ namespace trailofbits {
 class FileDescriptorTracker;
 using FileDescriptorTrackerRef = std::unique_ptr<FileDescriptorTracker>;
 
+struct FileStatusFlags final {
+  int flags{0};
+};
+
+using FileStatusFlagsRef = std::shared_ptr<FileStatusFlags>;
+
 struct FileDescriptorInformation final {
   enum class Type { File, Socket };
 
@@ -43,6 +49,7 @@ struct FileDescriptorInformation final {
   boost::variant<FileData, SocketData> data;
 
   int fd_flags{0};
+  FileStatusFlagsRef status_flags_ref;
 };
 
 using FileDescriptorTable = std::unordered_map<int, FileDescriptorInformation>;
@@ -79,14 +86,22 @@ class FileDescriptorTracker final {
 
   static osquery::Status processCloseSyscallEvent(
       FileDescriptorTrackerContext& context, const ProbeEvent& probe_event);
+
+  static osquery::Status processFcntlSyscallEvent(
+      FileDescriptorTrackerContext& context, const ProbeEvent& probe_event);
+
   static osquery::Status processDupSyscallEvent(
       FileDescriptorTrackerContext& context, const ProbeEvent& probe_event);
+
   static osquery::Status processExecSyscallEvent(
       FileDescriptorTrackerContext& context, const ProbeEvent& probe_event);
+
   static osquery::Status processExitSyscallEvent(
       FileDescriptorTrackerContext& context, const ProbeEvent& probe_event);
+
   static osquery::Status processSocketSyscallEvent(
       FileDescriptorTrackerContext& context, const ProbeEvent& probe_event);
+
   static osquery::Status processForkSyscallEvent(
       FileDescriptorTrackerContext& context, const ProbeEvent& probe_event);
 
