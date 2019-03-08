@@ -16,14 +16,20 @@
 
 #pragma once
 
+#include "probereaderservice.h"
+
 #include <pubsub/publisherregistry.h>
 #include <pubsub/servicemanager.h>
 
+#include <unordered_set>
+
 namespace trailofbits {
-struct ProcessEventsPublisherSubscriptionContext final {};
+struct ProcessEventsPublisherSubscriptionContext final {
+  std::unordered_set<int> system_call_filter;
+};
 
 struct ProcessEventsPublisherData final {
-  std::vector<std::string> string_list;
+  ProbeEventList probe_event_list;
 };
 
 class ProcessEventsPublisher final

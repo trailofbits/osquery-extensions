@@ -20,8 +20,6 @@
 
 #include <pubsub/servicemanager.h>
 
-#include <set>
-
 namespace trailofbits {
 struct ProbeEvent final {
   struct StringList final {

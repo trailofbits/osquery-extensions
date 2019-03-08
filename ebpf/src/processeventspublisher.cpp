@@ -25,146 +25,9 @@
 #include <asm/unistd_64.h>
 
 namespace trailofbits {
-namespace {
-// clang-format off
-const std::unordered_map<std::uint64_t, const char*> kSyscallNameTable = {
-  { __NR_close, "close" },
-  { __NR_dup, "dup" },
-  { __NR_dup2, "dup2" },
-  { __NR_dup3, "dup3" },
-  { __NR_execve, "execve" },
-  { __NR_execveat, "execveat" },
-  { __NR_socket, "socket" },
-  { __NR_bind, "bind" },
-  { __NR_connect, "connect" },
-  { __NR_fork, "fork" },
-  { __NR_vfork, "vfork" },
-  { __NR_clone, "clone" },
-  { __NR_exit, "exit" },
-  { __NR_exit_group, "exit_group" },
-  { __NR_fcntl, "fcntl" },
-  { KPROBE_PIDVNR_CALL, "pid_vnr" },
-  { KPROBE_FORK_CALL, "fork" },
-  { KPROBE_VFORK_CALL, "vfork" },
-  { KPROBE_CLONE_CALL, "clone" },
-};
-// clang-format on
-
-std::ostream& operator<<(std::ostream& stream, const ProbeEvent& probe_event) {
-  static auto L_getEventName =
-      [](const ProbeEvent& probe_event) -> const char* {
-    auto it = kSyscallNameTable.find(probe_event.function_identifier);
-    if (it == kSyscallNameTable.end()) {
-      return "<UNKNOWN_SYSCALL_NAME>";
-    }
-
-    return it->second;
-  };
-
-  stream << std::setfill(' ') << std::setw(16) << probe_event.timestamp << " ";
-
-  stream << std::setfill(' ') << std::setw(8) << probe_event.uid << " ";
-  stream << std::setfill(' ') << std::setw(8) << probe_event.gid << " ";
-  stream << std::setfill(' ') << std::setw(8) << probe_event.tgid << " ";
-  stream << std::setfill(' ') << std::setw(8) << probe_event.pid << " ";
-  stream << std::setfill(' ') << std::setw(8) << probe_event.parent_tgid << " ";
-
-  stream << std::setfill(' ') << std::setw(8) << probe_event.function_identifier
-         << " ";
-
-  stream << std::setfill(' ') << std::setw(16) << L_getEventName(probe_event)
-         << "(";
-
-  bool add_separator = false;
-  for (const auto& field : probe_event.field_list) {
-    if (add_separator) {
-      stream << ", ";
-    }
-
-    stream << field.first << "=";
-    switch (field.second.which()) {
-    case 0U: {
-      const auto& value = boost::get<std::int64_t>(field.second);
-      stream << value;
-      break;
-    }
-
-    case 1U: {
-      const auto& value = boost::get<std::uint64_t>(field.second);
-      stream << value;
-      break;
-    }
-
-    case 2U: {
-      const auto& value = boost::get<std::string>(field.second);
-      stream << "\"" << value << "\"";
-      break;
-    }
-
-    case 3U: {
-      const auto& value = boost::get<std::vector<std::uint8_t>>(field.second);
-
-      stream << "{ ";
-
-      auto byte_count = std::min(value.size(), 4UL);
-      bool truncated = value.size() > byte_count;
-
-      for (auto i = 0U; i < byte_count; i++) {
-        stream << std::setw(2) << std::setfill('0') << std::hex
-               << static_cast<std::uint32_t>(value.at(i)) << " ";
-      }
-
-      if (truncated) {
-        stream << "... ";
-      }
-
-      stream << "}";
-      break;
-    }
-
-    case 4U: {
-      const auto& value = boost::get<ProbeEvent::StringList>(field.second);
-      stream << "{";
-
-      bool add_separator = false;
-      for (const auto& s : value.data) {
-        if (add_separator) {
-          stream << ", ";
-        }
-
-        stream << "\"" << s << "\"";
-
-        add_separator = true;
-      }
-
-      if (value.truncated) {
-        if (add_separator) {
-          stream << ", ";
-        }
-
-        stream << "...";
-      }
-
-      stream << "}";
-      break;
-    }
-    }
-
-    add_separator = true;
-  }
-
-  stream << ")";
-
-  if (probe_event.exit_code) {
-    stream << " -> " << probe_event.exit_code.get();
-  }
-
-  return stream;
-}
-} // namespace
-
 struct ProcessEventsPublisher::PrivateData final {
   eBPFEventSourceRef event_source;
+  ProbeEventList event_list;
 };
 
 ProcessEventsPublisher::ProcessEventsPublisher() : d(new PrivateData) {
@@ -213,32 +76,32 @@ osquery::Status ProcessEventsPublisher::onSubscriberConfigurationChange(
 }
 
 osquery::Status ProcessEventsPublisher::updatePublisher() noexcept {
-  auto event_list = d->event_source->getEvents();
-  if (event_list.empty()) {
-    return osquery::Status(0);
-  }
+  d->event_list = d->event_source->getEvents();
+  return osquery::Status(0);
+}
 
+osquery::Status ProcessEventsPublisher::updateSubscriber(
+    IEventSubscriberRef subscriber,
+    SubscriptionContextRef subscription_context) noexcept {
   EventContextRef event_context;
   auto status = createEventContext(event_context);
   if (!status.ok()) {
     return status;
   }
 
-  std::stringstream buffer;
-  for (const auto& event : event_list) {
-    buffer.str("");
-    buffer << event;
+  for (const auto& event : d->event_list) {
+    if (subscription_context->system_call_filter.count(
+            event.function_identifier) == 0U) {
+      continue;
+    }
 
-    event_context->string_list.push_back(buffer.str());
+    event_context->probe_event_list.push_back(event);
   }
 
-  broadcastEvent(event_context);
+  if (!event_context->probe_event_list.empty()) {
+    emitEvents(subscriber, subscription_context, event_context);
+  }
 
-  return osquery::Status(0);
-}
-
-osquery::Status ProcessEventsPublisher::updateSubscriber(
-    IEventSubscriberRef, SubscriptionContextRef) noexcept {
   return osquery::Status(0);
 }
 } // namespace trailofbits

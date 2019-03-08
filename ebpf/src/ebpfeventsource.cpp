@@ -371,9 +371,9 @@ ProbeEventList eBPFEventSource::getEvents() {
     auto status = d->event_reassembler->processProbeEvent(processed_event_list,
                                                           probe_event);
     if (!status.ok()) {
-      LOG(ERROR) << "An error has occurred while the reassembled events were "
-                    "being processed: "
-                 << status.getMessage();
+      VLOG(1) << "An error has occurred while the reassembled events were "
+                 "being processed: "
+              << status.getMessage();
 
       continue;
     }
@@ -383,9 +383,9 @@ ProbeEventList eBPFEventSource::getEvents() {
     bool verbose = true;
     auto status = d->file_descriptor_tracker->processProbeEvent(probe_event);
     if (!status.ok() && verbose) {
-      LOG(ERROR) << "An error has occurred while the reassembled events were "
-                    "being processed: "
-                 << status.getMessage();
+      VLOG(1) << "An error has occurred while the reassembled events were "
+                 "being processed: "
+              << status.getMessage();
     }
   }
 
