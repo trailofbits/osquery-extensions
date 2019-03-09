@@ -43,6 +43,9 @@ function(ebpfMain)
     src/processeventssubscriber.h
     src/processeventssubscriber.cpp
 
+    src/socketeventssubscriber.h
+    src/socketeventssubscriber.cpp
+
     src/probeeventreassembler.h
     src/probeeventreassembler.cpp
 

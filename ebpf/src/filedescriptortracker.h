@@ -70,7 +70,7 @@ class FileDescriptorTracker final {
 
   osquery::Status processProbeEvent(const ProbeEvent& probe_event);
 
-  bool querytFileDescriptorInformation(
+  bool queryFileDescriptorInformation(
       FileDescriptorInformation& file_descriptor_info,
       pid_t process_id,
       int fd) const;
@@ -78,7 +78,7 @@ class FileDescriptorTracker final {
   static osquery::Status processProbeEvent(
       FileDescriptorTrackerContext& context, const ProbeEvent& probe_event);
 
-  static bool querytFileDescriptorInformation(
+  static bool queryFileDescriptorInformation(
       FileDescriptorInformation& file_descriptor_info,
       const FileDescriptorTrackerContext& context,
       pid_t process_id,

@@ -23,6 +23,8 @@
 #include <bcc_probe_kprobe_group.h>
 #include <probes/kprobe_group/header.h>
 
+#include <asm/unistd_64.h>
+
 namespace trailofbits {
 namespace {
 // Missing: socketpair, accept, accept4
@@ -379,13 +381,51 @@ ProbeEventList eBPFEventSource::getEvents() {
     }
   }
 
-  for (const auto& probe_event : processed_event_list) {
+  for (auto& probe_event : processed_event_list) {
     bool verbose = true;
     auto status = d->file_descriptor_tracker->processProbeEvent(probe_event);
     if (!status.ok() && verbose) {
       VLOG(1) << "An error has occurred while the reassembled events were "
                  "being processed: "
               << status.getMessage();
+    }
+
+    if (probe_event.function_identifier != __NR_connect &&
+        probe_event.function_identifier != __NR_bind) {
+      continue;
+    }
+
+    auto fd_var_it = probe_event.field_list.find("fd");
+    if (fd_var_it == probe_event.field_list.end()) {
+      continue;
+    }
+
+    const auto& fd_var = fd_var_it->second;
+    int fd = boost::get<std::int64_t>(fd_var);
+
+    FileDescriptorInformation file_desc_info;
+    if (!d->file_descriptor_tracker->queryFileDescriptorInformation(
+            file_desc_info, probe_event.tgid, fd)) {
+      continue;
+    }
+
+    if (file_desc_info.type != FileDescriptorInformation::Type::Socket) {
+      continue;
+    }
+
+    const auto& socket_data =
+        boost::get<FileDescriptorInformation::SocketData>(file_desc_info.data);
+
+    auto protocol = static_cast<std::int64_t>(socket_data.protocol);
+    probe_event.field_list.insert({"protocol", protocol});
+
+    auto socket_type = static_cast<std::int64_t>(socket_data.type);
+    probe_event.field_list.insert({"type", socket_type});
+
+    if (file_desc_info.status_flags_ref) {
+      std::int64_t blocking =
+          (file_desc_info.status_flags_ref->flags & O_NONBLOCK) == 0 ? 1 : 0;
+      probe_event.field_list.insert({"blocking", blocking});
     }
   }
 

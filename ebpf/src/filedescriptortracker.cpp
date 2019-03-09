@@ -20,6 +20,7 @@
 
 #include <asm/unistd_64.h>
 #include <fcntl.h>
+#include <sys/socket.h>
 
 namespace trailofbits {
 namespace {
@@ -127,11 +128,11 @@ osquery::Status FileDescriptorTracker::processProbeEvent(
   return processProbeEvent(d->context, probe_event);
 }
 
-bool FileDescriptorTracker::querytFileDescriptorInformation(
+bool FileDescriptorTracker::queryFileDescriptorInformation(
     FileDescriptorInformation& file_descriptor_info,
     pid_t process_id,
     int fd) const {
-  return querytFileDescriptorInformation(
+  return queryFileDescriptorInformation(
       file_descriptor_info, d->context, process_id, fd);
 }
 
@@ -146,13 +147,26 @@ osquery::Status FileDescriptorTracker::processProbeEvent(
   return handler(context, probe_event);
 }
 
-bool FileDescriptorTracker::querytFileDescriptorInformation(
+bool FileDescriptorTracker::queryFileDescriptorInformation(
     FileDescriptorInformation& file_descriptor_info,
     const FileDescriptorTrackerContext& context,
     pid_t process_id,
     int fd) {
   file_descriptor_info = {};
 
+  auto fd_table_it = context.process_to_fd_table_map.find(process_id);
+  if (fd_table_it == context.process_to_fd_table_map.end()) {
+    return false;
+  }
+
+  const auto& fd_table = fd_table_it->second;
+
+  auto fd_info_it = fd_table.find(fd);
+  if (fd_info_it == fd_table.end()) {
+    return false;
+  }
+
+  file_descriptor_info = fd_info_it->second;
   return true;
 }
 
@@ -277,6 +291,7 @@ osquery::Status FileDescriptorTracker::processDupSyscallEvent(
     FileDescriptorTrackerContext& context, const ProbeEvent& probe_event) {
   static const std::set<int> valid_function_id_list = {
       __NR_dup, __NR_dup2, __NR_dup3};
+
   if (valid_function_id_list.count(probe_event.function_identifier) == 0U) {
     return osquery::Status::failure("Invalid system call");
   }
@@ -384,8 +399,6 @@ osquery::Status FileDescriptorTracker::processSocketSyscallEvent(
     return osquery::Status::failure("Invalid system call");
   }
 
-  return osquery::Status(0);
-
   std::int64_t family = 0;
   auto status = getProbeEventIntegerField(family, probe_event, "family");
   if (!status.ok()) {
@@ -412,7 +425,12 @@ osquery::Status FileDescriptorTracker::processSocketSyscallEvent(
   FileDescriptorInformation file_desc_info;
   file_desc_info.type = FileDescriptorInformation::Type::Socket;
   file_desc_info.data = socket_data;
-  file_desc_info.fd_flags = 0;
+  file_desc_info.fd_flags = (type & SOCK_CLOEXEC) != 0 ? FD_CLOEXEC : 0;
+
+  if ((type & SOCK_NONBLOCK) != 0) {
+    file_desc_info.status_flags_ref = std::make_shared<FileStatusFlags>();
+    file_desc_info.status_flags_ref->flags = O_NONBLOCK;
+  }
 
   auto socket_fd = probe_event.exit_code.get();
 
@@ -426,6 +444,7 @@ osquery::Status FileDescriptorTracker::processForkSyscallEvent(
     FileDescriptorTrackerContext& context, const ProbeEvent& probe_event) {
   static const std::set<int> valid_function_id_list = {
       __NR_fork, __NR_vfork, __NR_clone};
+
   if (valid_function_id_list.count(probe_event.function_identifier) == 0U) {
     return osquery::Status::failure("Invalid system call");
   }
