@@ -407,6 +407,11 @@ osquery::Status FileDescriptorTracker::processSocketSyscallEvent(
 
   std::int64_t type = 0;
   status = getProbeEventIntegerField(type, probe_event, "type");
+
+  bool close_on_exec = (type & SOCK_CLOEXEC) != 0;
+  bool non_blocking = (type & SOCK_NONBLOCK) != 0;
+  type &= ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
+
   if (!status.ok()) {
     return status;
   }
@@ -425,9 +430,9 @@ osquery::Status FileDescriptorTracker::processSocketSyscallEvent(
   FileDescriptorInformation file_desc_info;
   file_desc_info.type = FileDescriptorInformation::Type::Socket;
   file_desc_info.data = socket_data;
-  file_desc_info.fd_flags = (type & SOCK_CLOEXEC) != 0 ? FD_CLOEXEC : 0;
+  file_desc_info.fd_flags = close_on_exec ? FD_CLOEXEC : 0;
 
-  if ((type & SOCK_NONBLOCK) != 0) {
+  if (non_blocking) {
     file_desc_info.status_flags_ref = std::make_shared<FileStatusFlags>();
     file_desc_info.status_flags_ref->flags = O_NONBLOCK;
   }

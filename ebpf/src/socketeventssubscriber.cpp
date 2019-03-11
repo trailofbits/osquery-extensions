@@ -166,6 +166,7 @@ const std::string& getSocketTypeName(std::int64_t type) {
 
   auto name_it = kSocketTypeName.find(type);
   if (name_it == kSocketTypeName.end()) {
+    LOG(ERROR) << "UNKNOWN SOCKET TYPE: " << type;
     return kUnknownSocketTypeName;
   }
 
@@ -192,7 +193,8 @@ std::string getAddressFromSockaddr(const struct sockaddr_in6& sockaddr) {
     }
 
     buffer << std::setfill('0') << std::setw(2)
-           << sockaddr.sin6_addr.__in6_u.__u6_addr8[i];
+           << static_cast<std::uint8_t>(
+                  sockaddr.sin6_addr.__in6_u.__u6_addr8[i]);
   }
 
   return buffer.str();
