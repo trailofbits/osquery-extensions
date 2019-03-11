@@ -15,6 +15,7 @@
  */
 
 #include "filedescriptortracker.h"
+#include "probes/kprobe_group/header.h"
 
 #include <map>
 
@@ -45,7 +46,9 @@ const std::map<int, ProbeEventHandler> kProbeEventHandlerMap = {
   { __NR_exit, &FileDescriptorTracker::processExitSyscallEvent },
   { __NR_exit_group, &FileDescriptorTracker::processExitSyscallEvent },
 
-  { __NR_close, &FileDescriptorTracker::processForkSyscallEvent }
+  { KPROBE_FORK_CALL, &FileDescriptorTracker::processForkSyscallEvent },
+  { KPROBE_VFORK_CALL, &FileDescriptorTracker::processForkSyscallEvent },
+  { KPROBE_CLONE_CALL, &FileDescriptorTracker::processForkSyscallEvent }
 };
 // clang-format on
 
@@ -78,22 +81,6 @@ bool getFileDescriptorInformation(FileDescriptorInformation*& fd_info_ptr,
 
   fd_info_ptr = &fd_info_it->second;
   return true;
-}
-
-template <typename IntegerType>
-osquery::Status getProbeEventIntegerField(IntegerType& value,
-                                          const ProbeEvent& probe_event,
-                                          const std::string& name) {
-  auto field_var_it = probe_event.field_list.find(name);
-  if (field_var_it == probe_event.field_list.end()) {
-    return osquery::Status::failure("The following parameter is missing: " +
-                                    name);
-  }
-
-  const auto& field_var = field_var_it->second;
-  value = boost::get<IntegerType>(field_var);
-
-  return osquery::Status(0);
 }
 } // namespace
 
@@ -447,8 +434,8 @@ osquery::Status FileDescriptorTracker::processSocketSyscallEvent(
 
 osquery::Status FileDescriptorTracker::processForkSyscallEvent(
     FileDescriptorTrackerContext& context, const ProbeEvent& probe_event) {
-  static const std::set<int> valid_function_id_list = {
-      __NR_fork, __NR_vfork, __NR_clone};
+  static const std::set<std::uint64_t> valid_function_id_list = {
+      KPROBE_FORK_CALL, KPROBE_VFORK_CALL, KPROBE_CLONE_CALL};
 
   if (valid_function_id_list.count(probe_event.function_identifier) == 0U) {
     return osquery::Status::failure("Invalid system call");
