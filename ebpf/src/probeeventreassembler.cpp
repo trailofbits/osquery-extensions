@@ -32,9 +32,9 @@ bool isKnownFunction(std::uint64_t function_identifier) {
   case __NR_socket:
   case __NR_bind:
   case __NR_connect:
-  case __NR_fork:
-  case __NR_vfork:
-  case __NR_clone:
+  case KPROBE_FORK_CALL:
+  case KPROBE_VFORK_CALL:
+  case KPROBE_CLONE_CALL:
   case __NR_exit:
   case __NR_exit_group:
   case __NR_fcntl:
@@ -140,9 +140,9 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
 
     // Ignore failed forks! Also ignore them when exiting from the child process
     // side
-    if (probe_event.function_identifier == __NR_fork ||
-        probe_event.function_identifier == __NR_vfork ||
-        probe_event.function_identifier == __NR_clone) {
+    if (probe_event.function_identifier == KPROBE_FORK_CALL ||
+        probe_event.function_identifier == KPROBE_VFORK_CALL ||
+        probe_event.function_identifier == KPROBE_CLONE_CALL) {
       auto exit_code = probe_event.exit_code.get();
       if (exit_code == 0 || exit_code == -1) {
         return osquery::Status(0);
@@ -192,9 +192,9 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
     processed_probe_event_list.push_back(enter_event);
 
     // Process forks (fork, vfork, clone)
-    if (enter_event.function_identifier == __NR_fork ||
-        enter_event.function_identifier == __NR_vfork ||
-        enter_event.function_identifier == __NR_clone) {
+    if (enter_event.function_identifier == KPROBE_FORK_CALL ||
+        enter_event.function_identifier == KPROBE_VFORK_CALL ||
+        enter_event.function_identifier == KPROBE_CLONE_CALL) {
       auto host_pid_it = enter_event.field_list.find("host_pid");
       if (host_pid_it == enter_event.field_list.end()) {
         return osquery::Status::failure(
@@ -214,7 +214,8 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
     // pid_vnr events are used to add additional data to previous
     // fork/vfork/clone system calls
     if (probe_event.function_identifier == KPROBE_PIDVNR_CALL) {
-      for (auto prev_event_type : {__NR_fork, __NR_vfork, __NR_clone}) {
+      for (auto prev_event_type :
+           {KPROBE_FORK_CALL, KPROBE_VFORK_CALL, KPROBE_CLONE_CALL}) {
         auto prev_event_it = thread_context.find(prev_event_type);
         if (prev_event_it == thread_context.end()) {
           continue;

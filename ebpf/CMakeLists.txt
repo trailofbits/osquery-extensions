@@ -51,6 +51,9 @@ function(ebpfMain)
 
     src/filedescriptortracker.h
     src/filedescriptortracker.cpp
+
+    src/dockertracker.h
+    src/dockertracker.cpp
   )
 
   add_osquery_extension("${PROJECT_NAME}" ${source_files})

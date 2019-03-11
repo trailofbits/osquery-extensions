@@ -49,6 +49,22 @@ struct ProbeEvent final {
 
 using ProbeEventList = std::vector<ProbeEvent>;
 
+template <typename IntegerType>
+osquery::Status getProbeEventIntegerField(IntegerType& value,
+                                          const ProbeEvent& probe_event,
+                                          const std::string& name) {
+  auto field_var_it = probe_event.field_list.find(name);
+  if (field_var_it == probe_event.field_list.end()) {
+    return osquery::Status::failure("The following parameter is missing: " +
+                                    name);
+  }
+
+  const auto& field_var = field_var_it->second;
+  value = boost::get<IntegerType>(field_var);
+
+  return osquery::Status(0);
+}
+
 class ProbeReaderService final : public IService {
   struct PrivateData;
   std::unique_ptr<PrivateData> d;

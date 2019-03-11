@@ -270,6 +270,7 @@ BEGIN_TABLE(ebpf_socket_events)
   TABLE_COLUMN(remote_address, osquery::TEXT_TYPE)
   TABLE_COLUMN(local_port, osquery::TEXT_TYPE)
   TABLE_COLUMN(remote_port, osquery::TEXT_TYPE)
+  TABLE_COLUMN(docker_container_id, osquery::TEXT_TYPE)
 END_TABLE(ebpf_socket_events)
 // clang-format on
 
@@ -328,6 +329,17 @@ osquery::Status SocketEventsSubscriber::callback(
     row["uid"] = std::to_string(event.uid);
     row["gid"] = std::to_string(event.gid);
     row["event"] = getSystemCallName(event.function_identifier);
+
+    auto docker_container_id_var_it =
+        event.field_list.find("docker_container_id");
+    if (docker_container_id_var_it != event.field_list.end()) {
+      const auto& docker_container_id_var = docker_container_id_var_it->second;
+      const auto& docker_container_id =
+          boost::get<std::string>(docker_container_id_var);
+      row["docker_container_id"] = docker_container_id;
+    } else {
+      row["docker_container_id"] = "";
+    }
 
     std::string exit_code = {};
 

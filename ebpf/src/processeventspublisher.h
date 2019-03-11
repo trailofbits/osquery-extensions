@@ -25,7 +25,7 @@
 
 namespace trailofbits {
 struct ProcessEventsPublisherSubscriptionContext final {
-  std::unordered_set<int> system_call_filter;
+  std::unordered_set<std::uint64_t> system_call_filter;
 };
 
 struct ProcessEventsPublisherData final {

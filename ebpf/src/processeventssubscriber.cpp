@@ -33,7 +33,7 @@ const std::unordered_map<std::uint64_t, std::string> kSyscallNameTable = {
 };
 // clang-format on
 
-const std::string& getSystemCallName(int system_call_nr) {
+const std::string& getSystemCallName(std::uint64_t system_call_nr) {
   static const std::string kUnknownSystemCallName{"unknown"};
 
   auto name_it = kSyscallNameTable.find(system_call_nr);
@@ -57,6 +57,7 @@ BEGIN_TABLE(ebpf_process_events)
   TABLE_COLUMN(exit_code, osquery::TEXT_TYPE)
   TABLE_COLUMN(filename, osquery::TEXT_TYPE)
   TABLE_COLUMN(argv, osquery::TEXT_TYPE)
+  TABLE_COLUMN(docker_container_id, osquery::TEXT_TYPE)
 END_TABLE(ebpf_process_events)
 // clang-format on
 
@@ -93,9 +94,9 @@ osquery::Status ProcessEventsSubscriber::configure(
     const json11::Json&) noexcept {
   subscription_context->system_call_filter.insert(__NR_execve);
   subscription_context->system_call_filter.insert(__NR_execveat);
-  subscription_context->system_call_filter.insert(__NR_fork);
-  subscription_context->system_call_filter.insert(__NR_vfork);
-  subscription_context->system_call_filter.insert(__NR_clone);
+  subscription_context->system_call_filter.insert(KPROBE_FORK_CALL);
+  subscription_context->system_call_filter.insert(KPROBE_VFORK_CALL);
+  subscription_context->system_call_filter.insert(KPROBE_CLONE_CALL);
   subscription_context->system_call_filter.insert(__NR_exit);
   subscription_context->system_call_filter.insert(__NR_exit_group);
 
@@ -117,6 +118,17 @@ osquery::Status ProcessEventsSubscriber::callback(
     row["uid"] = std::to_string(event.uid);
     row["gid"] = std::to_string(event.gid);
     row["event"] = getSystemCallName(event.function_identifier);
+
+    auto docker_container_id_var_it =
+        event.field_list.find("docker_container_id");
+    if (docker_container_id_var_it != event.field_list.end()) {
+      const auto& docker_container_id_var = docker_container_id_var_it->second;
+      const auto& docker_container_id =
+          boost::get<std::string>(docker_container_id_var);
+      row["docker_container_id"] = docker_container_id;
+    } else {
+      row["docker_container_id"] = "";
+    }
 
     std::string exit_code = {};
 
@@ -144,6 +156,9 @@ osquery::Status ProcessEventsSubscriber::callback(
         const auto& string_list = boost::get<ProbeEvent::StringList>(argv_var);
 
         for (const auto& str : string_list.data) {
+          argv.reserve(argv.size() + str.size() +
+                       (string_list.truncated ? 5 : 0));
+
           if (!argv.empty()) {
             argv += ", ";
           }

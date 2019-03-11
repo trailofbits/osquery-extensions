@@ -16,6 +16,7 @@
 
 #include "ebpfeventsource.h"
 #include "bcc_probe_generator.h"
+#include "dockertracker.h"
 #include "ebpfprobepollservice.h"
 #include "filedescriptortracker.h"
 #include "probeeventreassembler.h"
@@ -246,6 +247,7 @@ struct eBPFEventSource::PrivateData final {
 
   ProbeEventReassemblerRef event_reassembler;
   FileDescriptorTrackerRef file_descriptor_tracker;
+  DockerTrackerRef docker_tracker;
 };
 
 eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
@@ -323,6 +325,11 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
   if (!status.ok()) {
     throw status;
   }
+
+  status = DockerTracker::create(d->docker_tracker);
+  if (!status.ok()) {
+    throw status;
+  }
 }
 
 osquery::Status eBPFEventSource::create(eBPFEventSourceRef& object) {
@@ -381,51 +388,30 @@ ProbeEventList eBPFEventSource::getEvents() {
     }
   }
 
+  bool ebpf_debug = false;
   for (auto& probe_event : processed_event_list) {
-    bool verbose = true;
     auto status = d->file_descriptor_tracker->processProbeEvent(probe_event);
-    if (!status.ok() && verbose) {
+    if (!status.ok() && ebpf_debug) {
       VLOG(1) << "An error has occurred while the reassembled events were "
                  "being processed: "
               << status.getMessage();
     }
 
-    if (probe_event.function_identifier != __NR_connect &&
-        probe_event.function_identifier != __NR_bind) {
-      continue;
+    status = d->docker_tracker->processProbeEvent(probe_event);
+    if (!status.ok()) {
+      VLOG(1) << "An error has occurred while the reassembled events were "
+                 "being processed: "
+              << status.getMessage();
     }
 
-    auto fd_var_it = probe_event.field_list.find("fd");
-    if (fd_var_it == probe_event.field_list.end()) {
-      continue;
+    status = attachSocketInformation(probe_event);
+    if (!status.ok()) {
+      VLOG(1) << status.getMessage();
     }
 
-    const auto& fd_var = fd_var_it->second;
-    int fd = boost::get<std::int64_t>(fd_var);
-
-    FileDescriptorInformation file_desc_info;
-    if (!d->file_descriptor_tracker->queryFileDescriptorInformation(
-            file_desc_info, probe_event.tgid, fd)) {
-      continue;
-    }
-
-    if (file_desc_info.type != FileDescriptorInformation::Type::Socket) {
-      continue;
-    }
-
-    const auto& socket_data =
-        boost::get<FileDescriptorInformation::SocketData>(file_desc_info.data);
-
-    auto protocol = static_cast<std::int64_t>(socket_data.protocol);
-    probe_event.field_list.insert({"protocol", protocol});
-
-    auto socket_type = static_cast<std::int64_t>(socket_data.type);
-    probe_event.field_list.insert({"type", socket_type});
-
-    if (file_desc_info.status_flags_ref) {
-      std::int64_t blocking =
-          (file_desc_info.status_flags_ref->flags & O_NONBLOCK) == 0 ? 1 : 0;
-      probe_event.field_list.insert({"blocking", blocking});
+    status = attachDockerInformation(probe_event);
+    if (!status.ok()) {
+      VLOG(1) << status.getMessage();
     }
   }
 
@@ -433,4 +419,60 @@ ProbeEventList eBPFEventSource::getEvents() {
 }
 
 eBPFEventSource::~eBPFEventSource() {}
+
+osquery::Status eBPFEventSource::attachSocketInformation(
+    ProbeEvent& probe_event) {
+  if (probe_event.function_identifier != __NR_connect &&
+      probe_event.function_identifier != __NR_bind) {
+    return osquery::Status(0);
+  }
+
+  auto fd_var_it = probe_event.field_list.find("fd");
+  if (fd_var_it == probe_event.field_list.end()) {
+    return osquery::Status::failure(
+        "The `fd` parameter is missing from the connect/bind event");
+  }
+
+  const auto& fd_var = fd_var_it->second;
+  int fd = boost::get<std::int64_t>(fd_var);
+
+  FileDescriptorInformation file_desc_info;
+  if (!d->file_descriptor_tracker->queryFileDescriptorInformation(
+          file_desc_info, probe_event.tgid, fd)) {
+    return osquery::Status(0);
+  }
+
+  if (file_desc_info.type != FileDescriptorInformation::Type::Socket) {
+    return osquery::Status::failure("The `fd` parameter is not a socket");
+  }
+
+  const auto& socket_data =
+      boost::get<FileDescriptorInformation::SocketData>(file_desc_info.data);
+
+  auto protocol = static_cast<std::int64_t>(socket_data.protocol);
+  probe_event.field_list.insert({"protocol", protocol});
+
+  auto socket_type = static_cast<std::int64_t>(socket_data.type);
+  probe_event.field_list.insert({"type", socket_type});
+
+  if (file_desc_info.status_flags_ref) {
+    std::int64_t blocking =
+        (file_desc_info.status_flags_ref->flags & O_NONBLOCK) == 0 ? 1 : 0;
+    probe_event.field_list.insert({"blocking", blocking});
+  }
+
+  return osquery::Status(0);
+}
+
+osquery::Status eBPFEventSource::attachDockerInformation(
+    ProbeEvent& probe_event) {
+  std::string container_id;
+  if (!d->docker_tracker->queryProcessInformation(container_id,
+                                                  probe_event.tgid)) {
+    return osquery::Status(0);
+  }
+
+  probe_event.field_list.insert({"docker_container_id", container_id});
+  return osquery::Status(0);
+}
 } // namespace trailofbits
