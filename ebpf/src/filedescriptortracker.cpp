@@ -419,10 +419,8 @@ osquery::Status FileDescriptorTracker::processSocketSyscallEvent(
   file_desc_info.data = socket_data;
   file_desc_info.fd_flags = close_on_exec ? FD_CLOEXEC : 0;
 
-  if (non_blocking) {
-    file_desc_info.status_flags_ref = std::make_shared<FileStatusFlags>();
-    file_desc_info.status_flags_ref->flags = O_NONBLOCK;
-  }
+  file_desc_info.status_flags_ref = std::make_shared<FileStatusFlags>();
+  file_desc_info.status_flags_ref->flags = non_blocking ? O_NONBLOCK : 0;
 
   auto socket_fd = probe_event.exit_code.get();
 
