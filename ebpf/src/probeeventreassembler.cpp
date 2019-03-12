@@ -166,14 +166,11 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
     bool thread_creation_event = false;
 
     if (enter_event.function_identifier == __NR_clone) {
-      auto clone_flags_it = enter_event.field_list.find("clone_flags");
-      if (clone_flags_it == enter_event.field_list.end()) {
-        return osquery::Status::failure(
-            "Missing clone_flags field in clone event");
+      std::int64_t clone_flags = {};
+      auto status = getProbeEventField(clone_flags, probe_event, "clone_flags");
+      if (!status.ok()) {
+        return status;
       }
-
-      const auto& clone_flags_var = clone_flags_it->second;
-      auto clone_flags = boost::get<std::int64_t>(clone_flags_var);
 
       thread_creation_event = ((clone_flags & CLONE_THREAD) != 0);
     }
@@ -195,16 +192,11 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
     if (enter_event.function_identifier == KPROBE_FORK_CALL ||
         enter_event.function_identifier == KPROBE_VFORK_CALL ||
         enter_event.function_identifier == KPROBE_CLONE_CALL) {
-      auto host_pid_it = enter_event.field_list.find("host_pid");
-      if (host_pid_it == enter_event.field_list.end()) {
-        return osquery::Status::failure(
-            "Missing host_pid field in fork/vfork/clone event");
+      std::int64_t host_pid = {};
+      auto status = getProbeEventField(host_pid, probe_event, "host_pid");
+      if (!status.ok()) {
+        return status;
       }
-
-      const auto& host_pid_variant =
-          boost::get<std::int64_t>(host_pid_it->second);
-
-      auto host_pid = boost::get<std::int64_t>(host_pid_variant);
 
       context.process_context_map.insert(
           {static_cast<ThreadID>(host_pid), process_context});
@@ -217,13 +209,12 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
       for (auto prev_event_type :
            {KPROBE_FORK_CALL, KPROBE_VFORK_CALL, KPROBE_CLONE_CALL}) {
         auto prev_event_it = thread_context.find(prev_event_type);
-        if (prev_event_it == thread_context.end()) {
-          continue;
-        }
+        if (prev_event_it != thread_context.end()) {
+          auto& prev_probe_event = prev_event_it->second;
 
-        auto& prev_probe_event = prev_event_it->second;
-        for (const auto& field : probe_event.field_list) {
-          prev_probe_event.field_list.insert({field.first, field.second});
+          for (const auto& field : probe_event.field_list) {
+            prev_probe_event.field_list.insert({field.first, field.second});
+          }
         }
       }
 

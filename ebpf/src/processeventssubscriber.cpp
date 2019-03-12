@@ -119,15 +119,13 @@ osquery::Status ProcessEventsSubscriber::callback(
     row["gid"] = std::to_string(event.gid);
     row["event"] = getSystemCallName(event.function_identifier);
 
-    auto docker_container_id_var_it =
-        event.field_list.find("docker_container_id");
-    if (docker_container_id_var_it != event.field_list.end()) {
-      const auto& docker_container_id_var = docker_container_id_var_it->second;
-      const auto& docker_container_id =
-          boost::get<std::string>(docker_container_id_var);
-      row["docker_container_id"] = docker_container_id;
-    } else {
+    std::string docker_container_id = {};
+    auto status =
+        getProbeEventField(docker_container_id, event, "docker_container_id");
+    if (!status.ok()) {
       row["docker_container_id"] = "";
+    } else {
+      row["docker_container_id"] = docker_container_id;
     }
 
     std::string exit_code = {};
@@ -140,45 +138,42 @@ osquery::Status ProcessEventsSubscriber::callback(
 
     if (event.function_identifier == __NR_execve ||
         event.function_identifier == __NR_execveat) {
-      std::string filename = {};
-
-      auto filename_var_it = event.field_list.find("filename");
-      if (filename_var_it != event.field_list.end()) {
-        const auto& filename_var = filename_var_it->second;
-        filename = boost::get<std::string>(filename_var);
+      std::string filename;
+      status = getProbeEventField(filename, event, "filename");
+      if (!status.ok()) {
+        row["filename"] = "";
+      } else {
+        row["filename"] = filename;
       }
 
-      std::string argv = {};
+      ProbeEvent::StringList argv;
+      status = getProbeEventField(argv, event, "argv");
+      if (!status.ok()) {
+        row["argv"] = "";
 
-      auto argv_var_it = event.field_list.find("argv");
-      if (argv_var_it != event.field_list.end()) {
-        const auto& argv_var = argv_var_it->second;
-        const auto& string_list = boost::get<ProbeEvent::StringList>(argv_var);
+      } else {
+        const auto& argument_list = argv.data;
 
-        for (const auto& str : string_list.data) {
-          argv.reserve(argv.size() + str.size() +
-                       (string_list.truncated ? 5 : 0));
+        std::stringstream buffer;
 
-          if (!argv.empty()) {
-            argv += ", ";
+        for (const auto& argument : argument_list) {
+          if (!buffer.str().empty()) {
+            buffer << ", ";
           }
 
-          for (const auto& c : str) {
+          for (const auto& c : argument) {
             if (c == ',') {
-              argv += "\\,";
+              buffer << "\\,";
             } else {
-              argv += c;
+              buffer << c;
             }
           }
         }
 
-        if (string_list.truncated) {
-          argv += ", ...";
+        if (argv.truncated) {
+          buffer << ", ...";
         }
       }
-
-      row["filename"] = filename;
-      row["argv"] = argv;
     }
 
     new_data.push_back(std::move(row));

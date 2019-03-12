@@ -427,14 +427,11 @@ osquery::Status eBPFEventSource::attachSocketInformation(
     return osquery::Status(0);
   }
 
-  auto fd_var_it = probe_event.field_list.find("fd");
-  if (fd_var_it == probe_event.field_list.end()) {
-    return osquery::Status::failure(
-        "The `fd` parameter is missing from the connect/bind event");
+  std::int64_t fd;
+  auto status = getProbeEventField(fd, probe_event, "fd");
+  if (!status.ok()) {
+    return status;
   }
-
-  const auto& fd_var = fd_var_it->second;
-  int fd = boost::get<std::int64_t>(fd_var);
 
   FileDescriptorInformation file_desc_info;
   if (!d->file_descriptor_tracker->queryFileDescriptorInformation(

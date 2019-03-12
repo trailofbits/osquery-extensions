@@ -88,13 +88,11 @@ DockerTracker::Error DockerTracker::processContainerShimExecEvent(
     return Error::InvalidEvent;
   }
 
-  auto filename_var_it = probe_event.field_list.find("filename");
-  if (filename_var_it == probe_event.field_list.end()) {
+  std::string filename = {};
+  auto status = getProbeEventField(filename, probe_event, "filename");
+  if (!status.ok()) {
     return Error::Skipped;
   }
-
-  const auto& filename_var = filename_var_it->second;
-  const auto& filename = boost::get<std::string>(filename_var);
 
   auto filename_index = filename.find("/containerd-shim");
   if (filename_index == std::string::npos ||
@@ -102,13 +100,12 @@ DockerTracker::Error DockerTracker::processContainerShimExecEvent(
     return Error::Skipped;
   }
 
-  auto argv_var_it = probe_event.field_list.find("argv");
-  if (argv_var_it == probe_event.field_list.end()) {
+  ProbeEvent::StringList argv;
+  status = getProbeEventField(argv, probe_event, "argv");
+  if (!status.ok()) {
     return Error::Skipped;
   }
 
-  const auto& argv_var = argv_var_it->second;
-  const auto& argv = boost::get<ProbeEvent::StringList>(argv_var);
   const auto& argv_string_list = argv.data;
 
   auto namespace_name_it =
@@ -167,7 +164,7 @@ osquery::Status DockerTracker::processProbeEvent(
     const auto& container_id = docker_container_it->second;
 
     std::int64_t host_pid = 0;
-    auto status = getProbeEventIntegerField(host_pid, probe_event, "host_pid");
+    auto status = getProbeEventField(host_pid, probe_event, "host_pid");
     if (!status.ok()) {
       return status;
     }

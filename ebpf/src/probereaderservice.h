@@ -49,18 +49,23 @@ struct ProbeEvent final {
 
 using ProbeEventList = std::vector<ProbeEvent>;
 
-template <typename IntegerType>
-osquery::Status getProbeEventIntegerField(IntegerType& value,
-                                          const ProbeEvent& probe_event,
-                                          const std::string& name) {
+template <typename Type>
+osquery::Status getProbeEventField(Type& value,
+                                   const ProbeEvent& probe_event,
+                                   const std::string& name) {
   auto field_var_it = probe_event.field_list.find(name);
   if (field_var_it == probe_event.field_list.end()) {
     return osquery::Status::failure("The following parameter is missing: " +
                                     name);
   }
 
-  const auto& field_var = field_var_it->second;
-  value = boost::get<IntegerType>(field_var);
+  try {
+    const auto& field_var = field_var_it->second;
+    value = boost::get<Type>(field_var);
+
+  } catch (...) {
+    return osquery::Status::failure("Invalid probe event field type");
+  }
 
   return osquery::Status(0);
 }

@@ -163,13 +163,11 @@ osquery::Status FileDescriptorTracker::processCloseSyscallEvent(
     return osquery::Status::failure("Invalid system call");
   }
 
-  auto fd_var_it = probe_event.field_list.find("fd");
-  if (fd_var_it == probe_event.field_list.end()) {
-    return osquery::Status::failure("The fd parameter is missing");
+  std::int64_t fd = 0;
+  auto status = getProbeEventField(fd, probe_event, "fd");
+  if (!status.ok()) {
+    return status;
   }
-
-  const auto& fd_var = fd_var_it->second;
-  auto fd = boost::get<std::int64_t>(fd_var);
 
   auto& fd_table = getFileDescriptorTable(probe_event.tgid, context);
 
@@ -188,14 +186,18 @@ osquery::Status FileDescriptorTracker::processFcntlSyscallEvent(
     return osquery::Status::failure("Invalid system call");
   }
 
-  // Get the file descriptor
-  auto fd_var_it = probe_event.field_list.find("fd");
-  if (fd_var_it == probe_event.field_list.end()) {
-    return osquery::Status::failure("The fd parameter is missing");
-  }
+  // Get the file descriptor (fcntl uses an unsigned integer!)
+  std::int64_t fd = 0;
 
-  const auto& fd_var = fd_var_it->second;
-  auto fd = boost::get<std::uint64_t>(fd_var);
+  {
+    std::uint64_t temp_fd = 0;
+    auto status = getProbeEventField(temp_fd, probe_event, "fd");
+    if (!status.ok()) {
+      return status;
+    }
+
+    fd = static_cast<std::int64_t>(temp_fd);
+  }
 
   auto& fd_table = getFileDescriptorTable(probe_event.tgid, context);
 
@@ -204,23 +206,17 @@ osquery::Status FileDescriptorTracker::processFcntlSyscallEvent(
     return osquery::Status::failure("Unknown file descriptor");
   }
 
-  // Get the command
-  auto cmd_var_it = probe_event.field_list.find("cmd");
-  if (cmd_var_it == probe_event.field_list.end()) {
-    return osquery::Status::failure("The cmd parameter is missing");
+  std::uint64_t cmd = 0;
+  auto status = getProbeEventField(cmd, probe_event, "cmd");
+  if (!status.ok()) {
+    return status;
   }
 
-  const auto& cmd_var = cmd_var_it->second;
-  auto cmd = boost::get<std::uint64_t>(cmd_var);
-
-  // Get the arg value
-  auto arg_var_it = probe_event.field_list.find("arg");
-  if (arg_var_it == probe_event.field_list.end()) {
-    return osquery::Status::failure("The arg parameter is missing");
+  std::uint64_t arg = 0;
+  status = getProbeEventField(arg, probe_event, "arg");
+  if (!status.ok()) {
+    return status;
   }
-
-  const auto& arg_var = arg_var_it->second;
-  auto arg = boost::get<std::uint64_t>(arg_var);
 
   // Actually handle the cmd operation
   auto& fd_information = fd_it->second;
@@ -291,10 +287,10 @@ osquery::Status FileDescriptorTracker::processDupSyscallEvent(
 
   osquery::Status status;
   if (probe_event.function_identifier == __NR_dup) {
-    status = getProbeEventIntegerField(fd, probe_event, "fildes");
+    status = getProbeEventField(fd, probe_event, "fildes");
   } else {
     std::uint64_t temp_fd = 0U;
-    status = getProbeEventIntegerField(temp_fd, probe_event, "oldfd");
+    status = getProbeEventField(temp_fd, probe_event, "oldfd");
     fd = static_cast<std::int64_t>(temp_fd);
   }
 
@@ -316,7 +312,7 @@ osquery::Status FileDescriptorTracker::processDupSyscallEvent(
   if (probe_event.function_identifier == __NR_dup2 ||
       probe_event.function_identifier == __NR_dup3) {
     std::int64_t newfd = 0;
-    auto status = getProbeEventIntegerField(newfd, probe_event, "newfd");
+    status = getProbeEventField(newfd, probe_event, "newfd");
     if (!status.ok()) {
       return status;
     }
@@ -329,7 +325,7 @@ osquery::Status FileDescriptorTracker::processDupSyscallEvent(
 
   if (probe_event.function_identifier == __NR_dup3) {
     std::int64_t fd_flags = 0;
-    auto status = getProbeEventIntegerField(fd_flags, probe_event, "flags");
+    status = getProbeEventField(fd_flags, probe_event, "flags");
     if (!status.ok()) {
       return status;
     }
@@ -387,13 +383,13 @@ osquery::Status FileDescriptorTracker::processSocketSyscallEvent(
   }
 
   std::int64_t family = 0;
-  auto status = getProbeEventIntegerField(family, probe_event, "family");
+  auto status = getProbeEventField(family, probe_event, "family");
   if (!status.ok()) {
     return status;
   }
 
   std::int64_t type = 0;
-  status = getProbeEventIntegerField(type, probe_event, "type");
+  status = getProbeEventField(type, probe_event, "type");
 
   bool close_on_exec = (type & SOCK_CLOEXEC) != 0;
   bool non_blocking = (type & SOCK_NONBLOCK) != 0;
@@ -404,7 +400,7 @@ osquery::Status FileDescriptorTracker::processSocketSyscallEvent(
   }
 
   std::int64_t protocol = 0;
-  status = getProbeEventIntegerField(protocol, probe_event, "protocol");
+  status = getProbeEventField(protocol, probe_event, "protocol");
   if (!status.ok()) {
     return status;
   }
@@ -440,7 +436,7 @@ osquery::Status FileDescriptorTracker::processForkSyscallEvent(
   }
 
   std::int64_t host_pid = 0;
-  auto status = getProbeEventIntegerField(host_pid, probe_event, "host_pid");
+  auto status = getProbeEventField(host_pid, probe_event, "host_pid");
   if (!status.ok()) {
     return status;
   }

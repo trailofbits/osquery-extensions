@@ -192,9 +192,8 @@ std::string getAddressFromSockaddr(const struct sockaddr_in6& sockaddr) {
       buffer << ":";
     }
 
-    buffer << std::setfill('0') << std::setw(2)
-           << static_cast<std::uint8_t>(
-                  sockaddr.sin6_addr.__in6_u.__u6_addr8[i]);
+    buffer << std::setfill('0') << std::setw(2) << std::hex
+           << static_cast<int>(sockaddr.sin6_addr.__in6_u.__u6_addr8[i]);
   }
 
   return buffer.str();
@@ -330,53 +329,44 @@ osquery::Status SocketEventsSubscriber::callback(
     row["gid"] = std::to_string(event.gid);
     row["event"] = getSystemCallName(event.function_identifier);
 
-    auto docker_container_id_var_it =
-        event.field_list.find("docker_container_id");
-    if (docker_container_id_var_it != event.field_list.end()) {
-      const auto& docker_container_id_var = docker_container_id_var_it->second;
-      const auto& docker_container_id =
-          boost::get<std::string>(docker_container_id_var);
-      row["docker_container_id"] = docker_container_id;
-    } else {
+    std::string docker_container_id = {};
+    auto status =
+        getProbeEventField(docker_container_id, event, "docker_container_id");
+    if (!status.ok()) {
       row["docker_container_id"] = "";
+    } else {
+      row["docker_container_id"] = docker_container_id;
     }
 
     std::string exit_code = {};
-
     if (event.exit_code) {
       exit_code = std::to_string(event.exit_code.get());
     }
 
     row["exit_code"] = exit_code;
 
-    auto protocol_var_it = event.field_list.find("protocol");
-    if (protocol_var_it != event.field_list.end()) {
-      const auto& protocol_var = protocol_var_it->second;
-      auto protocol = boost::get<std::int64_t>(protocol_var);
-
-      row["protocol"] = getProtocolName(protocol);
-    } else {
+    std::int64_t protocol = 0;
+    status = getProbeEventField(protocol, event, "protocol");
+    if (!status.ok()) {
       row["protocol"] = "";
+    } else {
+      row["protocol"] = getProtocolName(protocol);
     }
 
-    auto type_var_it = event.field_list.find("type");
-    if (type_var_it != event.field_list.end()) {
-      const auto& type_var = type_var_it->second;
-      auto type = boost::get<std::int64_t>(type_var);
-
-      row["type"] = getSocketTypeName(type);
-    } else {
+    std::int64_t type = 0;
+    status = getProbeEventField(type, event, "type");
+    if (!status.ok()) {
       row["type"] = "";
+    } else {
+      row["type"] = getSocketTypeName(type);
     }
 
-    auto blocking_var_it = event.field_list.find("blocking");
-    if (blocking_var_it != event.field_list.end()) {
-      const auto& blocking_var = blocking_var_it->second;
-      auto blocking = boost::get<std::int64_t>(blocking_var);
-
-      row["blocking"] = blocking == 0 ? "false" : "true";
-    } else {
+    std::int64_t blocking = 0;
+    status = getProbeEventField(blocking, event, "blocking");
+    if (!status.ok()) {
       row["blocking"] = "";
+    } else {
+      row["blocking"] = blocking == 0 ? "false" : "true";
     }
 
     std::string sockaddr_field_name;
@@ -395,21 +385,23 @@ osquery::Status SocketEventsSubscriber::callback(
     }
 
     std::vector<std::uint8_t> sockaddr_data = {};
-
-    auto sockaddr_data_var_it = event.field_list.find(sockaddr_field_name);
-    if (sockaddr_data_var_it != event.field_list.end()) {
-      const auto& sockaddr_data_var = sockaddr_data_var_it->second;
-      sockaddr_data = boost::get<std::vector<std::uint8_t>>(sockaddr_data_var);
+    status = getProbeEventField(sockaddr_data, event, sockaddr_field_name);
+    if (!status.ok()) {
+      LOG(ERROR) << status.getMessage();
+      continue;
     }
 
     std::size_t addrlen = 0U;
 
-    auto addrlen_var_it = event.field_list.find("addrlen");
-    if (addrlen_var_it != event.field_list.end()) {
-      const auto& addrlen_var = addrlen_var_it->second;
+    {
+      std::int64_t temp_addrlen = {};
+      status = getProbeEventField(temp_addrlen, event, "addrlen");
+      if (!status.ok()) {
+        LOG(ERROR) << status.getMessage();
+        continue;
+      }
 
-      auto temp = boost::get<std::int64_t>(addrlen_var);
-      addrlen = static_cast<std::size_t>(temp);
+      addrlen = static_cast<std::size_t>(temp_addrlen);
     }
 
     if (addrlen > sockaddr_data.size()) {
@@ -421,7 +413,7 @@ osquery::Status SocketEventsSubscriber::callback(
     int protocol_family = 0;
     std::uint16_t port = 0;
 
-    auto status = getAddressFromRawSockaddr(
+    status = getAddressFromRawSockaddr(
         address, protocol_family, port, sockaddr_data, addrlen);
     if (!status.ok()) {
       VLOG(1) << status.getMessage();
