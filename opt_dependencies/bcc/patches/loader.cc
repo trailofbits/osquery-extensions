@@ -17,7 +17,7 @@
 #include "parser.h"
 #include "type_check.h"
 #include "codegen_llvm.h"
-#include "loader.h"
+#include "../src/src/cc/frontends/b/loader.h"
 
 using std::string;
 using std::unique_ptr;
