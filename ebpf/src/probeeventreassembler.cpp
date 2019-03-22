@@ -23,23 +23,13 @@ namespace trailofbits {
 namespace {
 bool isKnownFunction(std::uint64_t function_identifier) {
   switch (function_identifier) {
-  case __NR_close:
-  case __NR_dup:
-  case __NR_dup2:
-  case __NR_dup3:
   case __NR_execve:
   case __NR_execveat:
-  case __NR_socket:
-  case __NR_bind:
-  case __NR_connect:
+    return true;
+
   case KPROBE_FORK_CALL:
   case KPROBE_VFORK_CALL:
   case KPROBE_CLONE_CALL:
-  case __NR_exit:
-  case __NR_exit_group:
-  case __NR_fcntl:
-    return true;
-
   case KPROBE_PIDVNR_CALL:
     return true;
 
@@ -50,10 +40,6 @@ bool isKnownFunction(std::uint64_t function_identifier) {
 
 bool isEntryOnlyFunction(std::uint64_t function_identifier) {
   switch (function_identifier) {
-  case __NR_exit:
-  case __NR_exit_group:
-    return true;
-
   case KPROBE_PIDVNR_CALL:
     return true;
 
@@ -67,7 +53,12 @@ struct ProbeEventReassembler::PrivateData final {
   ProbeEventReassemblerContext context;
 };
 
-ProbeEventReassembler::ProbeEventReassembler() : d(new PrivateData) {}
+ProbeEventReassembler::ProbeEventReassembler() : d(new PrivateData) {
+  auto status = DockerTracker::create(d->context.docker_tracker);
+  if (!status.ok()) {
+    throw status;
+  }
+}
 
 osquery::Status ProbeEventReassembler::create(ProbeEventReassemblerRef& obj) {
   try {
@@ -155,7 +146,8 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
       auto error_message =
           std::string("failed to locate the enter event for function #") +
           std::to_string(probe_event.function_identifier) + " at timestamp " +
-          std::to_string(probe_event.timestamp);
+          std::to_string(probe_event.timestamp) + " for process ID " +
+          std::to_string(probe_event.tgid);
       return osquery::Status::failure(error_message);
     }
 
@@ -165,9 +157,9 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
     // Skip thread creation events
     bool thread_creation_event = false;
 
-    if (enter_event.function_identifier == __NR_clone) {
+    if (enter_event.function_identifier == KPROBE_CLONE_CALL) {
       std::int64_t clone_flags = {};
-      auto status = getProbeEventField(clone_flags, probe_event, "clone_flags");
+      auto status = getProbeEventField(clone_flags, enter_event, "clone_flags");
       if (!status.ok()) {
         return status;
       }
@@ -186,6 +178,7 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
       enter_event.field_list.insert({field.first, field.second});
     }
 
+    context.docker_tracker->processProbeEvent(enter_event);
     processed_probe_event_list.push_back(enter_event);
 
     // Process forks (fork, vfork, clone)
@@ -193,7 +186,7 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
         enter_event.function_identifier == KPROBE_VFORK_CALL ||
         enter_event.function_identifier == KPROBE_CLONE_CALL) {
       std::int64_t host_pid = {};
-      auto status = getProbeEventField(host_pid, probe_event, "host_pid");
+      auto status = getProbeEventField(host_pid, enter_event, "host_pid");
       if (!status.ok()) {
         return status;
       }
@@ -222,13 +215,9 @@ osquery::Status ProbeEventReassembler::processProbeEvent(
       // Events that have no exit data can be emitted as they are; the other
       // ones are saved for later
       if (isEntryOnlyFunction(probe_event.function_identifier)) {
-        processed_probe_event_list.push_back(probe_event);
-
-        // Process exits will just drop the contexts we no longer need.
-        if (probe_event.function_identifier == __NR_exit ||
-            probe_event.function_identifier == __NR_exit_group) {
-          context.process_context_map.erase(process_context_it);
-        }
+        auto probe_event_copy = probe_event;
+        context.docker_tracker->processProbeEvent(probe_event_copy);
+        processed_probe_event_list.push_back(probe_event_copy);
 
       } else {
         thread_context.insert({probe_event.function_identifier, probe_event});

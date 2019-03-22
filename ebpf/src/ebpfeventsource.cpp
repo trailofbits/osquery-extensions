@@ -16,9 +16,7 @@
 
 #include "ebpfeventsource.h"
 #include "bcc_probe_generator.h"
-#include "dockertracker.h"
 #include "ebpfprobepollservice.h"
-#include "filedescriptortracker.h"
 #include "probeeventreassembler.h"
 
 #include <bcc_probe_kprobe_group.h>
@@ -31,59 +29,6 @@ namespace {
 // Missing: socketpair, accept, accept4
 // clang-format off
 const ManagedTracepointProbeList kManagedProbeDescriptorList = {
-  {
-    "close_events", 0U, 0U,
-
-    {
-      {
-        "sys_enter_close",
-        true,
-        {
-          { ProbeParameter::Type::SignedInteger, "fd" }
-        }
-      },
-
-      { "sys_exit_close", false, {} },
-    }
-  },
-
-  {
-    "dup_events", 0U, 0U,
-
-    {
-      {
-        "sys_enter_dup",
-        true,
-        {
-          { ProbeParameter::Type::SignedInteger, "fildes" }
-        }
-      },
-
-      {
-        "sys_enter_dup2",
-        true,
-        {
-          { ProbeParameter::Type::UnsignedInteger, "oldfd" },
-          { ProbeParameter::Type::UnsignedInteger, "newfd" }
-        }
-      },
-
-      {
-        "sys_enter_dup3",
-        true,
-        {
-          { ProbeParameter::Type::UnsignedInteger, "oldfd" },
-          { ProbeParameter::Type::UnsignedInteger, "newfd" },
-          { ProbeParameter::Type::SignedInteger, "flags" }
-        }
-      },
-
-      { "sys_exit_dup", false, {} },
-      { "sys_exit_dup2", false, {} },
-      { "sys_exit_dup3", false, {} }
-    }
-  },
-
   {
     "execve_events", 160U, 10U,
 
@@ -117,83 +62,6 @@ const ManagedTracepointProbeList kManagedProbeDescriptorList = {
       },
 
       { "sys_exit_execveat", false, {} }
-    }
-  },
-
-  {
-    "exit_events", 0U, 0U,
-
-    {
-      { "sys_enter_exit",
-        true,
-        {
-          { ProbeParameter::Type::SignedInteger, "error_code" }
-        }
-      },
-
-      { "sys_enter_exit_group",
-        true,
-        {
-          { ProbeParameter::Type::SignedInteger, "error_code" }
-        }
-      },
-    }
-  },
-
-  {
-    "fcntl_events", 0U, 0U,
-
-    {
-      { "sys_enter_fcntl",
-        true,
-        {
-          { ProbeParameter::Type::UnsignedInteger, "fd" },
-          { ProbeParameter::Type::UnsignedInteger, "cmd" },
-          { ProbeParameter::Type::UnsignedInteger, "arg" }
-        }
-      },
-
-      { "sys_exit_fcntl", false, {} }
-    }
-  },
-
-  {
-    "socket_events", 160U, 0U,
-
-    {
-      {
-        "sys_enter_socket",
-        true,
-        {
-          { ProbeParameter::Type::SignedInteger, "family" },
-          { ProbeParameter::Type::SignedInteger, "type" },
-          { ProbeParameter::Type::SignedInteger, "protocol" }
-        }
-      },
-
-      {
-        "sys_enter_bind",
-        true,
-        {
-          { ProbeParameter::Type::SignedInteger, "fd" },
-          { ProbeParameter::Type::ByteArray, "umyaddr"},
-          { ProbeParameter::Type::SignedInteger, "addrlen" }
-        }
-      },
-
-      {
-        "sys_enter_connect",
-        true,
-        {
-          { ProbeParameter::Type::SignedInteger, "fd" },
-          { ProbeParameter::Type::ByteArray, "uservaddr" },
-          { ProbeParameter::Type::SignedInteger, "addrlen" }
-        }
-      },
-
-      { "sys_exit_socket", false, {} },
-      { "sys_exit_bind", false, {} },
-      { "sys_exit_connect", false, {} }
     }
   }
 };
@@ -246,8 +114,6 @@ struct eBPFEventSource::PrivateData final {
   std::vector<ProbeReaderServiceRef> reader_service_list;
 
   ProbeEventReassemblerRef event_reassembler;
-  FileDescriptorTrackerRef file_descriptor_tracker;
-  DockerTrackerRef docker_tracker;
 };
 
 eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
@@ -320,16 +186,6 @@ eBPFEventSource::eBPFEventSource() : d(new PrivateData) {
   if (!status.ok()) {
     throw status;
   }
-
-  status = FileDescriptorTracker::create(d->file_descriptor_tracker);
-  if (!status.ok()) {
-    throw status;
-  }
-
-  status = DockerTracker::create(d->docker_tracker);
-  if (!status.ok()) {
-    throw status;
-  }
 }
 
 osquery::Status eBPFEventSource::create(eBPFEventSourceRef& object) {
@@ -388,88 +244,8 @@ ProbeEventList eBPFEventSource::getEvents() {
     }
   }
 
-  bool ebpf_debug = false;
-  for (auto& probe_event : processed_event_list) {
-    auto status = d->file_descriptor_tracker->processProbeEvent(probe_event);
-    if (!status.ok() && ebpf_debug) {
-      VLOG(1) << "An error has occurred while the reassembled events were "
-                 "being processed: "
-              << status.getMessage();
-    }
-
-    status = d->docker_tracker->processProbeEvent(probe_event);
-    if (!status.ok()) {
-      VLOG(1) << "An error has occurred while the reassembled events were "
-                 "being processed: "
-              << status.getMessage();
-    }
-
-    status = attachSocketInformation(probe_event);
-    if (!status.ok()) {
-      VLOG(1) << status.getMessage();
-    }
-
-    status = attachDockerInformation(probe_event);
-    if (!status.ok()) {
-      VLOG(1) << status.getMessage();
-    }
-  }
-
   return processed_event_list;
 }
 
 eBPFEventSource::~eBPFEventSource() {}
-
-osquery::Status eBPFEventSource::attachSocketInformation(
-    ProbeEvent& probe_event) {
-  if (probe_event.function_identifier != __NR_connect &&
-      probe_event.function_identifier != __NR_bind) {
-    return osquery::Status(0);
-  }
-
-  std::int64_t fd;
-  auto status = getProbeEventField(fd, probe_event, "fd");
-  if (!status.ok()) {
-    return status;
-  }
-
-  FileDescriptorInformation file_desc_info;
-  if (!d->file_descriptor_tracker->queryFileDescriptorInformation(
-          file_desc_info, probe_event.tgid, fd)) {
-    return osquery::Status(0);
-  }
-
-  if (file_desc_info.type != FileDescriptorInformation::Type::Socket) {
-    return osquery::Status::failure("The `fd` parameter is not a socket");
-  }
-
-  const auto& socket_data =
-      boost::get<FileDescriptorInformation::SocketData>(file_desc_info.data);
-
-  auto protocol = static_cast<std::int64_t>(socket_data.protocol);
-  probe_event.field_list.insert({"protocol", protocol});
-
-  auto socket_type = static_cast<std::int64_t>(socket_data.type);
-  probe_event.field_list.insert({"type", socket_type});
-
-  if (file_desc_info.status_flags_ref) {
-    std::int64_t blocking =
-        (file_desc_info.status_flags_ref->flags & O_NONBLOCK) == 0 ? 1 : 0;
-    probe_event.field_list.insert({"blocking", blocking});
-  }
-
-  return osquery::Status(0);
-}
-
-osquery::Status eBPFEventSource::attachDockerInformation(
-    ProbeEvent& probe_event) {
-  std::string container_id;
-  if (!d->docker_tracker->queryProcessInformation(container_id,
-                                                  probe_event.tgid)) {
-    return osquery::Status(0);
-  }
-
-  probe_event.field_list.insert({"docker_container_id", container_id});
-  return osquery::Status(0);
-}
 } // namespace trailofbits

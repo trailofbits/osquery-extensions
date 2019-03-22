@@ -40,9 +40,5 @@ class eBPFEventSource final {
 
   eBPFEventSource(const eBPFEventSource&) = delete;
   eBPFEventSource& operator=(const eBPFEventSource&) = delete;
-
- private:
-  osquery::Status attachSocketInformation(ProbeEvent& probe_event);
-  osquery::Status attachDockerInformation(ProbeEvent& probe_event);
 };
 } // namespace trailofbits

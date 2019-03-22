@@ -66,14 +66,17 @@ osquery::Status DockerTracker::create(DockerTrackerRef& object) {
 
 DockerTracker::~DockerTracker() {}
 
-osquery::Status DockerTracker::processProbeEvent(
-    const ProbeEvent& probe_event) {
-  return processProbeEvent(d->context, probe_event);
+void DockerTracker::processProbeEvent(ProbeEvent& probe_event) {
+  processProbeEvent(d->context, probe_event);
 }
 
 bool DockerTracker::queryProcessInformation(std::string& container_id,
                                             pid_t process_id) {
   return queryProcessInformation(container_id, d->context, process_id);
+}
+
+void DockerTracker::cleanupContext() {
+  cleanupContext(d->context);
 }
 
 DockerTracker::Error DockerTracker::processContainerShimExecEvent(
@@ -145,93 +148,78 @@ DockerTracker::Error DockerTracker::processContainerShimExecEvent(
   }
 
   container_instance.id = container_id;
+  container_instance.shim_pid = probe_event.tgid;
+
   return Error::Success;
 }
 
-osquery::Status DockerTracker::processProbeEvent(
-    DockerTrackerContext& context, const ProbeEvent& probe_event) {
+void DockerTracker::processProbeEvent(DockerTrackerContext& context,
+                                      ProbeEvent& probe_event) {
   switch (probe_event.function_identifier) {
   case KPROBE_FORK_CALL:
   case KPROBE_VFORK_CALL:
   case KPROBE_CLONE_CALL: {
-    auto docker_container_it =
-        context.process_id_to_container_map.find(probe_event.tgid);
+    std::string container_id;
 
-    if (docker_container_it == context.process_id_to_container_map.end()) {
-      return osquery::Status(0);
+    for (auto event_pid : {probe_event.parent_tgid, probe_event.tgid}) {
+      auto docker_container_it =
+          context.process_id_to_container_map.find(event_pid);
+
+      if (docker_container_it != context.process_id_to_container_map.end()) {
+        container_id = docker_container_it->second;
+        break;
+      }
     }
 
-    const auto& container_id = docker_container_it->second;
+    if (!container_id.empty()) {
+      std::int64_t host_pid = 0;
+      auto status = getProbeEventField(host_pid, probe_event, "host_pid");
+      if (!status.ok()) {
+        VLOG(1) << status.getMessage();
 
-    std::int64_t host_pid = 0;
-    auto status = getProbeEventField(host_pid, probe_event, "host_pid");
-    if (!status.ok()) {
-      return status;
+      } else {
+        context.process_id_to_container_map.insert({host_pid, container_id});
+        context.container_to_pid_list_map[container_id].insert(host_pid);
+      }
     }
 
-    context.process_id_to_container_map.insert({host_pid, container_id});
-    context.container_to_pid_list_map[container_id].insert(host_pid);
-
-    return osquery::Status(0);
+    break;
   }
 
   case __NR_execve:
   case __NR_execveat: {
     DockerContainerInstance container_instance;
+
     auto error = processContainerShimExecEvent(container_instance, probe_event);
-    if (error == Error::Skipped) {
-      return osquery::Status(0);
+    if (error == Error::Success) {
+      auto container_id = container_instance.id;
 
-    } else if (error != Error::Success) {
-      return osquery::Status::failure(getDockerTrackerErrorDescription(error));
+      context.docker_container_list.insert({container_id, container_instance});
+      context.container_to_pid_list_map[container_id].insert(probe_event.tgid);
+      context.process_id_to_container_map.insert(
+          {probe_event.tgid, container_id});
+
+    } else if (error != Error::Skipped) {
+      VLOG(1) << getDockerTrackerErrorDescription(error);
     }
 
-    auto container_id = container_instance.id;
-    context.docker_container_list.insert(
-        {container_id, std::move(container_instance)});
-
-    context.container_to_pid_list_map[container_id].insert(probe_event.tgid);
-
-    context.process_id_to_container_map.insert(
-        {probe_event.tgid, std::move(container_id)});
-
-    return osquery::Status(0);
-  }
-
-  case __NR_exit:
-  case __NR_exit_group: {
-    auto docker_container_it =
-        context.process_id_to_container_map.find(probe_event.tgid);
-
-    if (docker_container_it == context.process_id_to_container_map.end()) {
-      return osquery::Status(0);
-    }
-
-    const auto& container_id = docker_container_it->second;
-    context.process_id_to_container_map.erase(docker_container_it);
-
-    auto pid_list_it = context.container_to_pid_list_map.find(container_id);
-    if (pid_list_it == context.container_to_pid_list_map.end()) {
-      return osquery::Status::failure(
-          "Failed to locate the container pid list");
-    }
-
-    auto& pid_list = pid_list_it->second;
-    pid_list.erase(probe_event.tgid);
-
-    if (pid_list.empty()) {
-      context.container_to_pid_list_map.erase(container_id);
-      context.docker_container_list.erase(container_id);
-    }
-
-    return osquery::Status(0);
+    break;
   }
 
   default:
     break;
   }
 
-  return osquery::Status(0);
+  for (auto event_pid : {probe_event.parent_tgid, probe_event.tgid}) {
+    std::string container_id = {};
+
+    if (queryProcessInformation(container_id, context, event_pid)) {
+      probe_event.field_list.insert({"docker_container_id", container_id});
+      break;
+    }
+  }
+
+  cleanupContext(context);
 }
 
 bool DockerTracker::queryProcessInformation(std::string& container_id,
@@ -246,5 +234,35 @@ bool DockerTracker::queryProcessInformation(std::string& container_id,
 
   container_id = it->second;
   return true;
+}
+
+void DockerTracker::cleanupContext(DockerTrackerContext& context) {
+  static const std::string kProcPath{"/proc/"};
+
+  for (auto container_it = context.docker_container_list.begin();
+       container_it != context.docker_container_list.end();) {
+    const auto& container_info = container_it->second;
+    auto path = kProcPath + std::to_string(container_info.shim_pid);
+
+    struct stat dir_stat = {};
+    if (stat(path.c_str(), &dir_stat) == 0 && S_ISDIR(dir_stat.st_mode)) {
+      ++container_it;
+      continue;
+    }
+
+    auto pid_list_it =
+        context.container_to_pid_list_map.find(container_info.id);
+    if (pid_list_it != context.container_to_pid_list_map.end()) {
+      auto pid_list = pid_list_it->second;
+      context.container_to_pid_list_map.erase(pid_list_it);
+
+      for (auto pid : pid_list) {
+        context.process_id_to_container_map.erase(pid);
+      }
+    }
+
+    LOG(ERROR) << "removed container with id " << container_info.id;
+    container_it = context.docker_container_list.erase(container_it);
+  }
 }
 } // namespace trailofbits

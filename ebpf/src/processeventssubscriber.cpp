@@ -27,9 +27,7 @@ const std::unordered_map<std::uint64_t, std::string> kSyscallNameTable = {
   { __NR_execveat, "execveat" },
   { KPROBE_FORK_CALL, "fork" },
   { KPROBE_VFORK_CALL, "vfork" },
-  { KPROBE_CLONE_CALL, "clone" },
-  { __NR_exit, "exit" },
-  { __NR_exit_group, "exit_group" }
+  { KPROBE_CLONE_CALL, "clone" }
 };
 // clang-format on
 
@@ -97,8 +95,6 @@ osquery::Status ProcessEventsSubscriber::configure(
   subscription_context->system_call_filter.insert(KPROBE_FORK_CALL);
   subscription_context->system_call_filter.insert(KPROBE_VFORK_CALL);
   subscription_context->system_call_filter.insert(KPROBE_CLONE_CALL);
-  subscription_context->system_call_filter.insert(__NR_exit);
-  subscription_context->system_call_filter.insert(__NR_exit_group);
 
   return osquery::Status(0);
 }
@@ -122,6 +118,7 @@ osquery::Status ProcessEventsSubscriber::callback(
     std::string docker_container_id = {};
     auto status =
         getProbeEventField(docker_container_id, event, "docker_container_id");
+
     if (!status.ok()) {
       row["docker_container_id"] = "";
     } else {
@@ -129,7 +126,6 @@ osquery::Status ProcessEventsSubscriber::callback(
     }
 
     std::string exit_code = {};
-
     if (event.exit_code) {
       exit_code = std::to_string(event.exit_code.get());
     }
@@ -173,6 +169,8 @@ osquery::Status ProcessEventsSubscriber::callback(
         if (argv.truncated) {
           buffer << ", ...";
         }
+
+        row["argv"] = buffer.str();
       }
     }
 

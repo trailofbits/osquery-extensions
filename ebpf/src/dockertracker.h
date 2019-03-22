@@ -31,6 +31,7 @@ using PidList = std::set<pid_t>;
 
 struct DockerContainerInstance final {
   ContainerID id;
+  pid_t shim_pid{0};
 };
 
 struct DockerTrackerContext final {
@@ -53,8 +54,9 @@ class DockerTracker final {
   static osquery::Status create(DockerTrackerRef& object);
   ~DockerTracker();
 
-  osquery::Status processProbeEvent(const ProbeEvent& probe_event);
+  void processProbeEvent(ProbeEvent& probe_event);
   bool queryProcessInformation(std::string& container_id, pid_t process_id);
+  void cleanupContext();
 
   enum class Error { Success, Skipped, InvalidEvent, BrokenEvent };
 
@@ -62,12 +64,14 @@ class DockerTracker final {
       DockerContainerInstance& container_instance,
       const ProbeEvent& probe_event);
 
-  static osquery::Status processProbeEvent(DockerTrackerContext& context,
-                                           const ProbeEvent& probe_event);
+  static void processProbeEvent(DockerTrackerContext& context,
+                                ProbeEvent& probe_event);
 
   static bool queryProcessInformation(std::string& container_id,
                                       const DockerTrackerContext& context,
                                       pid_t process_id);
+
+  static void cleanupContext(DockerTrackerContext& context);
 
   DockerTracker(const DockerTracker&) = delete;
   DockerTracker& operator=(const DockerTracker&) = delete;

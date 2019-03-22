@@ -28,6 +28,7 @@ namespace trailofbits {
 struct ProcessEventsPublisher::PrivateData final {
   eBPFEventSourceRef event_source;
   ProbeEventList event_list;
+  bool emit_fork_events{false};
 };
 
 ProcessEventsPublisher::ProcessEventsPublisher() : d(new PrivateData) {
@@ -61,7 +62,29 @@ osquery::Status ProcessEventsPublisher::release() noexcept {
 }
 
 osquery::Status ProcessEventsPublisher::onConfigurationChangeStart(
-    const json11::Json&) noexcept {
+    const json11::Json& configuration) noexcept {
+  if (!configuration.is_object()) {
+    return osquery::Status::failure("Invalid configuration");
+  }
+
+  const auto& emit_fork_events_obj = configuration["emit_fork_events"];
+  if (emit_fork_events_obj == json11::Json()) {
+    VLOG(1) << "The 'emit_fork_events' configuration setting is missing. "
+               "Setting to false";
+    d->emit_fork_events = false;
+
+  } else {
+    if (emit_fork_events_obj.is_bool()) {
+      d->emit_fork_events = emit_fork_events_obj.bool_value();
+
+    } else {
+      VLOG(1) << "The 'emit_fork_events' value is not a bool. Setting to false";
+      d->emit_fork_events = false;
+    }
+  }
+
+  LOG(INFO) << "Fork events are now "
+            << (d->emit_fork_events ? "shown" : "omitted");
   return osquery::Status(0);
 }
 
@@ -90,6 +113,14 @@ osquery::Status ProcessEventsPublisher::updateSubscriber(
   }
 
   for (const auto& event : d->event_list) {
+    bool is_fork_event = (event.function_identifier == KPROBE_FORK_CALL ||
+                          event.function_identifier == KPROBE_VFORK_CALL ||
+                          event.function_identifier == KPROBE_CLONE_CALL);
+
+    if (is_fork_event && !d->emit_fork_events) {
+      continue;
+    }
+
     if (subscription_context->system_call_filter.count(
             event.function_identifier) == 0U) {
       continue;

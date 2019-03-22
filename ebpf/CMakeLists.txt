@@ -43,14 +43,8 @@ function(ebpfMain)
     src/processeventssubscriber.h
     src/processeventssubscriber.cpp
 
-    src/socketeventssubscriber.h
-    src/socketeventssubscriber.cpp
-
     src/probeeventreassembler.h
     src/probeeventreassembler.cpp
-
-    src/filedescriptortracker.h
-    src/filedescriptortracker.cpp
 
     src/dockertracker.h
     src/dockertracker.cpp

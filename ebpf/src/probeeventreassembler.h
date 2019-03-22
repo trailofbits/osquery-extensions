@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "dockertracker.h"
 #include "probereaderservice.h"
 
 #include <unordered_map>
@@ -35,6 +36,7 @@ using ProcessContextMap = std::unordered_map<ProcessID, ProcessContext>;
 
 struct ProbeEventReassemblerContext final {
   ProcessContextMap process_context_map;
+  DockerTrackerRef docker_tracker;
 };
 
 class ProbeEventReassembler;
