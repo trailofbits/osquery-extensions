@@ -18,8 +18,8 @@
 
 #include <memory>
 
-#include <osquery/sdk.h>
-#include <osquery/status.h>
+#include <osquery/sdk/sdk.h>
+#include <osquery/extensions.h>
 
 namespace trailofbits {
 /// An event batch is just a list of rows that will get returned to osquery

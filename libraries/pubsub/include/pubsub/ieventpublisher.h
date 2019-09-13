@@ -18,7 +18,7 @@
 
 #include "ieventsubscriber.h"
 
-#include <osquery/status.h>
+#include <osquery/extensions.h>
 
 #include <memory>
 

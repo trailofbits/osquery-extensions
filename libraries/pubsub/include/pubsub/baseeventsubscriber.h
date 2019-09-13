@@ -19,7 +19,7 @@
 #include "baseeventsubscriber.h"
 #include "ieventsubscriber.h"
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 namespace trailofbits {
 /// Event subscribers use this as a base class

@@ -20,8 +20,8 @@
 #include <memory>
 #include <thread>
 
-#include <osquery/sdk.h>
-#include <osquery/status.h>
+#include <osquery/sdk/sdk.h>
+#include <osquery/extensions.h>
 
 namespace trailofbits {
 class IService;
