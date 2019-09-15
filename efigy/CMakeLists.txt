@@ -30,11 +30,11 @@ function(main)
     ${CURL_INCLUDE_DIR}
   )
 
-  set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")  
-  find_package(openssl REQUIRED)
-  list(APPEND project_libraries
-    ${OPENSSL_LIBRARIES}
-  )
+  # set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+  # find_package(openssl REQUIRED)
+  # list(APPEND project_libraries
+  #   ${OPENSSL_LIBRARIES}
+  # )
 
   list(APPEND project_include_folders
     ${OPENSSL_INCLUDE_DIR}
