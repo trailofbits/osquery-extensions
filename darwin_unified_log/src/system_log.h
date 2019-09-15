@@ -28,7 +28,11 @@
 #include <boost/process.hpp>
 #include <boost/asio.hpp>
 
+#ifdef OSQUERY_VERSION_3_3_2
 #include <osquery/sdk.h>
+#else
+#include <osquery/sdk/sdk.h>
+#endif
 
 #include <iostream>
 

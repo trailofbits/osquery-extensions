@@ -16,7 +16,11 @@
 
 #pragma once
 
+#ifdef OSQUERY_VERSION_3_3_2
 #include <osquery/sdk.h>
+#else
+#include <osquery/sdk/sdk.h>
+#endif
 
 #include "santa.h"
 
@@ -24,12 +28,22 @@ class SantaAllowedDecisionsTablePlugin final : public osquery::TablePlugin {
  private:
   static const SantaDecisionType decision = kAllowed;
   osquery::TableColumns columns() const override;
+
+#ifdef OSQUERY_VERSION_3_3_2
   osquery::QueryData generate(osquery::QueryContext& request) override;
+#else
+  osquery::TableRows generate(osquery::QueryContext& request) override;
+#endif
 };
 
 class SantaDeniedDecisionsTablePlugin final : public osquery::TablePlugin {
  private:
   static const SantaDecisionType decision = kDenied;
   osquery::TableColumns columns() const override;
+
+#ifdef OSQUERY_VERSION_3_3_2
   osquery::QueryData generate(osquery::QueryContext& request) override;
+#else
+  osquery::TableRows generate(osquery::QueryContext& request) override;
+#endif
 };

@@ -19,9 +19,16 @@
 
 #include <trailofbits/ihostsfile.h>
 
+#ifdef OSQUERY_VERSION_3_3_2
 #include <osquery/core/conversions.h>
+#endif
+
 #include <osquery/logger.h>
 #include <osquery/system.h>
+
+#ifndef OSQUERY_VERSION_3_3_2
+#include <osquery/sql/dynamic_table_row.h>
+#endif
 
 #include <algorithm>
 #include <iostream>
@@ -109,6 +116,7 @@ osquery::TableColumns HostBlacklistTable::columns() const {
   // clang-format on
 }
 
+#ifdef OSQUERY_VERSION_3_3_2
 osquery::QueryData HostBlacklistTable::generate(
     osquery::QueryContext& context) {
   static_cast<void>(context);
@@ -236,6 +244,135 @@ osquery::QueryData HostBlacklistTable::generate(
 
   return results;
 }
+#else
+osquery::TableRows HostBlacklistTable::generate(
+    osquery::QueryContext& context) {
+  static_cast<void>(context);
+
+  HostRuleMap table_data;
+  RowIdToPrimaryKeyMap table_row_id_to_pkey;
+
+  std::set<std::string> firewall_blacklist;
+  std::unordered_map<std::string, std::string> hosts_file;
+
+  {
+    std::lock_guard<std::mutex> lock(d->mutex);
+
+    table_data = d->data;
+    table_row_id_to_pkey = d->row_id_to_pkey;
+
+    // clang-format off
+    auto fw_status = GetFirewall().enumerateBlacklistedHosts(
+      [](const std::string &host, void* user_defined) -> bool {
+
+        auto &blacklist =
+          *static_cast<std::set<std::string>*>(user_defined);
+
+        blacklist.insert(host);
+
+        return true;
+      },
+
+      &firewall_blacklist
+    );
+
+    auto hosts_status = d->hosts_file->enumerateHosts(
+      [](const std::string &domain, const std::string &address, void *user_defined) -> bool {
+
+        auto &hosts =
+          *static_cast<std::unordered_map<std::string, std::string>*>(user_defined);
+
+        hosts.insert({domain, address});
+        return true;
+      },
+
+      &hosts_file
+    );
+    // clang-format on
+
+    static_cast<void>(fw_status);
+    static_cast<void>(hosts_status);
+  }
+
+  osquery::TableRows results;
+
+  // Add managed firewall and dns rules
+  for (const auto& pair : table_row_id_to_pkey) {
+    const auto& row_id = pair.first;
+    const auto& pkey = pair.second;
+    const auto& rule = table_data.at(pkey);
+
+    osquery::Row row;
+    row["rowid"] = std::to_string(row_id);
+
+    // This is only used when inserting data; set as null
+    row["address_type"] = "";
+
+    row["address"] = rule.address;
+    row["domain"] = rule.domain;
+    row["sinkhole"] = rule.sinkhole;
+
+    auto fw_blacklist_it = firewall_blacklist.find(rule.address);
+    if (fw_blacklist_it != firewall_blacklist.end()) {
+      firewall_blacklist.erase(fw_blacklist_it);
+      row["firewall_block"] = "ENABLED";
+    } else {
+      row["firewall_block"] = "DISABLED";
+    }
+
+    auto hosts_file_entry_it = hosts_file.find(rule.domain);
+    if (hosts_file_entry_it == hosts_file.end()) {
+      row["dns_block"] = "DISABLED";
+    } else if (hosts_file_entry_it->second != rule.sinkhole) {
+      hosts_file.erase(hosts_file_entry_it);
+      row["dns_block"] = "ALTERED";
+    } else {
+      hosts_file.erase(hosts_file_entry_it);
+      row["dns_block"] = "ENABLED";
+    }
+
+    results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+  }
+
+  // Add unmanaged firewall rules
+  RowID temp_row_id = 0x80000000ULL;
+  for (const auto& host : firewall_blacklist) {
+    osquery::Row row;
+    row["rowid"] = std::to_string(temp_row_id);
+    row["address_type"] =
+        ""; // This is only used when inserting data; set as null
+    row["address"] = host;
+    row["domain"] = "";
+    row["sinkhole"] = "";
+    row["firewall_block"] = "UNMANAGED";
+    row["dns_block"] = "";
+
+    results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+    temp_row_id++;
+  }
+
+  // Add unmanaged host entries
+  for (const auto& pair : hosts_file) {
+    const auto& domain = pair.first;
+    const auto& address = pair.second;
+
+    osquery::Row row;
+    row["rowid"] = std::to_string(temp_row_id);
+    row["address_type"] =
+        ""; // This is only used when inserting data; set as null
+    row["address"] = "";
+    row["domain"] = domain;
+    row["sinkhole"] = address;
+    row["firewall_block"] = "";
+    row["dns_block"] = "UNMANAGED";
+
+    results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+    temp_row_id++;
+  }
+
+  return results;
+}
+#endif
 
 osquery::QueryData HostBlacklistTable::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {

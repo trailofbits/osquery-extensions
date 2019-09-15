@@ -16,6 +16,10 @@
 
 #include <osquery/logger.h>
 
+#ifndef OSQUERY_VERSION_3_3_2
+#include <osquery/sql/dynamic_table_row.h>
+#endif
+
 #include "system_log.h"
 #include "darwinlogtable.h"
 
@@ -95,11 +99,28 @@ osquery::TableColumns UnifiedLogTablePlugin::columns() const {
   };
 }
 
+#ifdef OSQUERY_VERSION_3_3_2
 osquery::QueryData UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
   osquery::QueryData q;
   logMonitor.getEntries(q);
   return q;
 }
+#else
+
+osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
+  osquery::TableRows result;
+  for (auto&& row : rows) {
+    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+  }
+  return result;
+}
+
+osquery::TableRows UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
+  osquery::QueryData q;
+  logMonitor.getEntries(q);
+  return getTableRowsFromQueryData(q);
+}
+#endif
 
 
 osquery::Status UnifiedLogTablePlugin::setUp() {

@@ -16,7 +16,11 @@
 
 #pragma once
 
+#ifdef OSQUERY_VERSION_3_3_2
 #include <osquery/sdk.h>
+#else
+#include <osquery/sdk/sdk.h>
+#endif
 
 class SantaRulesTablePlugin final : public osquery::TablePlugin {
  private:
@@ -33,7 +37,11 @@ class SantaRulesTablePlugin final : public osquery::TablePlugin {
  private:
   virtual osquery::TableColumns columns() const override;
 
+#ifdef OSQUERY_VERSION_3_3_2
   virtual osquery::QueryData generate(osquery::QueryContext& request) override;
+#else
+  virtual osquery::TableRows generate(osquery::QueryContext& request) override;
+#endif
 
   virtual osquery::QueryData insert(
       osquery::QueryContext& context,

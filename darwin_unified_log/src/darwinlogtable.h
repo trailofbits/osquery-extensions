@@ -16,7 +16,11 @@
 
 #pragma once
 
+#ifdef OSQUERY_VERSION_3_3_2
+#include <osquery/sdk.h>
+#else
 #include <osquery/sdk/sdk.h>
+#endif
 
 #include "system_log.h"
 
@@ -28,6 +32,11 @@ class UnifiedLogTablePlugin final : public osquery::TablePlugin {
 
   private:
     osquery::TableColumns columns() const override;
+
+#ifdef OSQUERY_VERSION_3_3_2
     osquery::QueryData generate(osquery::QueryContext& request) override;
+#else
+    osquery::TableRows generate(osquery::QueryContext& request) override;
+#endif
     LogMonitor logMonitor;
 };

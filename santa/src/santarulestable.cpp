@@ -17,8 +17,15 @@
 #include <atomic>
 #include <mutex>
 
+#ifdef OSQUERY_VERSION_3_3_2
 #include <osquery/core/conversions.h>
+#endif
+
 #include <osquery/logger.h>
+
+#ifndef OSQUERY_VERSION_3_3_2
+#include <osquery/sql/dynamic_table_row.h>
+#endif
 
 #include "santa.h"
 #include "santarulestable.h"
@@ -133,6 +140,7 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
   // clang-format on
 }
 
+#ifdef OSQUERY_VERSION_3_3_2
 osquery::QueryData SantaRulesTablePlugin::generate(
     osquery::QueryContext& request) {
   std::unordered_map<RowID, std::string> rowid_to_pkey;
@@ -177,6 +185,54 @@ osquery::QueryData SantaRulesTablePlugin::generate(
 
   return result;
 }
+#else
+osquery::TableRows SantaRulesTablePlugin::generate(
+    osquery::QueryContext& request) {
+  std::unordered_map<RowID, std::string> rowid_to_pkey;
+  std::unordered_map<std::string, RuleEntry> rule_list;
+  osquery::TableRows result;
+
+  {
+    std::lock_guard<std::mutex> lock(d->mutex);
+
+    auto status = updateRules();
+    if (!status.ok()) {
+      VLOG(1) << status.getMessage();
+      osquery::Row row = {{std::make_pair("status", "failure")}};
+      result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+      return result;
+    }
+
+    rowid_to_pkey = d->rowid_to_pkey;
+    rule_list = d->rule_list;
+  }
+
+
+  for (const auto& rowid_pkey_pair : rowid_to_pkey) {
+    const auto& rowid = rowid_pkey_pair.first;
+    const auto& pkey = rowid_pkey_pair.second;
+
+    auto rule_it = rule_list.find(pkey);
+    if (rule_it == rule_list.end()) {
+      VLOG(1) << "RowID -> Primary key mismatch error in santa_rules table";
+      continue;
+    }
+
+    const auto& rule = rule_it->second;
+
+    osquery::Row row;
+    row["rowid"] = std::to_string(rowid);
+    row["shasum"] = rule.shasum;
+    row["state"] = getRuleStateName(rule.state);
+    row["type"] = getRuleTypeName(rule.type);
+    row["custom_message"] = rule.custom_message;
+
+    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+  }
+
+  return result;
+}
+#endif
 
 osquery::QueryData SantaRulesTablePlugin::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {

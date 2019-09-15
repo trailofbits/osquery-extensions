@@ -15,6 +15,7 @@
  */
 
 #include <osquery/logger.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include "santa.h"
 #include "santadecisionstable.h"
@@ -62,6 +63,7 @@ osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request,
   return result;
 }
 
+#ifdef OSQUERY_VERSION_3_3_2
 osquery::QueryData SantaAllowedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
   return decisionTablesGenerate(request, decision);
@@ -71,6 +73,28 @@ osquery::QueryData SantaDeniedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
   return decisionTablesGenerate(request, decision);
 }
+#else
+osquery::TableRows SantaAllowedDecisionsTablePlugin::generate(
+    osquery::QueryContext& request) {
+  osquery::TableRows result;
+
+  auto rows = decisionTablesGenerate(request, decision);
+  for (auto&& row : rows) {
+    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+  }
+  return result;
+}
+
+osquery::TableRows SantaDeniedDecisionsTablePlugin::generate(
+    osquery::QueryContext& request) {
+  osquery::TableRows result;
+  auto rows = decisionTablesGenerate(request, decision);
+  for (auto&& row : rows) {
+    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+  }
+  return result;
+}
+#endif
 
 osquery::TableColumns SantaAllowedDecisionsTablePlugin::columns() const {
   return decisionTablesColumns();

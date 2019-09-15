@@ -19,7 +19,11 @@
 #include <cstdint>
 #include <unordered_map>
 
+#ifdef OSQUERY_VERSION_3_3_2
 #include <osquery/sdk.h>
+#else
+#include <osquery/sdk/sdk.h>
+#endif
 
 #include <rapidjson/document.h>
 
