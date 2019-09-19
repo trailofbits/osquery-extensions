@@ -142,7 +142,7 @@ class BaseEventPublisher : public IEventPublisher {
 
       auto subscriber_ptr = static_cast<SubscriberType*>(subscriber_ref.get());
 
-      osquery::QueryData new_events = {};
+      osquery::TableRows new_events = {};
       auto status =
           subscriber_ptr->callback(new_events, context_ref, event_context);
 

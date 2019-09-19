@@ -2,7 +2,11 @@
 
 #include "eventbufferlibrary.h"
 
+#ifdef OSQUERY_VERSION_3_3_2
 #include <osquery/sdk.h>
+#else
+#include <osquery/sdk/sdk.h>
+#endif
 
 // clang-format off
 #define BEGIN_TABLE(name) \
@@ -11,9 +15,15 @@
     name ## TablePlugin() = default; \
     virtual ~name ## TablePlugin() override; \
     \
+#ifdef OSQUERY_VERSION_3_3_2 \
     virtual osquery::QueryData generate(osquery::QueryContext&) override { \
       return EventBufferLibrary::instance().getEvents(#name); \
     } \
+#else \
+	virtual osquery::TableRows generate(osquery::QueryContext&) override { \
+      return EventBufferLibrary::instance().getEvents(#name); \
+    } \
+#endif \
     \
     virtual osquery::TableColumns columns() const override { \
       static const osquery::TableColumns schema = {

@@ -70,7 +70,7 @@ function(pubsubMain)
   # Dependencies
   #
 
-  list(APPEND libraries boost_thread-mt)
+  # list(APPEND libraries boost_thread-mt)
 
   find_package(Threads)
   list(APPEND libraries ${CMAKE_THREAD_LIBS_INIT})
@@ -78,7 +78,15 @@ function(pubsubMain)
   ImportDependency("json11")
   list(APPEND libraries json11)
 
-  target_link_libraries("${PROJECT_NAME}" PUBLIC ${libraries})
+  target_link_libraries("${PROJECT_NAME}" PUBLIC
+	${libraries}
+	osquery_headers
+	osquery_cxx_settings
+	osquery_sdk_pluginsdk
+	thirdparty_cxx_settings
+	thirdparty_boost
+  )
+
 endfunction()
 
 pubsubMain()

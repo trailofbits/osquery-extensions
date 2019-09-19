@@ -19,7 +19,11 @@
 #include <ctime>
 #include <memory>
 
+#if OSQUERY_VERSION_3_3_2
 #include <osquery/extensions.h>
+#else
+#include <osquery/flags.h>
+#endif
 
 #include <json11.hpp>
 
