@@ -50,7 +50,11 @@ function(main)
   ImportDependency("Pcap++")
   list(APPEND libraries Pcap++)
 
-  target_link_libraries("${PROJECT_NAME}" ${libraries})
+  target_link_libraries("${PROJECT_NAME}" PUBLIC
+	${libraries}
+	osquery_extensions_implthrift
+  )
+
 endfunction()
 
 main()

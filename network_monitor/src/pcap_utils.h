@@ -16,7 +16,11 @@
 
 #pragma once
 
+#ifdef OSQUERY_VERSION_3_3_2
 #include <osquery/status.h>
+#else
+#include <osquery/flags.h>
+#endif
 
 #include <memory>
 #include <vector>
