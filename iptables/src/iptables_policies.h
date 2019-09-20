@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 extern "C" {
 #include <libiptc/libiptc.h>
@@ -27,11 +27,11 @@ extern "C" {
 namespace trailofbits {
 class IptablesPoliciesTable : public IptablesPoliciesBase {
  public:
-  osquery::QueryData generate(osquery::QueryContext& context);
+  osquery::TableRows generate(osquery::QueryContext& context);
 
  private:
   void genIptablesPolicy(const std::string& filter,
-                         osquery::QueryData& results);
+                         osquery::TableRows& results);
 };
 } // namespace trailofbits
 

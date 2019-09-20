@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 extern "C" {
 #include <libiptc/libiptc.h>
@@ -51,7 +51,7 @@ using TableList = std::vector<std::string>;
 class IptablesExtBase : public osquery::TablePlugin {
  public:
   osquery::TableColumns columns() const;
-  virtual osquery::QueryData generate(osquery::QueryContext& context) = 0;
+  virtual osquery::TableRows generate(osquery::QueryContext& context) = 0;
 
  protected:
   void parseProtoMatch(const xt_entry_match* match, osquery::Row& row);
@@ -64,11 +64,11 @@ class IptablesExtBase : public osquery::TablePlugin {
 class IptablesPoliciesBase : public osquery::TablePlugin {
  public:
   osquery::TableColumns columns() const;
-  virtual osquery::QueryData generate(osquery::QueryContext& context) = 0;
+  virtual osquery::TableRows generate(osquery::QueryContext& context) = 0;
 
  private:
   virtual void genIptablesPolicy(const std::string& filter,
-                                 osquery::QueryData& results) = 0;
+                                 osquery::TableRows& results) = 0;
 };
 
 /* Functions for parsing the output of an ip(6)tables-save command,

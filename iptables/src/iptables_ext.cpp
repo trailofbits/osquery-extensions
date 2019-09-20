@@ -24,7 +24,8 @@
  *  You may select, at your option, one of the above-listed licenses.
  */
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -40,8 +41,8 @@
 using namespace osquery;
 
 namespace trailofbits {
-osquery::QueryData IptablesExtTable::generate(osquery::QueryContext& context) {
-  osquery::QueryData results;
+osquery::TableRows IptablesExtTable::generate(osquery::QueryContext& context) {
+  osquery::TableRows results;
 
   MatchMap match_map;
   auto s = parseIptablesSave(match_map);
@@ -72,7 +73,7 @@ osquery::QueryData IptablesExtTable::generate(osquery::QueryContext& context) {
 osquery::Status IptablesExtTable::genIptablesRules(
     const std::string& filter,
     const MatchChain& matches,
-    osquery::QueryData& results) {
+    osquery::TableRows& results) {
   // Initialize the access to iptc
   auto handle = iptc_init(filter.c_str());
   if (handle == nullptr) {
@@ -138,7 +139,7 @@ osquery::Status IptablesExtTable::genIptablesRules(
 
       parseIpEntry(&chain_rule->ip, r);
 
-      results.push_back(r);
+      results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
       ruleno++;
     } // Rule iteration
   } // Chain iteration

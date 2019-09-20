@@ -18,6 +18,7 @@
 #include <iostream>
 
 #include <osquery/tables.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include "constraints.h"
 #include "diskdevice.h"
@@ -55,7 +56,7 @@ void populateIndexRow(osquery::Row& r,
 }
 
 void generateAndAppendRows(
-    osquery::QueryData& results,
+    osquery::TableRows& results,
     const std::unordered_set<std::uint64_t>& inode_constraints,
     std::shared_ptr<DiskPartition> partition,
     const std::string& device_name,
@@ -71,12 +72,12 @@ void generateAndAppendRows(
       osquery::Row r = {};
       populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
 
-      results.push_back(std::move(r));
+      results.push_back(std::move(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r)))));
     }
   }
 }
 
-void generateAndAppendRows(osquery::QueryData& results,
+void generateAndAppendRows(osquery::TableRows& results,
                            const std::set<std::string>& path_constraints,
                            std::shared_ptr<DiskPartition> partition,
                            const std::string& device_name,
@@ -99,7 +100,7 @@ void generateAndAppendRows(osquery::QueryData& results,
       osquery::Row r = {};
       populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
 
-      results.push_back(std::move(r));
+      results.push_back(std::move(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r)))));
     }
   }
 }
@@ -126,7 +127,7 @@ osquery::TableColumns NTFSINDXTablePugin::columns() const {
   // clang-format on
 }
 
-osquery::QueryData NTFSINDXTablePugin::generate(
+osquery::TableRows NTFSINDXTablePugin::generate(
     osquery::QueryContext& request) {
   // Get the statement constraints
   auto path_constraints =
@@ -155,7 +156,7 @@ osquery::QueryData NTFSINDXTablePugin::generate(
   }
 
   // Iterate through all devices
-  osquery::QueryData results;
+  osquery::TableRows results;
 
   for (const auto& p : device_constraints) {
     const auto& device_name = p.first;

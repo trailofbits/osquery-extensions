@@ -36,7 +36,7 @@ function(main)
     src/pcapreaderservice.cpp
   )
 
-  add_osquery_extension("${PROJECT_NAME}" ${source_files})
+  ADD_OSQUERY_EXTENSION("${PROJECT_NAME}" ${source_files})
 
   #
   # Dependencies

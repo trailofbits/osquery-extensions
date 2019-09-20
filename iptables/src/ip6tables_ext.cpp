@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -31,8 +32,8 @@ using namespace osquery;
 
 namespace trailofbits {
 
-osquery::QueryData Ip6tablesExtTable::generate(osquery::QueryContext& context) {
-  osquery::QueryData results;
+osquery::TableRows Ip6tablesExtTable::generate(osquery::QueryContext& context) {
+  osquery::TableRows results;
 
   MatchMap match_map;
   auto s = parseIp6tablesSave(match_map);
@@ -63,7 +64,7 @@ osquery::QueryData Ip6tablesExtTable::generate(osquery::QueryContext& context) {
 osquery::Status Ip6tablesExtTable::genIptablesRules(
     const std::string& filter,
     const MatchChain& matches,
-    osquery::QueryData& results) {
+    osquery::TableRows& results) {
   // Initialize the access to ip6tc
   auto handle = ip6tc_init(filter.c_str());
   if (handle == nullptr) {
@@ -129,7 +130,7 @@ osquery::Status Ip6tablesExtTable::genIptablesRules(
 
       parseIpEntry(&chain_rule->ipv6, r);
 
-      results.push_back(r);
+      results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
       ruleno++;
     } // Rule iteration
   } // Chain iteration

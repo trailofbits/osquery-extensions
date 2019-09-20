@@ -22,35 +22,35 @@ function(main)
     )
 
     set(project_libraries
-        extutils
-        iptc)
+        extutils)
+        #iptc)
 
     add_osquery_extension_ex("IptablesExtTable" "table" "iptables_ext"
         SOURCES ${project_source_common_files} src/iptables_ext.h src/iptables_ext.cpp
         INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
         MAININCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src/iptables_ext.h"
-        LIBRARIES ${project_libraries} ip4tc
+        LIBRARIES ${project_libraries} #ip4tc
     )
 
     add_osquery_extension_ex("Ip6tablesExtTable" "table" "ip6tables_ext"
         SOURCES ${project_source_common_files} src/ip6tables_ext.h src/ip6tables_ext.cpp
         INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
         MAININCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src/ip6tables_ext.h"
-        LIBRARIES ${project_libraries} ip6tc
+        LIBRARIES ${project_libraries} #ip6tc
     )
 
     add_osquery_extension_ex("IptablesPoliciesTable" "table" "iptables_policies"
         SOURCES ${project_source_common_files} src/iptables_policies.h src/iptables_policies.cpp
         INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
         MAININCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src/iptables_policies.h"
-        LIBRARIES ${project_libraries} ip4tc
+        LIBRARIES ${project_libraries} #ip4tc
     )
 
     add_osquery_extension_ex("Ip6tablesPoliciesTable" "table" "ip6tables_policies"
         SOURCES ${project_source_common_files} src/ip6tables_policies.h src/ip6tables_policies.cpp
         INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
         MAININCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src/ip6tables_policies.h"
-        LIBRARIES ${project_libraries} ip6tc
+        LIBRARIES ${project_libraries} #ip6tc
     )
 
     set(project_test_files
@@ -59,7 +59,10 @@ function(main)
         src/utils.cpp
         src/utils.h)
 
-    AddTest("iptables" test_target_name ${project_test_files})
+    # AddTest("iptables" test_target_name ${project_test_files})
+
+    set(test_target_name "tobExtTests_${PROJECT_NAME}")
+    add_executable(${test_target_name} ${project_test_files})
 
     target_include_directories("${test_target_name}" PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
@@ -68,11 +71,21 @@ function(main)
     target_compile_definitions("${test_target_name}" PRIVATE "${configuration_root}")
 
     target_link_libraries("${test_target_name}" PRIVATE
-      glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt rt
-      boost_context-mt extutils iptc
+      osquery_cxx_settings
+      osquery_sdk_pluginsdk
+      osquery_extensions_implthrift
+      thirdparty_googletest
+      thirdparty_googletest_headers
+      thirdparty_libiptc
+      extutils
     )
 
-    target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
+    # target_link_libraries("${test_target_name}" PRIVATE
+    #  glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt rt
+    #  boost_context-mt extutils iptc
+    # )
+
+    # target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
 endfunction()
 
 main()

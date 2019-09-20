@@ -15,7 +15,8 @@
  */
 
 #include <boost/algorithm/string/trim.hpp>
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include <trailofbits/extutils.h>
 
@@ -25,9 +26,9 @@
 using namespace osquery;
 
 namespace trailofbits {
-osquery::QueryData IptablesPoliciesTable::generate(
+osquery::TableRows IptablesPoliciesTable::generate(
     osquery::QueryContext& context) {
-  osquery::QueryData results;
+  osquery::TableRows results;
 
   for (const auto& table : getIptablesNames()) {
     genIptablesPolicy(table, results);
@@ -37,7 +38,7 @@ osquery::QueryData IptablesPoliciesTable::generate(
 }
 
 void IptablesPoliciesTable::genIptablesPolicy(const std::string& filter,
-                                              osquery::QueryData& results) {
+                                              osquery::TableRows& results) {
   // Initialize the access to iptc
   auto handle = iptc_init(filter.c_str());
   if (handle == nullptr) {
@@ -69,7 +70,7 @@ void IptablesPoliciesTable::genIptablesPolicy(const std::string& filter,
     r["packets"] = BIGINT(counters.pcnt);
     r["bytes"] = BIGINT(counters.bcnt);
 
-    results.push_back(r);
+    results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
   }
 
   iptc_free(handle);

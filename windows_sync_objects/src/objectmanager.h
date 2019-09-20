@@ -18,7 +18,7 @@
 
 #include <string>
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 namespace trailofbits {
 struct ObjectDescriptor final {

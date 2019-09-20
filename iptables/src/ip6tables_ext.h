@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 extern "C" {
 #include <libiptc/libip6tc.h>
@@ -27,12 +27,12 @@ extern "C" {
 namespace trailofbits {
 class Ip6tablesExtTable : public IptablesExtBase {
  public:
-  osquery::QueryData generate(osquery::QueryContext& context);
+  osquery::TableRows generate(osquery::QueryContext& context);
 
  private:
   osquery::Status genIptablesRules(const std::string& filter,
                                    const MatchChain& matches,
-                                   osquery::QueryData& results);
+                                   osquery::TableRows& results);
   void parseTcp(const xt_entry_match* match, osquery::Row& r);
   void parseUdp(const xt_entry_match* match, osquery::Row& r);
   void parseIpEntry(const ip6t_ip6* ip, osquery::Row& r);

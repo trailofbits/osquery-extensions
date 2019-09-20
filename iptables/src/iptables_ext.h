@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 extern "C" {
 #include <libiptc/libiptc.h>
@@ -27,12 +27,12 @@ extern "C" {
 namespace trailofbits {
 class IptablesExtTable : public IptablesExtBase {
  public:
-  osquery::QueryData generate(osquery::QueryContext& context);
+  osquery::TableRows generate(osquery::QueryContext& context);
 
  private:
   osquery::Status genIptablesRules(const std::string& filter,
                                    const MatchChain& matches,
-                                   osquery::QueryData& results);
+                                   osquery::TableRows& results);
   void parseTcp(const xt_entry_match* match, osquery::Row& r);
   void parseUdp(const xt_entry_match* match, osquery::Row& r);
   void parseIpEntry(const ipt_ip* ip, osquery::Row& r);

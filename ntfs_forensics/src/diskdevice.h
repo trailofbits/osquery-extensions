@@ -23,7 +23,7 @@
 
 #include <tsk/libtsk.h>
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 namespace trailofbits {
 class DiskDevice;

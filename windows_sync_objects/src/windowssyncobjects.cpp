@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 #include <rapidjson/document.h>
 
@@ -90,7 +90,7 @@ osquery::TableColumns WindowsSyncObjectsTable::columns() const {
   // clang-format on
 }
 
-osquery::QueryData WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
+osquery::TableRows WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   struct CallbackData final {
@@ -200,7 +200,7 @@ osquery::QueryData WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
     }
     }
 
-    callback_data.results.push_back(row);
+    callback_data.results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
     return true;
   };
 

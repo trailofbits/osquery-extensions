@@ -85,13 +85,14 @@ function(generate_osquery_extension_group)
   set_property(TARGET "${OSQUERY_EXTENSION_GROUP_NAME}" PROPERTY INCLUDE_DIRECTORIES "")
   target_compile_features("${OSQUERY_EXTENSION_GROUP_NAME}" PUBLIC cxx_std_14)
   target_compile_options("${OSQUERY_EXTENSION_GROUP_NAME}" PRIVATE ${extension_cxx_flags})
-  
+
   target_link_libraries("${OSQUERY_EXTENSION_GROUP_NAME}" PUBLIC
   	osquery_cxx_settings
   	osquery_sdk_pluginsdk
-  	thirdparty_boost
   	osquery_extensions_implthrift
-  	)
+	thirdparty_boost
+	thirdparty_libiptc
+  )
 
   set_target_properties("${OSQUERY_EXTENSION_GROUP_NAME}" PROPERTIES
     OUTPUT_NAME "${OSQUERY_EXTENSION_GROUP_NAME}.ext"
@@ -214,7 +215,7 @@ endmacro(TARGET_OSQUERY_LINK_WHOLE)
 
 macro(ADD_OSQUERY_EXTENSION TARGET)
   add_executable(${TARGET} ${ARGN})
-  TARGET_OSQUERY_LINK_WHOLE(${TARGET} libosquery)
+  #TARGET_OSQUERY_LINK_WHOLE(${TARGET} libosquery)
   set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}.ext")
 endmacro(ADD_OSQUERY_EXTENSION)
 
@@ -316,15 +317,35 @@ function(IsFolderEnabled relative_path)
   endif()
 
   file(READ "${platforms_file_path}" supported_platforms)
-  if(WINDOWS AND "${supported_platforms}" MATCHES "WINDOWS")
-    set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
-  elseif(APPLE AND "${supported_platforms}" MATCHES "APPLE")
-    set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
-  elseif(LINUX AND "${supported_platforms}" MATCHES "LINUX")
-    set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
-  else()
-    set(IsFolderEnabled_OUTPUT false PARENT_SCOPE)
+  if(DEFINED PLATFORM_WINDOWS)
+    string(FIND "${supported_platforms}" WINDOWS platform_match)
+    if(${platform_match} EQUAL 0)
+      set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
+      return()
+    endif()
+  elseif(DEFINED PLATFORM_MACOS)
+    string(FIND "${supported_platforms}" APPLE platform_match)
+    if(${platform_match} EQUAL 0)
+      set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
+      return()
+    endif()
+  elseif(DEFINED PLATFORM_LINUX)
+    string(FIND "${supported_platforms}" LINUX platform_match)
+    if(${platform_match} EQUAL 0)
+      set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
+      return()
+    endif()
   endif()
+
+  #if(WINDOWS AND "${supported_platforms}" MATCHES "WINDOWS")
+  #  set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
+  #elseif(APPLE AND "${supported_platforms}" MATCHES "APPLE")
+  #  set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
+  #elseif(LINUX AND "${supported_platforms}" MATCHES "LINUX")
+  #  set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
+  #else()
+  set(IsFolderEnabled_OUTPUT false PARENT_SCOPE)
+  #endif()
 endfunction()
 
 function(AddTest test_name out_executable_target_name)
@@ -364,3 +385,7 @@ function(AddTest test_name out_executable_target_name)
 endfunction()
 
 trailofbitsExtensionsMain()
+
+# If the user has generated extensions using the new generate_osquery_extension_group
+# function, then this call will generate the bundle
+generate_osquery_extension_group()

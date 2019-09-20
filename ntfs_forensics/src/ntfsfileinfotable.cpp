@@ -18,6 +18,7 @@
 #include <iostream>
 
 #include <osquery/tables.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include "constraints.h"
 #include "diskdevice.h"
@@ -59,7 +60,7 @@ osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
 }
 
 struct query_context_t final {
-  osquery::QueryData& result;
+  osquery::TableRows& result;
   const std::string& dev;
   std::uint32_t partition;
 };
@@ -117,7 +118,7 @@ void callback(NTFSFileInformation& info, void* context) {
   qct->result.push_back(r);
 }
 
-osquery::QueryData NTFSFileInfoTablePlugin::generate(
+osquery::TableRows NTFSFileInfoTablePlugin::generate(
     osquery::QueryContext& request) {
   // Get the statement constraints
   auto path_constraints = request.constraints["path"].getAll(osquery::EQUALS);
@@ -159,7 +160,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   }
 
   // Iterate through all devices
-  osquery::QueryData results;
+  osquery::TableRows results;
 
   for (const auto& p : device_constraints) {
     const auto& device_name = p.first;
@@ -223,7 +224,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
           osquery::Row r;
           populateRow(r, info, device_name, partition_number);
 
-          results.push_back(std::move(r));
+          results.push_back(std::move(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r)))));
         }
 
       } else if (!directory_constraints.empty()) {

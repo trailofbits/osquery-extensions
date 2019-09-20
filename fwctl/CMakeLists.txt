@@ -23,9 +23,9 @@ function(main)
 
   if(UNIX)
     list(APPEND project_libraries
-      boost_system-mt
-      boost_serialization-mt
-      boost_regex-mt
+      # boost_system-mt
+      # boost_serialization-mt
+      # boost_regex-mt
     )
   else()
     list(APPEND project_libraries
@@ -75,7 +75,11 @@ function(main)
       src/portblacklist.cpp
     )
 
-    AddTest("tables" test_target_name ${project_test_files})
+    # AddTest("tables" test_target_name ${project_test_files})
+
+    set(test_target_name "tobExtTests_tables")
+    add_executable(${test_target_name} ${project_test_files})
+
     target_include_directories("${test_target_name}" PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
     )
@@ -83,11 +87,21 @@ function(main)
     target_compile_definitions("${test_target_name}" PRIVATE "${configuration_root}")
 
     target_link_libraries("${test_target_name}" PRIVATE
-      glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt boost_context-mt
-      firewall hostsfile
+      osquery_cxx_settings
+      osquery_sdk_pluginsdk
+      osquery_extensions_implthrift
+      thirdparty_googletest
+      thirdparty_googletest_headers
+      firewall
+      hostsfile
     )
 
-    target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
+    # target_link_libraries("${test_target_name}" PRIVATE
+    #   glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt boost_context-mt
+    #   firewall hostsfile
+    # )
+
+    # target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
 
     if(NOT APPLE)
       target_link_libraries("${test_target_name}" PRIVATE rt)
@@ -96,4 +110,3 @@ function(main)
 endfunction()
 
 main()
-
