@@ -63,7 +63,7 @@ osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request,
   return result;
 }
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 osquery::QueryData SantaAllowedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
   return decisionTablesGenerate(request, decision);

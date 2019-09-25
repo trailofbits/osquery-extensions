@@ -17,15 +17,13 @@
 #include "portblacklist.h"
 #include "globals.h"
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 #include <osquery/core/conversions.h>
+#else
+#include <osquery/sql/dynamic_table_row.h>
 #endif
 
 #include <osquery/system.h>
-
-#ifndef OSQUERY_VERSION_3_3_2
-#include <osquery/sql/dynamic_table_row.h>
-#endif
 
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
@@ -84,7 +82,7 @@ osquery::TableColumns PortBlacklistTable::columns() const {
   // clang-format on
 }
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 osquery::QueryData PortBlacklistTable::generate(
     osquery::QueryContext& context) {
   static_cast<void>(context);

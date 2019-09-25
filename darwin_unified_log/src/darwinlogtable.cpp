@@ -16,7 +16,7 @@
 
 #include <osquery/logger.h>
 
-#ifndef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER > 4000
 #include <osquery/sql/dynamic_table_row.h>
 #endif
 
@@ -99,7 +99,7 @@ osquery::TableColumns UnifiedLogTablePlugin::columns() const {
   };
 }
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 osquery::QueryData UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
   osquery::QueryData q;
   logMonitor.getEntries(q);

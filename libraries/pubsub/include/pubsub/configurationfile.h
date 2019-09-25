@@ -19,7 +19,7 @@
 #include <ctime>
 #include <memory>
 
-#if OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER > 4000
 #include <osquery/extensions.h>
 #else
 #include <osquery/flags.h>

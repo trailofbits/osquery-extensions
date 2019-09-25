@@ -23,7 +23,7 @@
 #include <osquery/dispatcher.h>
 #include <osquery/events.h>
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 #include <osquery/sdk.h>
 #else
 #include <osquery/system.h>

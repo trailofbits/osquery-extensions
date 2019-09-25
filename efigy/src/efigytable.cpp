@@ -19,7 +19,7 @@
 #include "Extension.h"
 #include "utils.h"
 
-#ifndef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER > 4000
 #include <osquery/sql/dynamic_table_row.h>
 #endif
 
@@ -56,7 +56,7 @@ osquery::TableColumns EFIgyTablePlugin::columns() const {
   // clang-format on
 }
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 osquery::QueryData EFIgyTablePlugin::generate(osquery::QueryContext& request) {
   SystemInformation system_info;
   ServerResponse response;

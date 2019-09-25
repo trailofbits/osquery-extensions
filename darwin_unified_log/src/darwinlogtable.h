@@ -16,7 +16,7 @@
 
 #pragma once
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 #include <osquery/sdk.h>
 #else
 #include <osquery/sdk/sdk.h>
@@ -33,7 +33,7 @@ class UnifiedLogTablePlugin final : public osquery::TablePlugin {
   private:
     osquery::TableColumns columns() const override;
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
     osquery::QueryData generate(osquery::QueryContext& request) override;
 #else
     osquery::TableRows generate(osquery::QueryContext& request) override;

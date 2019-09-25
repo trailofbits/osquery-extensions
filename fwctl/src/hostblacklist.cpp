@@ -19,16 +19,15 @@
 
 #include <trailofbits/ihostsfile.h>
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 #include <osquery/core/conversions.h>
+#else
+#include <osquery/sql/dynamic_table_row.h>
 #endif
 
 #include <osquery/logger.h>
 #include <osquery/system.h>
 
-#ifndef OSQUERY_VERSION_3_3_2
-#include <osquery/sql/dynamic_table_row.h>
-#endif
 
 #include <algorithm>
 #include <iostream>
@@ -116,7 +115,7 @@ osquery::TableColumns HostBlacklistTable::columns() const {
   // clang-format on
 }
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 osquery::QueryData HostBlacklistTable::generate(
     osquery::QueryContext& context) {
   static_cast<void>(context);

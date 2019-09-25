@@ -16,7 +16,7 @@
 
 #pragma once
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 #include <osquery/status.h>
 #else
 #include <osquery/flags.h>

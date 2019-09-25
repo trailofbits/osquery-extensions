@@ -17,15 +17,13 @@
 #include <atomic>
 #include <mutex>
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 #include <osquery/core/conversions.h>
+#else
+#include <osquery/sql/dynamic_table_row.h>
 #endif
 
 #include <osquery/logger.h>
-
-#ifndef OSQUERY_VERSION_3_3_2
-#include <osquery/sql/dynamic_table_row.h>
-#endif
 
 #include "santa.h"
 #include "santarulestable.h"
@@ -140,7 +138,7 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
   // clang-format on
 }
 
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER <= 4000
 osquery::QueryData SantaRulesTablePlugin::generate(
     osquery::QueryContext& request) {
   std::unordered_map<RowID, std::string> rowid_to_pkey;
