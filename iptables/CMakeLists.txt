@@ -69,13 +69,12 @@ function(main)
     )
 
     target_compile_definitions("${test_target_name}" PRIVATE "${configuration_root}")
+    target_compile_options("${test_target_name}" PRIVATE ${cxx_settings})
 
     target_link_libraries("${test_target_name}" PRIVATE
-      osquery_cxx_settings
       osquery_sdk_pluginsdk
       osquery_extensions_implthrift
       thirdparty_googletest
-      thirdparty_googletest_headers
       thirdparty_libiptc
       extutils
     )

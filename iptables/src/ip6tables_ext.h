@@ -16,7 +16,11 @@
 
 #pragma once
 
+#if OSQUERY_VERSION_NUMBER <= 4000
+#include <osquery/sdk.h>
+#else
 #include <osquery/sdk/sdk.h>
+#endif
 
 extern "C" {
 #include <libiptc/libip6tc.h>
@@ -27,12 +31,19 @@ extern "C" {
 namespace trailofbits {
 class Ip6tablesExtTable : public IptablesExtBase {
  public:
+#if OSQUERY_VERSION_NUMBER <= 4000
+  osquery::QueryData generate(osquery::QueryContext& context);
+#else
   osquery::TableRows generate(osquery::QueryContext& context);
-
+#endif
  private:
   osquery::Status genIptablesRules(const std::string& filter,
                                    const MatchChain& matches,
+#if OSQUERY_VERSION_NUMBER <= 4000
+                                   osquery::QueryData& results);
+#else
                                    osquery::TableRows& results);
+#endif
   void parseTcp(const xt_entry_match* match, osquery::Row& r);
   void parseUdp(const xt_entry_match* match, osquery::Row& r);
   void parseIpEntry(const ip6t_ip6* ip, osquery::Row& r);

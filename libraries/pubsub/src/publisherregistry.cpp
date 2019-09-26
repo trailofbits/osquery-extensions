@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmacro-redefined" 
 #include <pubsub/publisherregistry.h>
+#pragma clang diagnostic pop
 
 #include <boost/thread/shared_mutex.hpp>
 

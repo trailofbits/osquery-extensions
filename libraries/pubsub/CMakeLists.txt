@@ -80,10 +80,7 @@ function(pubsubMain)
 
   target_link_libraries("${PROJECT_NAME}" PUBLIC
 	${libraries}
-	osquery_headers
-	osquery_cxx_settings
 	osquery_sdk_pluginsdk
-	thirdparty_cxx_settings
 	thirdparty_boost
   )
 

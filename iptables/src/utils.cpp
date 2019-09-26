@@ -24,8 +24,12 @@
  *  You may select, at your option, one of the above-listed licenses.
  */
 
+#if OSQUERY_VERSION_NUMBER > 4000
 #include <osquery/sdk/sdk.h>
 #include <osquery/filesystem/filesystem.h>
+#else
+#include <osquery/sdk.h>
+#endif
 
 #include <net/if.h>
 #include <netdb.h>

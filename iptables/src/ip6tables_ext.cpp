@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
+#if OSQUERY_VERSION_NUMBER <= 4000
+#include <osquery/sdk.h>
+#else
 #include <osquery/sdk/sdk.h>
 #include <osquery/sql/dynamic_table_row.h>
+#endif
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -32,6 +36,36 @@ using namespace osquery;
 
 namespace trailofbits {
 
+#if OSQUERY_VERSION_NUMBER <= 4000
+osquery::QueryData Ip6tablesExtTable::generate(osquery::QueryContext& context) {
+  osquery::QueryData results;
+
+  MatchMap match_map;
+  auto s = parseIp6tablesSave(match_map);
+
+  if (!s.ok()) {
+    TLOG << "Error fetching matches from ip6tables-save: " << s.toString();
+  }
+
+  for (const auto& table : getIp6tablesNames()) {
+    const auto& matches = match_map.find(table);
+
+    if (matches == match_map.end()) {
+      TLOG << "Couldn't associate table " << table << " with a list of matches";
+      return results;
+    }
+
+    s = genIptablesRules(table, matches->second, results);
+
+    if (!s.ok()) {
+      TLOG << "Error while fetching table rules: " << s.toString();
+      return results;
+    }
+  }
+
+  return results;
+}
+#else
 osquery::TableRows Ip6tablesExtTable::generate(osquery::QueryContext& context) {
   osquery::TableRows results;
 
@@ -60,11 +94,17 @@ osquery::TableRows Ip6tablesExtTable::generate(osquery::QueryContext& context) {
 
   return results;
 }
+#endif
 
 osquery::Status Ip6tablesExtTable::genIptablesRules(
     const std::string& filter,
     const MatchChain& matches,
-    osquery::TableRows& results) {
+#if OSQUERY_VERSION_NUMBER <= 4000
+    osquery::QueryData& results
+#else
+    osquery::TableRows& results
+#endif
+    ) {
   // Initialize the access to ip6tc
   auto handle = ip6tc_init(filter.c_str());
   if (handle == nullptr) {
@@ -129,8 +169,11 @@ osquery::Status Ip6tablesExtTable::genIptablesRules(
       }
 
       parseIpEntry(&chain_rule->ipv6, r);
-
+#if OSQUERY_VERSION_NUMBER <= 4000
+      results.push_back(r);
+#else
       results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
+#endif
       ruleno++;
     } // Rule iteration
   } // Chain iteration

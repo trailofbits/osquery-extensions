@@ -15,8 +15,11 @@
  */
 
 #pragma once
-
+#if OSQUERY_VERSION_NUMBER > 4000
 #include <osquery/sdk/sdk.h>
+#else
+#include <osquery/sdk.h>
+#endif
 
 extern "C" {
 #include <libiptc/libiptc.h>

@@ -95,11 +95,9 @@ function(main)
   )
 
   target_link_libraries("${test_target_name}" PRIVATE
-    osquery_cxx_settings
     osquery_sdk_pluginsdk
     osquery_extensions_implthrift
     thirdparty_googletest
-    thirdparty_googletest_headers
     extutils
   )
 

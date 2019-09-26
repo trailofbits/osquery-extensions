@@ -16,7 +16,10 @@
 
 #pragma once
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
 #include "baseeventpublisher.h"
+#pragma clang diagnostic pop
 
 #include <memory>
 #include <unordered_map>
