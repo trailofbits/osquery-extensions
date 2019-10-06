@@ -18,19 +18,30 @@ project("traiofbits_extensions")
 set(ROOT_TEST_TARGET "trailofbits_extensions_tests")
 add_custom_target("${ROOT_TEST_TARGET}")
 
-set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" CACHE STRING "TOB extensions root directory")
 
-set(ENV{OSQUERY_EXTENSION_GROUP_NAME} "trailofbits_osquery_extensions")
-set(ENV{OSQUERY_EXTENSION_GROUP_VERSION} "1.2")
+set(OSQUERY_EXTENSION_GROUP_NAME "trailofbits_osquery_extensions" CACHE STRING "Overrides osquery extension group version" FORCE)
+set(OSQUERY_EXTENSION_GROUP_VERSION "1.2" CACHE STRING "Overrides osquery extension group version" FORCE)
 
-include(cmake/utilities.cmake)
+function(generateOsqueryVersion versionstring)
+  string(REPLACE "." ";" version_list ${versionstring} )
+  list(GET version_list 0 major)
+  set(OSQUERY_BUILD_VERSION_MAJOR ${major})
+  list(GET version_list 1 minor)
+  set(OSQUERY_BUILD_VERSION_MINOR ${minor})
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/Version.h.in"
+    "${TOB_EXTENSIONS_ROOT}/Version.h"
+  )
+endfunction()
 
 function(trailofbitsExtensionsMain)
   message(STATUS "================================")
   message(STATUS "Trail of Bits osquery extensions")
-  message(STATUS "Version: $ENV{OSQUERY_EXTENSION_GROUP_VERSION}")
+  message(STATUS "Version: ${OSQUERY_EXTENSION_GROUP_VERSION}")
   message(STATUS "================================")
 
+  generateOsqueryVersion(${OSQUERY_VERSION_AUTODETECTED})
   ImportLibraries()
   ImportExtensions()
 
@@ -131,7 +142,7 @@ function(IsFolderEnabled relative_path)
       return()
     endif()
   endif()
-
+  
   set(IsFolderEnabled_OUTPUT false PARENT_SCOPE)
 endfunction()
 
@@ -175,4 +186,4 @@ trailofbitsExtensionsMain()
 
 # If the user has generated extensions using the new generate_osquery_extension_group
 # function, then this call will generate the bundle
-generate_osquery_extension_group()
+generateOsqueryExtensionGroup()

@@ -19,14 +19,13 @@ function(main)
   set(project_common_source_files
     src/system_log.h
     src/system_log.cpp
-
   )
 
   set(project_libraries boost_iostreams-mt)
 
   add_osquery_extension_ex("UnifiedLogTablePlugin" "table" "darwin_unified_log"
     SOURCES ${project_common_source_files} src/darwinlogtable.h src/darwinlogtable.cpp
-    INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src" "${TOB_EXTENSIONS_ROOT}"
     MAININCLUDES darwinlogtable.h
     LIBRARIES ${project_libraries}
   )

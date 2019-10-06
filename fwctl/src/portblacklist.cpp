@@ -17,7 +17,7 @@
 #include "portblacklist.h"
 #include "globals.h"
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/core/conversions.h>
 #else
 #include <osquery/sql/dynamic_table_row.h>
@@ -82,7 +82,7 @@ osquery::TableColumns PortBlacklistTable::columns() const {
   // clang-format on
 }
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 osquery::QueryData PortBlacklistTable::generate(
     osquery::QueryContext& context) {
   static_cast<void>(context);

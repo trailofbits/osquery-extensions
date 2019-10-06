@@ -17,7 +17,9 @@
 #include <atomic>
 #include <mutex>
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#include "Version.h"
+
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/core/conversions.h>
 #else
 #include <osquery/sql/dynamic_table_row.h>
@@ -138,7 +140,7 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
   // clang-format on
 }
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 osquery::QueryData SantaRulesTablePlugin::generate(
     osquery::QueryContext& request) {
   std::unordered_map<RowID, std::string> rowid_to_pkey;

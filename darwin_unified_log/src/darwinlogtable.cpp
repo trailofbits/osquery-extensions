@@ -16,12 +16,12 @@
 
 #include <osquery/logger.h>
 
-#if OSQUERY_VERSION_NUMBER > 4000
-#include <osquery/sql/dynamic_table_row.h>
-#endif
-
 #include "system_log.h"
 #include "darwinlogtable.h"
+
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#include <osquery/sql/dynamic_table_row.h>
+#endif
 
 osquery::TableColumns UnifiedLogTablePlugin::columns() const {
   return {
@@ -99,7 +99,7 @@ osquery::TableColumns UnifiedLogTablePlugin::columns() const {
   };
 }
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 osquery::QueryData UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
   osquery::QueryData q;
   logMonitor.getEntries(q);

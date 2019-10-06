@@ -16,7 +16,7 @@
 
 #pragma once
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
 #else
 #include <osquery/sdk/sdk.h>
@@ -27,7 +27,7 @@ class EFIgyTablePlugin final : public osquery::TablePlugin {
  private:
   osquery::TableColumns columns() const override;
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
   osquery::QueryData generate(osquery::QueryContext& request) override;
 #else
   osquery::TableRows generate(osquery::QueryContext& request) override;

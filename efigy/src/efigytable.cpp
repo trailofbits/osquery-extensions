@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
+#include "Version.h"
 #include "efigytable.h"
 #include "efigy.h"
 #include "Extension.h"
 #include "utils.h"
 
-#if OSQUERY_VERSION_NUMBER > 4000
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/sql/dynamic_table_row.h>
 #endif
 
@@ -56,7 +57,7 @@ osquery::TableColumns EFIgyTablePlugin::columns() const {
   // clang-format on
 }
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 osquery::QueryData EFIgyTablePlugin::generate(osquery::QueryContext& request) {
   SystemInformation system_info;
   ServerResponse response;

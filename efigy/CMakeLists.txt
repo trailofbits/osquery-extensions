@@ -28,6 +28,7 @@ function(main)
 
   list(APPEND project_include_folders
     ${CURL_INCLUDE_DIR}
+    ${TOB_EXTENSIONS_ROOT}
   )
 
   # set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")

@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
+#include "Version.h"
 #include <osquery/logger.h>
+
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/sql/dynamic_table_row.h>
+#endif
 
 #include "santa.h"
 #include "santadecisionstable.h"
@@ -63,7 +67,7 @@ osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request,
   return result;
 }
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 osquery::QueryData SantaAllowedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
   return decisionTablesGenerate(request, decision);

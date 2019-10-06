@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <unordered_map>
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
 #else
 #include <osquery/sdk/sdk.h>

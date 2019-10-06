@@ -38,7 +38,7 @@ class PortBlacklistTable final : public BaseTable {
 
   osquery::TableColumns columns() const;
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
   osquery::QueryData generate(osquery::QueryContext& context);
 #else
   osquery::TableRows generate(osquery::QueryContext& context);

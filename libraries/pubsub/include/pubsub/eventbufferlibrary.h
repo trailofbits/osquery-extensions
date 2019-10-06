@@ -24,7 +24,7 @@
 namespace trailofbits {
 /// An event batch is just a list of rows that will get returned to osquery
 /// during the ::generate() table callback
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 using EventBatch = std::vector<osquery::Row>;
 #else
 using EventBatch = std::vector<osquery::TableRowHolder>;
