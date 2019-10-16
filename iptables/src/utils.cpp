@@ -24,7 +24,9 @@
  *  You may select, at your option, one of the above-listed licenses.
  */
 
-#if OSQUERY_VERSION_NUMBER > 4000
+#include "Version.h"
+
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
 #include <osquery/filesystem/filesystem.h>
 #else

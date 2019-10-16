@@ -115,7 +115,7 @@ void callback(NTFSFileInformation& info, void* context) {
 
   osquery::Row r;
   populateRow(r, info, qct->dev, qct->partition);
-  qct->result.push_back(r);
+  qct->result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
 }
 
 osquery::TableRows NTFSFileInfoTablePlugin::generate(
@@ -210,7 +210,7 @@ osquery::TableRows NTFSFileInfoTablePlugin::generate(
           osquery::Row r;
           populateRow(r, info, device_name, partition_number);
 
-          results.push_back(std::move(r));
+          results.push_back(std::move(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r)))));
         }
 
       } else if (!inode_constraints.empty()) {

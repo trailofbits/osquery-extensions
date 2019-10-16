@@ -15,7 +15,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(firewall)
 
-function(main)
+function(firewallMain)
   if(DEFINED APPLE)
     set(project_source_files
       macos/src/firewall.h
@@ -101,13 +101,9 @@ function(main)
     extutils
   )
 
-  # target_link_libraries("${test_target_name}" PRIVATE extutils)
-
-  # if(UNIX)
-  #   target_link_libraries("${test_target_name}" PRIVATE boost_system-mt boost_filesystem-mt)
-  # else()
-  #   target_link_libraries("${test_target_name}" PRIVATE libboost_system-mt-s libboost_filesystem-mt-s)
-  # endif()
+  if(DEFINED PLATFORM_MACOS)
+    target_link_libraries("${test_target_name}" PRIVATE libboost_system-mt-s libboost_filesystem-mt-s)
+  endif()
 endfunction()
 
-main()
+firewallMain()

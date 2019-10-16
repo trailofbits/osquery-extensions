@@ -15,7 +15,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(fwctl)
 
-function(main)
+function(fwctlMain)
   set(project_libraries
     firewall
     hostsfile
@@ -38,18 +38,17 @@ function(main)
   set(project_common_source_files
     src/globals.h
     src/globals.cpp
-
     src/basetable.h
   )
 
-  add_osquery_extension_ex("HostBlacklistTable" "table" "HostBlacklist"
+  addOsqueryExtensionEx("HostBlacklistTable" "table" "HostBlacklist"
     SOURCES ${project_common_source_files} src/hostblacklist.h src/hostblacklist.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
     MAININCLUDES hostblacklist.h
     LIBRARIES ${project_libraries}
   )
 
-  add_osquery_extension_ex("PortBlacklistTable" "table" "PortBlacklist"
+  addOsqueryExtensionEx("PortBlacklistTable" "table" "PortBlacklist"
     SOURCES ${project_common_source_files} src/portblacklist.h src/portblacklist.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
     MAININCLUDES portblacklist.h
@@ -82,6 +81,7 @@ function(main)
 
     target_include_directories("${test_target_name}" PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
+      "${TOB_EXTENSIONS_ROOT}"
     )
 
     target_compile_definitions("${test_target_name}" PRIVATE "${configuration_root}")
@@ -108,4 +108,4 @@ function(main)
   endif()
 endfunction()
 
-main()
+fwctlMain()

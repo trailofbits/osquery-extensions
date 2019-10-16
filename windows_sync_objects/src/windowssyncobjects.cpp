@@ -21,7 +21,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
+#else
+#include <osquery/sdk.h>
+#endif
 
 #include <rapidjson/document.h>
 
@@ -90,7 +95,22 @@ osquery::TableColumns WindowsSyncObjectsTable::columns() const {
   // clang-format on
 }
 
-osquery::TableRows WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
+  osquery::TableRows result;
+  for (auto&& row : rows) {
+    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+  }
+  return result;
+}
+#endif
+
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+osquery::TableRows
+#else
+osquery::QueryData
+#endif
+WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   struct CallbackData final {
@@ -200,7 +220,7 @@ osquery::TableRows WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
     }
     }
 
-    callback_data.results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+    callback_data.results.push_back(row);
     return true;
   };
 
@@ -212,7 +232,11 @@ osquery::TableRows WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   CallbackData callback_data = {d->rowid_to_path, filter, {}};
   EnumObObjects(L_enumObObjectsCallback, &callback_data);
 
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+  return getTableRowsFromQueryData(callback_data.results);
+#else
   return callback_data.results;
+#endif
 }
 
 osquery::QueryData WindowsSyncObjectsTable::insert(

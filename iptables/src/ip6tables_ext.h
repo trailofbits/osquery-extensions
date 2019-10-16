@@ -16,14 +16,17 @@
 
 #pragma once
 
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
 #else
 #include <osquery/sdk/sdk.h>
 #endif
 
 extern "C" {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Werror"
 #include <libiptc/libip6tc.h>
+#pragma clang diagnostic pop
 }
 
 #include "utils.h"
@@ -31,7 +34,7 @@ extern "C" {
 namespace trailofbits {
 class Ip6tablesExtTable : public IptablesExtBase {
  public:
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
   osquery::QueryData generate(osquery::QueryContext& context);
 #else
   osquery::TableRows generate(osquery::QueryContext& context);
@@ -39,7 +42,7 @@ class Ip6tablesExtTable : public IptablesExtBase {
  private:
   osquery::Status genIptablesRules(const std::string& filter,
                                    const MatchChain& matches,
-#if OSQUERY_VERSION_NUMBER <= 4000
+#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
                                    osquery::QueryData& results);
 #else
                                    osquery::TableRows& results);

@@ -8,11 +8,14 @@ function(json11Main)
   )
 
   add_library("${PROJECT_NAME}" STATIC ${source_files})
-  target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+  target_include_directories("${PROJECT_NAME}" PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
 
   target_link_libraries("${PROJECT_NAME}" PUBLIC
     osquery_cxx_settings
-    )
+  )
 endfunction()
 
 json11Main()

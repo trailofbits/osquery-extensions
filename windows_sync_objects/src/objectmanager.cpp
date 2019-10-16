@@ -18,6 +18,11 @@
 #include "winapi.h" // Definitions for undocumented Windows APIs
 
 #include "osquery/core/windows/wmi.h" // We need this for wstringToString
+
+#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#include <osquery/utils/conversions/windows/strings.h>
+#endif
+
 #include <osquery/logger.h>
 
 #include <array>

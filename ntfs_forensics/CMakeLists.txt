@@ -15,7 +15,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(ntfs_forensics)
 
-function(main)
+function(ntfs_forensics_main)
   set(project_common_source_files
     src/ntfs_types.h
 
@@ -42,21 +42,21 @@ function(main)
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
 
-  add_osquery_extension_ex("NTFSFileInfoTablePlugin" "table" "ntfs_file_data"
+  addOsqueryExtensionEx("NTFSFileInfoTablePlugin" "table" "ntfs_file_data"
     SOURCES ${project_common_source_files} src/ntfsfileinfotable.h src/ntfsfileinfotable.cpp
     INCLUDEDIRS ${project_include_dirs}
     MAININCLUDES ntfsfileinfotable.h
     LIBRARIES tsk_builtin
   )
 
-  add_osquery_extension_ex("NTFSPartInfoTablePlugin" "table" "ntfs_part_data"
+  addOsqueryExtensionEx("NTFSPartInfoTablePlugin" "table" "ntfs_part_data"
     SOURCES ${project_common_source_files} src/ntfspartinfotable.h src/ntfspartinfotable.cpp
     INCLUDEDIRS ${project_include_dirs}
     MAININCLUDES ntfspartinfotable.h
     LIBRARIES tsk_builtin
   )
 
-  add_osquery_extension_ex("NTFSINDXTablePugin" "table" "ntfs_indx_data"
+  addOsqueryExtensionEx("NTFSINDXTablePugin" "table" "ntfs_indx_data"
     SOURCES ${project_common_source_files} src/ntfsindxtable.h src/ntfsindxtable.cpp
     INCLUDEDIRS ${project_include_dirs}
     MAININCLUDES ntfsindxtable.h
@@ -64,4 +64,4 @@ function(main)
   )
 endfunction()
 
-main()
+ntfs_forensics_main()

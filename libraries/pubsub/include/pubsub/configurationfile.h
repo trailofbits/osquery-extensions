@@ -19,6 +19,8 @@
 #include <ctime>
 #include <memory>
 
+#include "Version.h"
+
 #if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/extensions.h>
 #else

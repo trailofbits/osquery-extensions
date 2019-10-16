@@ -19,6 +19,8 @@
 #include <cstdint>
 #include <unordered_map>
 
+#include "Version.h"
+
 #if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
 #else

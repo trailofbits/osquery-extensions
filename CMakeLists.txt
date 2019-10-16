@@ -41,7 +41,7 @@ function(trailofbitsExtensionsMain)
   message(STATUS "Version: ${OSQUERY_EXTENSION_GROUP_VERSION}")
   message(STATUS "================================")
 
-  generateOsqueryVersion(${OSQUERY_VERSION_AUTODETECTED})
+  generateOsqueryVersion(${OSQUERY_VERSION_INTERNAL})
   ImportLibraries()
   ImportExtensions()
 
@@ -142,7 +142,7 @@ function(IsFolderEnabled relative_path)
       return()
     endif()
   endif()
-  
+
   set(IsFolderEnabled_OUTPUT false PARENT_SCOPE)
 endfunction()
 

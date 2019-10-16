@@ -52,7 +52,7 @@ function(main)
     src/efigytable.cpp
   )
 
-  add_osquery_extension_ex("EFIgyTablePlugin" "table" "EFIgy"
+  addOsqueryExtensionEx("EFIgyTablePlugin" "table" "EFIgy"
     SOURCES ${source_files}
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src" ${project_include_folders}
     MAININCLUDES efigytable.h
