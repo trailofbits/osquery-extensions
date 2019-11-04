@@ -18,7 +18,11 @@
 
 #include "configurationfile.h"
 
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/extensions.h>
+#else
+#include <osquery/flags.h>
+#endif
 
 #include <memory>
 

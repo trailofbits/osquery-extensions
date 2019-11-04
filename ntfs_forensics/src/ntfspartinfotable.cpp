@@ -18,7 +18,6 @@
 #include <iostream>
 
 #include <osquery/tables.h>
-#include <osquery/sql/dynamic_table_row.h>
 
 #include "diskpartition.h"
 #include "ntfspartinfotable.h"
@@ -47,7 +46,7 @@ osquery::TableRows NTFSPartInfoTablePlugin::generate(
     r["address"] = std::to_string(part.part_address);
     r["description"] = part.descriptor;
 
-    result.push_back(std::move(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r)))));
+    insertRow(result, r);
   }
 
   return result;

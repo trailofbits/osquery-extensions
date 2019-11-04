@@ -16,10 +16,12 @@
 
 #pragma once
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
+#include <osquery/core/conversions.h>
 #else
 #include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 #endif
 
 class SantaRulesTablePlugin final : public osquery::TablePlugin {
@@ -37,11 +39,7 @@ class SantaRulesTablePlugin final : public osquery::TablePlugin {
  private:
   virtual osquery::TableColumns columns() const override;
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
-  virtual osquery::QueryData generate(osquery::QueryContext& request) override;
-#else
   virtual osquery::TableRows generate(osquery::QueryContext& request) override;
-#endif
 
   virtual osquery::QueryData insert(
       osquery::QueryContext& context,

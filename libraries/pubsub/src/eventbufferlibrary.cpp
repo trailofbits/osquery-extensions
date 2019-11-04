@@ -27,7 +27,7 @@ namespace {
 const std::size_t kCircularBufferSize = 4096U;
 
 /// The buffer used to store rows
-#ifdef OSQUERY_VERSION_3_3_2
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
 using CircularBuffer = boost::circular_buffer<osquery::Row>;
 #else
 using CircularBuffer = boost::circular_buffer<osquery::TableRowHolder>;

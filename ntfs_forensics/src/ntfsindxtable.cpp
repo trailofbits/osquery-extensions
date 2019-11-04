@@ -18,7 +18,6 @@
 #include <iostream>
 
 #include <osquery/tables.h>
-#include <osquery/sql/dynamic_table_row.h>
 
 #include "constraints.h"
 #include "diskdevice.h"
@@ -71,8 +70,7 @@ void generateAndAppendRows(
     for (auto& entry : entries) {
       osquery::Row r = {};
       populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
-
-      results.push_back(std::move(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r)))));
+      insertRow(results, r);
     }
   }
 }
@@ -99,8 +97,7 @@ void generateAndAppendRows(osquery::TableRows& results,
     for (auto& entry : entries) {
       osquery::Row r = {};
       populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
-
-      results.push_back(std::move(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r)))));
+      insertRow(results, r);
     }
   }
 }

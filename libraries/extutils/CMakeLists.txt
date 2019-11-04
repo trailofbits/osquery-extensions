@@ -23,11 +23,14 @@ function(main)
 
   add_library("${PROJECT_NAME}" STATIC ${project_source_files})
   target_include_directories("${PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-  target_compile_options("${PROJECT_NAME}" PUBLIC ${cxx_settings})
+  
+  if(${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.0.1")
+    target_compile_options("${PROJECT_NAME}" PUBLIC ${cxx_settings})
  
-  target_link_libraries("${PROJECT_NAME}" PUBLIC
-    thirdparty_boost
-  )
+    target_link_libraries("${PROJECT_NAME}" PUBLIC
+      thirdparty_boost
+    )
+  endif()
 
 endfunction()
 

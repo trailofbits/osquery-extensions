@@ -20,7 +20,16 @@
 
 #define OSQUERY_VERSION_MINOR @OSQUERY_BUILD_VERSION_MINOR@
 
-#define OSQUERY_SDK_VERSION(major, minor) ((major * 100) + minor)
+#define SDK_VERSION(major, minor) ((major * 100) + minor)
 
 #define OSQUERY_VERSION_NUMBER \
-    OSQUERY_SDK_VERSION(OSQUERY_VERSION_MAJOR, OSQUERY_VERSION_MINOR)
+    SDK_VERSION(OSQUERY_VERSION_MAJOR, OSQUERY_VERSION_MINOR)
+
+
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
+#include <osquery/sdk.h>
+
+namespace osquery {
+  using TableRows = QueryData;
+}
+#endif

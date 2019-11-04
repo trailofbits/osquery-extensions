@@ -16,7 +16,7 @@
 
 #include "Version.h"
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
 #else
 #include <osquery/sdk/sdk.h>
@@ -33,12 +33,13 @@
 
 #include "ip6tables_ext.h"
 #include "utils.h"
+#include "utils_compatible.h"
 
 using namespace osquery;
 
 namespace trailofbits {
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
 osquery::QueryData Ip6tablesExtTable::generate(osquery::QueryContext& context) {
   osquery::QueryData results;
 
@@ -101,7 +102,7 @@ osquery::TableRows Ip6tablesExtTable::generate(osquery::QueryContext& context) {
 osquery::Status Ip6tablesExtTable::genIptablesRules(
     const std::string& filter,
     const MatchChain& matches,
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
     osquery::QueryData& results
 #else
     osquery::TableRows& results
@@ -171,7 +172,7 @@ osquery::Status Ip6tablesExtTable::genIptablesRules(
       }
 
       parseIpEntry(&chain_rule->ipv6, r);
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
       results.push_back(r);
 #else
       results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));

@@ -17,12 +17,20 @@
 #include "Version.h"
 #include <osquery/logger.h>
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
-#include <osquery/sql/dynamic_table_row.h>
-#endif
-
 #include "santa.h"
 #include "santadecisionstable.h"
+
+osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
+  osquery::TableRows result;
+  for (auto&& row : rows) {
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
+    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+#else
+    result.push_back(row);
+#endif
+  }
+  return result;
+}
 
 osquery::TableColumns decisionTablesColumns() {
   // clang-format off
@@ -67,38 +75,17 @@ osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request,
   return result;
 }
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
-osquery::QueryData SantaAllowedDecisionsTablePlugin::generate(
-    osquery::QueryContext& request) {
-  return decisionTablesGenerate(request, decision);
-}
-
-osquery::QueryData SantaDeniedDecisionsTablePlugin::generate(
-    osquery::QueryContext& request) {
-  return decisionTablesGenerate(request, decision);
-}
-#else
 osquery::TableRows SantaAllowedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
-  osquery::TableRows result;
-
   auto rows = decisionTablesGenerate(request, decision);
-  for (auto&& row : rows) {
-    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
-  }
-  return result;
+  return getTableRowsFromQueryData(rows);
 }
 
 osquery::TableRows SantaDeniedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
-  osquery::TableRows result;
   auto rows = decisionTablesGenerate(request, decision);
-  for (auto&& row : rows) {
-    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
-  }
-  return result;
+  return getTableRowsFromQueryData(rows);
 }
-#endif
 
 osquery::TableColumns SantaAllowedDecisionsTablePlugin::columns() const {
   return decisionTablesColumns();

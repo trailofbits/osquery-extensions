@@ -19,17 +19,19 @@
 
 #include "Version.h"
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
-#include <osquery/core/conversions.h>
-#else
-#include <osquery/sql/dynamic_table_row.h>
-#endif
-
 #include <osquery/logger.h>
 
 #include "santa.h"
 #include "santarulestable.h"
 #include "utils.h"
+
+static inline void insertRow(osquery::TableRows &result, osquery::Row &row) {
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
+  result.push_back(row);
+#else
+  result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+#endif
+}
 
 namespace {
 const std::string kSantactlPath = "/usr/local/bin/santactl";
@@ -140,52 +142,6 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
   // clang-format on
 }
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
-osquery::QueryData SantaRulesTablePlugin::generate(
-    osquery::QueryContext& request) {
-  std::unordered_map<RowID, std::string> rowid_to_pkey;
-  std::unordered_map<std::string, RuleEntry> rule_list;
-
-  {
-    std::lock_guard<std::mutex> lock(d->mutex);
-
-    auto status = updateRules();
-    if (!status.ok()) {
-      VLOG(1) << status.getMessage();
-      return {{std::make_pair("status", "failure")}};
-    }
-
-    rowid_to_pkey = d->rowid_to_pkey;
-    rule_list = d->rule_list;
-  }
-
-  osquery::QueryData result;
-
-  for (const auto& rowid_pkey_pair : rowid_to_pkey) {
-    const auto& rowid = rowid_pkey_pair.first;
-    const auto& pkey = rowid_pkey_pair.second;
-
-    auto rule_it = rule_list.find(pkey);
-    if (rule_it == rule_list.end()) {
-      VLOG(1) << "RowID -> Primary key mismatch error in santa_rules table";
-      continue;
-    }
-
-    const auto& rule = rule_it->second;
-
-    osquery::Row row;
-    row["rowid"] = std::to_string(rowid);
-    row["shasum"] = rule.shasum;
-    row["state"] = getRuleStateName(rule.state);
-    row["type"] = getRuleTypeName(rule.type);
-    row["custom_message"] = rule.custom_message;
-
-    result.push_back(std::move(row));
-  }
-
-  return result;
-}
-#else
 osquery::TableRows SantaRulesTablePlugin::generate(
     osquery::QueryContext& request) {
   std::unordered_map<RowID, std::string> rowid_to_pkey;
@@ -199,7 +155,7 @@ osquery::TableRows SantaRulesTablePlugin::generate(
     if (!status.ok()) {
       VLOG(1) << status.getMessage();
       osquery::Row row = {{std::make_pair("status", "failure")}};
-      result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+      insertRow(result, row);
       return result;
     }
 
@@ -227,12 +183,11 @@ osquery::TableRows SantaRulesTablePlugin::generate(
     row["type"] = getRuleTypeName(rule.type);
     row["custom_message"] = rule.custom_message;
 
-    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+    insertRow(result, row);
   }
 
   return result;
 }
-#endif
 
 osquery::QueryData SantaRulesTablePlugin::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {

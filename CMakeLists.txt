@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 3.14.6)
+cmake_minimum_required(VERSION 3.10)
 project("traiofbits_extensions")
 
 set(ROOT_TEST_TARGET "trailofbits_extensions_tests")
@@ -22,6 +22,11 @@ set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" CACHE STRING "TOB extensio
 
 set(OSQUERY_EXTENSION_GROUP_NAME "trailofbits_osquery_extensions" CACHE STRING "Overrides osquery extension group version" FORCE)
 set(OSQUERY_EXTENSION_GROUP_VERSION "1.2" CACHE STRING "Overrides osquery extension group version" FORCE)
+
+if(NOT DEFINED OSQUERY_VERSION_INTERNAL)
+  set(OSQUERY_VERSION_INTERNAL "3.3.2")
+  include(cmake/compatible.cmake)
+endif()
 
 function(generateOsqueryVersion versionstring)
   string(REPLACE "." ";" version_list ${versionstring} )
@@ -184,6 +189,8 @@ endfunction()
 
 trailofbitsExtensionsMain()
 
+if(${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.0.0")
 # If the user has generated extensions using the new generate_osquery_extension_group
 # function, then this call will generate the bundle
-generateOsqueryExtensionGroup()
+  generateOsqueryExtensionGroup()
+endif()

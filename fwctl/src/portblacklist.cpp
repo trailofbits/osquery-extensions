@@ -17,7 +17,7 @@
 #include "portblacklist.h"
 #include "globals.h"
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
 #include <osquery/core/conversions.h>
 #else
 #include <osquery/sql/dynamic_table_row.h>
@@ -82,100 +82,6 @@ osquery::TableColumns PortBlacklistTable::columns() const {
   // clang-format on
 }
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
-osquery::QueryData PortBlacklistTable::generate(
-    osquery::QueryContext& context) {
-  static_cast<void>(context);
-
-  PortRuleMap table_data;
-  RowIdToPrimaryKeyMap table_row_id_to_pkey;
-
-  PortRuleMap firewall_data;
-
-  {
-    std::lock_guard<std::mutex> lock(d->mutex);
-
-    table_data = d->data;
-    table_row_id_to_pkey = d->row_id_to_pkey;
-
-    // clang-format off
-    auto fw_status = GetFirewall().enumerateBlacklistedPorts(
-      [](std::uint16_t port, IFirewall::TrafficDirection direction,
-         IFirewall::Protocol protocol, void* user_defined) -> bool {
-
-        auto &rule_list = *static_cast<PortRuleMap*>(user_defined);
-
-        PortRule rule = {port, direction, protocol};
-        auto pkey = GeneratePrimaryKey(rule);
-
-        rule_list.insert({pkey, rule});
-        return true;
-      },
-
-      &firewall_data
-    );
-    // clang-format on
-
-    static_cast<void>(fw_status);
-  }
-
-  osquery::QueryData results;
-
-  // Add managed firewall rules
-  for (const auto& pair : table_row_id_to_pkey) {
-    const auto& row_id = pair.first;
-    const auto& pkey = pair.second;
-
-    const auto& rule = table_data.at(pkey);
-
-    osquery::Row row;
-    row["rowid"] = std::to_string(row_id);
-    row["port"] = std::to_string(rule.port);
-
-    row["direction"] = (rule.direction == IFirewall::TrafficDirection::Inbound)
-                           ? "INBOUND"
-                           : "OUTBOUND";
-
-    row["protocol"] =
-        (rule.protocol == IFirewall::Protocol::TCP ? "TCP" : "UDP");
-
-    if (firewall_data.count(pkey) != 0) {
-      row["status"] = "ENABLED";
-    } else {
-      row["status"] = "DISABLED";
-    }
-
-    results.push_back(row);
-  }
-
-  // Add unmanaged firewall rules
-  RowID temp_row_id = 0x80000000ULL;
-  for (const auto& pair : firewall_data) {
-    const auto& pkey = pair.first;
-    const auto& rule = pair.second;
-
-    if (table_data.count(pkey) != 0) {
-      continue;
-    }
-
-    osquery::Row row;
-    row["rowid"] = std::to_string(temp_row_id++);
-    row["port"] = std::to_string(rule.port);
-    row["status"] = "UNMANAGED";
-
-    row["direction"] = (rule.direction == IFirewall::TrafficDirection::Inbound)
-                           ? "INBOUND"
-                           : "OUTBOUND";
-
-    row["protocol"] =
-        (rule.protocol == IFirewall::Protocol::TCP ? "TCP" : "UDP");
-
-    results.push_back(row);
-  }
-
-  return results;
-}
-#else
 osquery::TableRows PortBlacklistTable::generate(
     osquery::QueryContext& context) {
   static_cast<void>(context);
@@ -238,7 +144,7 @@ osquery::TableRows PortBlacklistTable::generate(
       row["status"] = "DISABLED";
     }
 
-    results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+    insertRow(results, row);
   }
 
   // Add unmanaged firewall rules
@@ -263,12 +169,11 @@ osquery::TableRows PortBlacklistTable::generate(
     row["protocol"] =
         (rule.protocol == IFirewall::Protocol::TCP ? "TCP" : "UDP");
 
-    results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+    insertRow(results, row);
   }
 
   return results;
 }
-#endif
 
 osquery::QueryData PortBlacklistTable::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {

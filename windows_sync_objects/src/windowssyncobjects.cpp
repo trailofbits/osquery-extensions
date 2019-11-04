@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
 #include <osquery/sql/dynamic_table_row.h>
 #else
@@ -95,7 +95,7 @@ osquery::TableColumns WindowsSyncObjectsTable::columns() const {
   // clang-format on
 }
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
   osquery::TableRows result;
   for (auto&& row : rows) {
@@ -105,11 +105,7 @@ osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
 }
 #endif
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
 osquery::TableRows
-#else
-osquery::QueryData
-#endif
 WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
@@ -232,7 +228,7 @@ WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   CallbackData callback_data = {d->rowid_to_path, filter, {}};
   EnumObObjects(L_enumObObjectsCallback, &callback_data);
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
   return getTableRowsFromQueryData(callback_data.results);
 #else
   return callback_data.results;

@@ -21,13 +21,17 @@ function(fwctlMain)
     hostsfile
   )
 
-  if(UNIX)
-    list(APPEND project_libraries
-      # boost_system-mt
-      # boost_serialization-mt
-      # boost_regex-mt
-    )
-  else()
+  if(${OSQUERY_VERSION_INTERNAL} VERSION_LESS "4.0.0")
+    if(UNIX)
+      list(APPEND project_libraries
+        boost_system-mt
+        boost_serialization-mt
+        boost_regex-mt
+      )
+    endif()
+  endif()
+
+  if(PLATFORM_WINDOWS)
     list(APPEND project_libraries
       libboost_system-mt-s.lib
       libboost_serialization-mt-s.lib
@@ -85,22 +89,25 @@ function(fwctlMain)
     )
 
     target_compile_definitions("${test_target_name}" PRIVATE "${configuration_root}")
-    target_compile_options("${test_target_name}" PRIVATE ${cxx_settings})
 
-    target_link_libraries("${test_target_name}" PRIVATE
-      osquery_sdk_pluginsdk
-      osquery_extensions_implthrift
-      thirdparty_googletest
-      firewall
-      hostsfile
-    )
+    if(${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.0.0")
+      target_compile_options("${test_target_name}" PRIVATE ${cxx_settings})
 
-    # target_link_libraries("${test_target_name}" PRIVATE
-    #   glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt boost_context-mt
-    #   firewall hostsfile
-    # )
+      target_link_libraries("${test_target_name}" PRIVATE
+        osquery_sdk_pluginsdk
+        osquery_extensions_implthrift
+        thirdparty_googletest
+        firewall
+        hostsfile
+      )
+    else()
+      target_link_libraries("${test_target_name}" PRIVATE
+        glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt boost_context-mt
+        firewall hostsfile
+      )
 
-    # target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
+      target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
+    endif()
 
     if(NOT APPLE)
       target_link_libraries("${test_target_name}" PRIVATE rt)

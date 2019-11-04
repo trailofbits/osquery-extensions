@@ -21,10 +21,18 @@
 
 #include "Version.h"
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
+
+static inline void insertRow(osquery::QueryData &result, osquery::Row &row) {
+  result.push_back(row);
+}
 #else
 #include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
+static inline void insertRow(osquery::TableRows &result, osquery::Row &row) {
+  result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+}
 #endif
 
 #include <rapidjson/document.h>

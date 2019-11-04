@@ -14,14 +14,22 @@
  * limitations under the License.
  */
 
+#include "Version.h"
+
 #include <boost/algorithm/string/trim.hpp>
+
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
+#include <osquery/sdk.h>
+#else
 #include <osquery/sdk/sdk.h>
 #include <osquery/sql/dynamic_table_row.h>
+#endif
 
 #include <trailofbits/extutils.h>
 
 #include "iptables_policies.h"
 #include "utils.h"
+#include "utils_compatible.h"
 
 using namespace osquery;
 
@@ -70,7 +78,7 @@ void IptablesPoliciesTable::genIptablesPolicy(const std::string& filter,
     r["packets"] = BIGINT(counters.pcnt);
     r["bytes"] = BIGINT(counters.bcnt);
 
-    results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
+    insertRow(results, r);
   }
 
   iptc_free(handle);

@@ -35,6 +35,9 @@ function(networkMonitorMain)
 
   addOsqueryExtension("${PROJECT_NAME}" ${project_source_files})
 
+  # Reference our pubsub framework	
+  list(APPEND libraries pubsub)
+
   # Import Pcap++
   ImportDependency("pcap")
   ImportDependency("Pcap++")
@@ -43,9 +46,12 @@ function(networkMonitorMain)
   list(APPEND libraries pubsub)
   list(APPEND libraries Pcap++)
 
+  if(${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.0.0")
+    list(APPEND libraries osquery_extensions_implthrift)
+  endif()
+
   target_link_libraries("${PROJECT_NAME}" PUBLIC
     ${libraries}
-    osquery_extensions_implthrift
   )
 endfunction()
 

@@ -24,8 +24,14 @@
  *  You may select, at your option, one of the above-listed licenses.
  */
 
+#include "Version.h"
+
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
 #include <osquery/sql/dynamic_table_row.h>
+#else
+#include <osquery/sdk.h>
+#endif
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -37,6 +43,7 @@
 
 #include "iptables_ext.h"
 #include "utils.h"
+#include "utils_compatible.h"
 
 using namespace osquery;
 
@@ -139,7 +146,7 @@ osquery::Status IptablesExtTable::genIptablesRules(
 
       parseIpEntry(&chain_rule->ip, r);
 
-      results.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
+      insertRow(results, r);
       ruleno++;
     } // Rule iteration
   } // Chain iteration

@@ -19,9 +19,17 @@
 #include "system_log.h"
 #include "darwinlogtable.h"
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
-#include <osquery/sql/dynamic_table_row.h>
+static inline osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
+  osquery::TableRows result;
+  for (auto&& row : rows) {
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
+    result.push_back(row)
+#else
+    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
 #endif
+  }
+  return result;
+}
 
 osquery::TableColumns UnifiedLogTablePlugin::columns() const {
   return {
@@ -99,29 +107,11 @@ osquery::TableColumns UnifiedLogTablePlugin::columns() const {
   };
 }
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
-osquery::QueryData UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
-  osquery::QueryData q;
-  logMonitor.getEntries(q);
-  return q;
-}
-#else
-
-osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
-  osquery::TableRows result;
-  for (auto&& row : rows) {
-    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
-  }
-  return result;
-}
-
 osquery::TableRows UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
   osquery::QueryData q;
   logMonitor.getEntries(q);
   return getTableRowsFromQueryData(q);
 }
-#endif
-
 
 osquery::Status UnifiedLogTablePlugin::setUp() {
   return logMonitor.setUp();

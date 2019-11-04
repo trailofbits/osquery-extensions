@@ -16,10 +16,16 @@
 
 #pragma once
 
+#include "Version.h"
+
 #include "baseeventsubscriber.h"
 #include "ieventsubscriber.h"
 
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
+#else
+#include <osquery/sdk.h>
+#endif
 
 namespace trailofbits {
 /// Event subscribers use this as a base class

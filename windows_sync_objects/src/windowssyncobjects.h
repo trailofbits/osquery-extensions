@@ -19,7 +19,7 @@
 #include <memory>
 #include "Version.h"
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
 #else
 #include <osquery/sdk.h>
@@ -35,11 +35,7 @@ class WindowsSyncObjectsTable final : public osquery::TablePlugin {
   osquery::TableColumns columns() const;
 
   /// Generates the table rows
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
   osquery::TableRows generate(osquery::QueryContext& context);
-#else
-  osquery::QueryData generate(osquery::QueryContext& context);
-#endif
 
   /// Inserts a new synchronization object into the table
   osquery::QueryData insert(osquery::QueryContext& context,

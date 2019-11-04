@@ -18,10 +18,11 @@
 
 #include "Version.h"
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
 #else
 #include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 #endif
 
 #include "system_log.h"
@@ -35,10 +36,6 @@ class UnifiedLogTablePlugin final : public osquery::TablePlugin {
   private:
     osquery::TableColumns columns() const override;
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
-    osquery::QueryData generate(osquery::QueryContext& request) override;
-#else
     osquery::TableRows generate(osquery::QueryContext& request) override;
-#endif
     LogMonitor logMonitor;
 };

@@ -26,7 +26,7 @@
 
 #include "Version.h"
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
 #include <osquery/filesystem/filesystem.h>
 #else

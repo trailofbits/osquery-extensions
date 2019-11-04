@@ -31,15 +31,17 @@ function(main)
     ${TOB_EXTENSIONS_ROOT}
   )
 
-  # set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
-  # find_package(openssl REQUIRED)
-  # list(APPEND project_libraries
-  #   ${OPENSSL_LIBRARIES}
-  # )
+  if(${OSQUERY_VERSION_INTERNAL} VERSION_LESS "4.0.1")
+    set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+    find_package(openssl REQUIRED)
+    list(APPEND project_libraries
+      ${OPENSSL_LIBRARIES}
+    )
 
-  list(APPEND project_include_folders
-    ${OPENSSL_INCLUDE_DIR}
-  )
+    list(APPEND project_include_folders
+      ${OPENSSL_INCLUDE_DIR}
+    )
+  endif()
 
   set(source_files
     src/utils.h

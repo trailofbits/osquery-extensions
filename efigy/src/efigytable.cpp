@@ -20,8 +20,16 @@
 #include "Extension.h"
 #include "utils.h"
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/sql/dynamic_table_row.h>
+
+static inline void insertRow(osquery::TableRows &result, osquery::Row &row) {
+  result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+}
+#else
+static inline void insertRow(osquery::QueryData &result, osquery::Row &row) {
+  result.push_back(row);
+}
 #endif
 
 #include <curl/curl.h>
@@ -57,53 +65,6 @@ osquery::TableColumns EFIgyTablePlugin::columns() const {
   // clang-format on
 }
 
-#if OSQUERY_VERSION_NUMBER < OSQUERY_SDK_VERSION(4, 0)
-osquery::QueryData EFIgyTablePlugin::generate(osquery::QueryContext& request) {
-  SystemInformation system_info;
-  ServerResponse response;
-
-  try {
-    getSystemInformation(system_info);
-    queryEFIgy(response, system_info);
-
-  } catch (const std::exception& e) {
-    VLOG(1) << e.what();
-
-    osquery::Row r;
-    r["efi_version_status"] = r["os_version_status"] =
-        r["build_number_status"] = "error";
-
-    return {r};
-  }
-
-  osquery::Row r;
-  r["latest_efi_version"] = response.latest_efi_version;
-  r["efi_version"] = system_info.rom_ver;
-  if (system_info.rom_ver == response.latest_efi_version) {
-    r["efi_version_status"] = "success";
-  } else {
-    r["efi_version_status"] = "failure";
-  }
-
-  r["latest_os_version"] = response.latest_os_version;
-  r["os_version"] = system_info.os_ver;
-  if (system_info.os_ver == response.latest_os_version) {
-    r["os_version_status"] = "success";
-  } else {
-    r["os_version_status"] = "failure";
-  }
-
-  r["latest_build_number"] = response.latest_build_number;
-  r["build_number"] = system_info.build_num;
-  if (system_info.build_num == response.latest_build_number) {
-    r["build_number_status"] = "success";
-  } else {
-    r["build_number_status"] = "failure";
-  }
-
-  return {r};
-}
-#else
 osquery::TableRows EFIgyTablePlugin::generate(osquery::QueryContext& request) {
   SystemInformation system_info;
   ServerResponse response;
@@ -120,7 +81,7 @@ osquery::TableRows EFIgyTablePlugin::generate(osquery::QueryContext& request) {
     r["efi_version_status"] = r["os_version_status"] =
         r["build_number_status"] = "error";
 
-    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
+    insertRow(result, r);
     return result;
   }
 
@@ -149,10 +110,9 @@ osquery::TableRows EFIgyTablePlugin::generate(osquery::QueryContext& request) {
     r["build_number_status"] = "failure";
   }
 
-  result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(r))));
+  insertRow(result, r);;
   return result;
 }
-#endif
 
 EFIgyTablePlugin::EFIgyTablePlugin() {
   curl_global_init(CURL_GLOBAL_ALL);

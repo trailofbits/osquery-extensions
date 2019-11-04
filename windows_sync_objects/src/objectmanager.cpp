@@ -19,7 +19,7 @@
 
 #include "osquery/core/windows/wmi.h" // We need this for wstringToString
 
-#if OSQUERY_VERSION_NUMBER >= OSQUERY_SDK_VERSION(4, 0)
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/utils/conversions/windows/strings.h>
 #endif
 
