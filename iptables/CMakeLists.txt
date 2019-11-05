@@ -83,10 +83,7 @@ function(iptablesMain)
     src/utils.h
   )
 
-  # AddTest("iptables" test_target_name ${project_test_files})
-
-  set(test_target_name "tobExtTests_${PROJECT_NAME}")
-  add_executable(${test_target_name} ${project_test_files})
+  AddTest("iptables" test_target_name ${project_test_files})
 
   target_include_directories("${test_target_name}" PRIVATE
     ${project_common_include_dirs}

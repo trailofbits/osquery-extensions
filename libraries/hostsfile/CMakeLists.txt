@@ -41,10 +41,7 @@ function(main)
     tests/hostsfile.cpp
   )
 
-  # AddTest("${PROJECT_NAME}" test_target_name ${project_test_files})
-
-  set(test_target_name "tobExtTests_${PROJECT_NAME}")
-  add_executable(${test_target_name} ${project_test_files})
+  AddTest("${PROJECT_NAME}" test_target_name ${project_test_files})
 
   target_include_directories("${test_target_name}" PRIVATE
     "${project_public_include_folder}"

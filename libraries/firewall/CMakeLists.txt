@@ -84,11 +84,8 @@ function(firewallMain)
   target_include_directories("${PROJECT_NAME}" PUBLIC "${project_public_include_folder}")
   target_link_libraries("${PROJECT_NAME}" PUBLIC extutils)
 
-  # AddTest("${PROJECT_NAME}" test_target_name ${project_test_files})
-  # message("${test_target_name}")
+  AddTest("${PROJECT_NAME}" test_target_name ${project_test_files})
 
-  set(test_target_name "tobExtTests_${PROJECT_NAME}")
-  add_executable(${test_target_name} ${project_test_files})
   target_include_directories("${test_target_name}" PRIVATE
     "${project_public_include_folder}"
     "${project_test_include_dirs}"

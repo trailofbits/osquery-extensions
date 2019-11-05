@@ -78,10 +78,7 @@ function(fwctlMain)
       src/portblacklist.cpp
     )
 
-    # AddTest("tables" test_target_name ${project_test_files})
-
-    set(test_target_name "tobExtTests_tables")
-    add_executable(${test_target_name} ${project_test_files})
+    AddTest("tables" test_target_name ${project_test_files})
 
     target_include_directories("${test_target_name}" PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
