@@ -23,10 +23,7 @@
 #endif
 
 extern "C" {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Werror"
-#include <libiptc/libip6tc.h>
-#pragma clang diagnostic pop
+#include "ip6tc.h"
 }
 
 #include "utils.h"

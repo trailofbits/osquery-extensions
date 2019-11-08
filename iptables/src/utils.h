@@ -25,7 +25,7 @@
 #endif
 
 extern "C" {
-#include <libiptc/libiptc.h>
+  #include "iptc.h"
 }
 
 #include <netdb.h>

@@ -23,7 +23,7 @@
 #endif
 
 extern "C" {
-#include <libiptc/libip6tc.h>
+#include "ip6tc.h"
 }
 
 #include "utils.h"
