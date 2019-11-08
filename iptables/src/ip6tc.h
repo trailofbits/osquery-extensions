@@ -1,4 +1,5 @@
-
+// A wrapper for <libiptc/libip6tc.h>
+// This avoids the error due to pointer arithmetic on void*
 
 #pragma once
 
