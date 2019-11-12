@@ -78,14 +78,7 @@ Additionally, the osquery-extensions repository has git submodules that need to 
 
 Here are example steps for each platform:
 
-### macOS or Linux
-
-Note: Due to the current way `bison` is built, you may need to add some symlinks to your system. This is only necessary if you want to build the `network_monitor` extension, or are building all extensions.
-
-```
-/home/linuxbrew/.linuxbrew/Cellar -> /usr/local/osquery/Cellar
-/home/linuxbrew/.linuxbrew/opt -> /usr/local/osquery/opt
-```
+### macOS
 
 Then you can run the following commands.
 
@@ -101,14 +94,42 @@ git submodule update --recursive
 cd /src/osquery
 ln -s /src/osquery-extensions /src/osquery/external/extension_trailofbits
 
-make sysprep
-make deps
+# Build osquery
+mkdir build; cd build
+cmake ..
 
-# If using macOS, replace `nproc` with `sysctl -n hw.ncpu`
-make -j `nproc`
+cmake --build . -j `sysctl -n hw.ncpu`
 ```
 
-### Windows
+### Linux
+
+Then you can run the following commands.
+
+```
+cd /src
+git clone https://github.com/facebook/osquery.git
+git clone https://github.com/trailofbits/osquery-extensions.git
+
+cd /src/osquery-extensions
+git submodule init
+git submodule update --recursive
+
+cd /src/osquery
+ln -s /src/osquery-extensions /src/osquery/external/extension_trailofbits
+
+# Build osquery
+mkdir build; cd build
+cmake -DOSQUERY_TOOLCHAIN_SYSROOT=/usr/local/osquery-toolchain ..
+
+cmake --build . -j `nproc`
+```
+
+### Windows 10
+
+The root folder is assumed to be `C:\`
+
+Note: The intention here is to reduce the length of the prefix of the osquery folder, since Windows and msbuild have a 255 characters max path limit.
+
 ```
 cd \Projects
 git clone https://github.com/facebook/osquery.git
@@ -119,19 +140,15 @@ git submodule init
 git submodule update --recursive
 
 # Symbolically link the extensions repo into the osquery core repo:
-mklink /D "\Projects\osquery\external\extension_trailofbits" "\Projects\osquery-extensions"
+mklink /D "C:\osquery\external\extension_trailofbits" "\Projects\osquery-extensions"
 
-# From a shell with Administrator privileges:
-cd \Projects\osquery
-.\tools\make-win64-dev-env.bat
-.\tools\make-win64-binaries.bat
+# From a shell with Administrator privileges
+mkdir build; cd build
+cmake -G "Visual Studio 16 2019" -A x64 -T v141 ..
 
-# To additionally build the extensions, now:
-cd build\windows10
-cmake --build . --config Release --target trailofbits_osquery_extensions
+# Build
+cmake --build . --config RelWithDebInfo -j10 # Number of projects to build in parallel
 ```
-
-If you see the following warning, it can be ignored: `-- Cannot find Doxygen executable in path`
 
 ### Specifying the extensions to be built
 
@@ -145,9 +162,9 @@ $env:TRAILOFBITS_EXTENSIONS_TO_BUILD = "windows_sync_objects,fwctl"
 
 This is where the extension should be available once it has been built:
 
- * Linux: `osquery/build/linux/external/trailofbits_osquery_extensions.ext`
- * macOS: `osquery/build/darwin/external/trailofbits_osquery_extensions.ext`
- * Windows: `osquery/build/windows10/external/Release/trailofbits_osquery_extensions.ext.exe`
+ * Linux: `osquery/build/external/trailofbits_osquery_extensions.ext`
+ * macOS: `osquery/build/external/trailofbits_osquery_extensions.ext`
+ * Windows: `osquery/build/external/Release/trailofbits_osquery_extensions.ext.exe`
 
 ## Running the automated tests
 
