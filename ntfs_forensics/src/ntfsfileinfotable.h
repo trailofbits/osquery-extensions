@@ -23,17 +23,9 @@
 
 #if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
 #include <osquery/sdk.h>
-
-static inline void insertRow(osquery::TableRows &result, osquery::Row &row) {
-  result.push_back(row);
-}
 #else
 #include <osquery/sdk/sdk.h>
 #include <osquery/sql/dynamic_table_row.h>
-
-static inline void insertRow(osquery::TableRows &result, osquery::Row &row) {
-  result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
-}
 #endif
 
 namespace trailofbits {
