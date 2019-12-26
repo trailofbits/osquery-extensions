@@ -25,7 +25,7 @@ function(SantaMain)
   )
 
   if(DEFINED PLATFORM_MACOS)
-    set(project_libraries boost_iostreams-mt)
+    set(project_libraries thirdparty_boost)
   endif()
  
   addOsqueryExtensionEx("SantaRulesTablePlugin" "table" "santa_rules"

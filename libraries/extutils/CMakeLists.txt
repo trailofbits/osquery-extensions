@@ -28,6 +28,7 @@ function(main)
     target_compile_options("${PROJECT_NAME}" PUBLIC ${cxx_settings})
  
     target_link_libraries("${PROJECT_NAME}" PUBLIC
+      osquery_cxx_settings
       thirdparty_boost
     )
   endif()
