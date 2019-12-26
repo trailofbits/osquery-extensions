@@ -31,7 +31,7 @@ function(fwctlMain)
     endif()
   endif()
 
-  if(PLATFORM_WINDOWS)
+  if(PLATFORM_WINDOWS AND ${OSQUERY_VERSION_INTERNAL} VERSION_LESS "4.0.0")
     list(APPEND project_libraries
       libboost_system-mt-s.lib
       libboost_serialization-mt-s.lib

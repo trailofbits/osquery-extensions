@@ -21,7 +21,7 @@ function(main)
     src/system_log.cpp
   )
 
-  set(project_libraries boost_iostreams-mt)
+  set(project_libraries thirdparty_boost_random)
 
   addOsqueryExtensionEx("UnifiedLogTablePlugin" "table" "darwin_unified_log"
     SOURCES ${project_common_source_files} src/darwinlogtable.h src/darwinlogtable.cpp
