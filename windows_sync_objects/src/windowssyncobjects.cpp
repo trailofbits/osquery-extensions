@@ -21,12 +21,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
 #include <osquery/sql/dynamic_table_row.h>
-#else
-#include <osquery/sdk.h>
-#endif
 
 #include <rapidjson/document.h>
 
@@ -95,24 +91,13 @@ osquery::TableColumns WindowsSyncObjectsTable::columns() const {
   // clang-format on
 }
 
-#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
-osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
-  osquery::TableRows result;
-  for (auto&& row : rows) {
-    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
-  }
-  return result;
-}
-#endif
-
-osquery::TableRows
-WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
+osquery::TableRows WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   struct CallbackData final {
     std::unordered_map<RowID, std::string>& rowid_to_path;
     const std::unordered_set<ObjectDescriptor::Type>& filter;
-    osquery::QueryData results;
+    osquery::TableRows results;
   };
 
   auto L_enumObObjectsCallback = [](const ObjectDescriptor& object_descriptor,
@@ -135,7 +120,7 @@ WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
     );
     // clang-format on
 
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     if (user_object_it == callback_data.rowid_to_path.end()) {
       row["rowid"] = std::to_string(GenerateRowID(true));
     } else {
@@ -216,7 +201,7 @@ WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
     }
     }
 
-    callback_data.results.push_back(row);
+    callback_data.results.emplace_back(row);
     return true;
   };
 
@@ -228,11 +213,7 @@ WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   CallbackData callback_data = {d->rowid_to_path, filter, {}};
   EnumObObjects(L_enumObObjectsCallback, &callback_data);
 
-#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
-  return getTableRowsFromQueryData(callback_data.results);
-#else
-  return callback_data.results;
-#endif
+  return std::move(callback_data.results);
 }
 
 osquery::QueryData WindowsSyncObjectsTable::insert(

@@ -16,13 +16,7 @@
 
 #pragma once
 
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-#include <osquery/sdk.h>
-#include <osquery/core/conversions.h>
-#else
 #include <osquery/sdk/sdk.h>
-#include <osquery/sql/dynamic_table_row.h>
-#endif
 
 class SantaRulesTablePlugin final : public osquery::TablePlugin {
  private:

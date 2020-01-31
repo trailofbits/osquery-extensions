@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
+#include "diskpartition.h"
+
 #include <iomanip>
 #include <sstream>
 #include <unordered_set>
 
-#include "diskpartition.h"
-
 #include <tsk/base/tsk_base_i.h>
+
+// We use an old sleuthkit which incorrectly define snprintf as _snprintf.
+// We should port thirdparty_sleuthkit to Windows and use that eventually.
+#undef snprintf
 
 namespace trailofbits {
 

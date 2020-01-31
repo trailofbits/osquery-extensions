@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <Windows.h>
-
 #include "ntfsfilenameattributecontents.h"
+
+#include <Windows.h>
 
 namespace trailofbits {
 

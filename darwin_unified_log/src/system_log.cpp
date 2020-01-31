@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
+#include "system_log.h"
+
 #include <cstdlib>
 #include <chrono>
 
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-
 #include <osquery/logger.h>
 
-#include "system_log.h"
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 namespace pt = boost::property_tree;
 
@@ -170,35 +170,36 @@ osquery::Status LogMonitor::start_monitoring() {
   return osquery::Status(1, "Error starting log monitoring process");
 }
 
-void LogMonitor::getEntries(osquery::QueryData &q) {
+void LogMonitor::getEntries(osquery::TableRows &q) {
   std::lock_guard<std::mutex> lock(entry_lock);
-  for (auto elem : entries) {
-    q.push_back(elem);
+  for (auto& elem : entries) {
+    q.emplace_back(elem);
   }
 }
 
 void LogMonitor::addEntries(std::vector<std::string> entry_strings) {
-  std::vector<osquery::Row> new_entries;
+  osquery::TableRows new_entries;
   for (auto str : entry_strings) {
     try {
       std::stringstream s(str);
       pt::ptree t;
       pt::read_json(s, t);
 
-      osquery::Row r;
+      osquery::DynamicTableRowHolder r;
       for (auto field : FIELD_NAMES) {
         r[field] = t.get<std::string>(field, "");
       }
-      new_entries.push_back(r);
+      new_entries.emplace_back(r);
     } catch(std::exception &e) {
       VLOG(1) << "error parsing entry: " << e.what();
     }
   }
 
   std::lock_guard<std::mutex> lock(entry_lock);
-  for (auto entry : new_entries) {
-    entries.push_back(entry);
+  for(auto& entry : entries) {
+    entries.emplace_back(std::move(entry));
   }
+
   while (entries.size() > MAX_SIZE) {
     entries.pop_front();
   }

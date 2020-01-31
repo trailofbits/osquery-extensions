@@ -14,22 +14,12 @@
  * limitations under the License.
  */
 
-#include <osquery/logger.h>
-
-#include "system_log.h"
 #include "darwinlogtable.h"
 
-static inline osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
-  osquery::TableRows result;
-  for (auto&& row : rows) {
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-    result.push_back(row)
-#else
-    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
-#endif
-  }
-  return result;
-}
+#include <osquery/logger.h>
+#include <osquery/sql/dynamic_table_row.h>
+
+#include "system_log.h"
 
 osquery::TableColumns UnifiedLogTablePlugin::columns() const {
   return {
@@ -108,9 +98,9 @@ osquery::TableColumns UnifiedLogTablePlugin::columns() const {
 }
 
 osquery::TableRows UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
-  osquery::QueryData q;
+  osquery::TableRows q;
   logMonitor.getEntries(q);
-  return getTableRowsFromQueryData(q);
+  return q;
 }
 
 osquery::Status UnifiedLogTablePlugin::setUp() {

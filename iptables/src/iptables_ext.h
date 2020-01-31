@@ -16,14 +16,11 @@
 
 #pragma once
 
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-#include <osquery/sdk.h>
-#else
 #include <osquery/sdk/sdk.h>
-#endif
+#include <osquery/sql/dynamic_table_row.h>
 
 extern "C" {
-  #include "iptc.h"
+#include "iptc.h"
 }
 
 #include "utils.h"
@@ -37,9 +34,9 @@ class IptablesExtTable : public IptablesExtBase {
   osquery::Status genIptablesRules(const std::string& filter,
                                    const MatchChain& matches,
                                    osquery::TableRows& results);
-  void parseTcp(const xt_entry_match* match, osquery::Row& r);
-  void parseUdp(const xt_entry_match* match, osquery::Row& r);
-  void parseIpEntry(const ipt_ip* ip, osquery::Row& r);
+  void parseTcp(const xt_entry_match* match, osquery::DynamicTableRowHolder& r);
+  void parseUdp(const xt_entry_match* match, osquery::DynamicTableRowHolder& r);
+  void parseIpEntry(const ipt_ip* ip, osquery::DynamicTableRowHolder& r);
 };
 } // namespace trailofbits
 

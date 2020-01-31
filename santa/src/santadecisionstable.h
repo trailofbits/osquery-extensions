@@ -16,12 +16,7 @@
 
 #pragma once
 
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-#include <osquery/sdk.h>
-#else
 #include <osquery/sdk/sdk.h>
-#include <osquery/sql/dynamic_table_row.h>
-#endif
 
 #include "santa.h"
 

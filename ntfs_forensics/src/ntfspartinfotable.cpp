@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
+#include "ntfspartinfotable.h"
+
 #include <iomanip>
 #include <iostream>
 
 #include <osquery/tables.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include "diskpartition.h"
-#include "ntfspartinfotable.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSPartInfoTablePlugin::columns() const {
@@ -40,13 +42,13 @@ osquery::TableRows NTFSPartInfoTablePlugin::generate(
   osquery::TableRows result;
 
   for (const auto& part : getPartitionList()) {
-    osquery::Row r = {};
+    osquery::DynamicTableRowHolder r;
 
     r["device"] = part.device;
     r["address"] = std::to_string(part.part_address);
     r["description"] = part.descriptor;
 
-    insertRow(result, r);
+    result.emplace_back(r);
   }
 
   return result;

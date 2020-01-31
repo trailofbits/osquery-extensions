@@ -17,6 +17,7 @@
 #pragma once
 
 #include <memory>
+
 #include <trailofbits/ifirewall.h>
 
 #ifdef _WIN32

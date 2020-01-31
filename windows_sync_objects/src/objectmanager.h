@@ -17,13 +17,8 @@
 #pragma once
 
 #include <string>
-#include "Version.h"
 
-#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
 #include <osquery/sdk/sdk.h>
-#else
-#include <osquery/sdk.h>
-#endif
 
 namespace trailofbits {
 struct ObjectDescriptor final {

@@ -16,11 +16,8 @@
 
 #pragma once
 
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-#include <osquery/sdk.h>
-#else
 #include <osquery/sdk/sdk.h>
-#endif
+#include <osquery/sql/dynamic_table_row.h>
 
 extern "C" {
 #include "ip6tc.h"
@@ -38,9 +35,9 @@ class Ip6tablesExtTable : public IptablesExtBase {
                                    const MatchChain& matches,
                                    osquery::TableRows& results);
 
-  void parseTcp(const xt_entry_match* match, osquery::Row& r);
-  void parseUdp(const xt_entry_match* match, osquery::Row& r);
-  void parseIpEntry(const ip6t_ip6* ip, osquery::Row& r);
+  void parseTcp(const xt_entry_match* match, osquery::DynamicTableRowHolder& r);
+  void parseUdp(const xt_entry_match* match, osquery::DynamicTableRowHolder& r);
+  void parseIpEntry(const ip6t_ip6* ip, osquery::DynamicTableRowHolder& r);
 };
 } // namespace trailofbits
 

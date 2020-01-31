@@ -14,23 +14,11 @@
  * limitations under the License.
  */
 
-#include "Version.h"
 #include <osquery/logger.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include "santa.h"
 #include "santadecisionstable.h"
-
-osquery::TableRows getTableRowsFromQueryData(osquery::QueryData& rows) {
-  osquery::TableRows result;
-  for (auto&& row : rows) {
-#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
-    result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
-#else
-    result.push_back(row);
-#endif
-  }
-  return result;
-}
 
 osquery::TableColumns decisionTablesColumns() {
   // clang-format off
@@ -54,22 +42,22 @@ osquery::TableColumns decisionTablesColumns() {
   // clang-format on
 }
 
-osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request,
+osquery::TableRows decisionTablesGenerate(osquery::QueryContext& request,
                                           SantaDecisionType decision) {
   LogEntries log_entries;
   if (!scrapeSantaLog(log_entries, decision)) {
     return {};
   }
 
-  osquery::QueryData result;
+  osquery::TableRows result;
   for (const auto& entry : log_entries) {
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     row["timestamp"] = entry.timestamp;
     row["path"] = entry.application;
     row["shasum"] = entry.sha256;
     row["reason"] = entry.reason;
 
-    result.push_back(std::move(row));
+    result.emplace_back(row);
   }
 
   return result;
@@ -78,13 +66,13 @@ osquery::QueryData decisionTablesGenerate(osquery::QueryContext& request,
 osquery::TableRows SantaAllowedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
   auto rows = decisionTablesGenerate(request, decision);
-  return getTableRowsFromQueryData(rows);
+  return rows;
 }
 
 osquery::TableRows SantaDeniedDecisionsTablePlugin::generate(
     osquery::QueryContext& request) {
   auto rows = decisionTablesGenerate(request, decision);
-  return getTableRowsFromQueryData(rows);
+  return rows;
 }
 
 osquery::TableColumns SantaAllowedDecisionsTablePlugin::columns() const {

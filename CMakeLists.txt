@@ -15,30 +15,12 @@
 cmake_minimum_required(VERSION 3.10)
 project("traiofbits_extensions")
 
-set(ROOT_TEST_TARGET "trailofbits_extensions_tests")
-add_custom_target("${ROOT_TEST_TARGET}")
+set(TOB_ROOT_TEST_TARGET "trailofbits_extensions_tests")
 
 set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" CACHE STRING "TOB extensions root directory")
 
 set(OSQUERY_EXTENSION_GROUP_NAME "trailofbits_osquery_extensions" CACHE STRING "Overrides osquery extension group version" FORCE)
 set(OSQUERY_EXTENSION_GROUP_VERSION "1.2" CACHE STRING "Overrides osquery extension group version" FORCE)
-
-if(NOT DEFINED OSQUERY_VERSION_INTERNAL)
-  set(OSQUERY_VERSION_INTERNAL "3.3.2")
-  include(cmake/compatible.cmake)
-endif()
-
-function(generateOsqueryVersion versionstring)
-  string(REPLACE "." ";" version_list ${versionstring} )
-  list(GET version_list 0 major)
-  set(OSQUERY_BUILD_VERSION_MAJOR ${major})
-  list(GET version_list 1 minor)
-  set(OSQUERY_BUILD_VERSION_MINOR ${minor})
-  configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/Version.h.in"
-    "${TOB_EXTENSIONS_ROOT}/Version.h"
-  )
-endfunction()
 
 function(trailofbitsExtensionsMain)
   message(STATUS "================================")
@@ -46,7 +28,14 @@ function(trailofbitsExtensionsMain)
   message(STATUS "Version: ${OSQUERY_EXTENSION_GROUP_VERSION}")
   message(STATUS "================================")
 
-  generateOsqueryVersion(${OSQUERY_VERSION_INTERNAL})
+  if(NOT (${OSQUERY_VERSION_INTERNAL} VERSION_EQUAL "4.1.0" OR
+          ${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.1.0"))
+    message(WARNING "Detected osquery version ${OSQUERY_VERSION_INTERNAL}: This version is unsupported, please use version 4.1.0 or greater")
+    return()
+  endif()
+
+  add_custom_target("${TOB_ROOT_TEST_TARGET}")
+
   ImportLibraries()
   ImportExtensions()
 
@@ -168,7 +157,7 @@ function(AddTest test_name out_executable_target_name)
     COMMENT "Running test: ${target_name}"
   )
 
-  add_dependencies("${ROOT_TEST_TARGET}" "${target_name}_runner")
+  add_dependencies("${TOB_ROOT_TEST_TARGET}" "${target_name}_runner")
 
   # Return the executable target name to the caller
   set("${out_executable_target_name}" "${target_name}" PARENT_SCOPE)
@@ -176,8 +165,6 @@ endfunction()
 
 trailofbitsExtensionsMain()
 
-if(${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.0.0")
 # If the user has generated extensions using the new generate_osquery_extension_group
 # function, then this call will generate the bundle
-  generateOsqueryExtensionGroup()
-endif()
+generateOsqueryExtensionGroup()

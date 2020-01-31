@@ -17,12 +17,7 @@
 #include "portblacklist.h"
 #include "globals.h"
 
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-#include <osquery/core/conversions.h>
-#else
 #include <osquery/sql/dynamic_table_row.h>
-#endif
-
 #include <osquery/system.h>
 
 #include <boost/archive/text_iarchive.hpp>
@@ -127,7 +122,7 @@ osquery::TableRows PortBlacklistTable::generate(
 
     const auto& rule = table_data.at(pkey);
 
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     row["rowid"] = std::to_string(row_id);
     row["port"] = std::to_string(rule.port);
 
@@ -144,7 +139,7 @@ osquery::TableRows PortBlacklistTable::generate(
       row["status"] = "DISABLED";
     }
 
-    insertRow(results, row);
+    results.emplace_back(std::move(row));
   }
 
   // Add unmanaged firewall rules
@@ -157,7 +152,7 @@ osquery::TableRows PortBlacklistTable::generate(
       continue;
     }
 
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     row["rowid"] = std::to_string(temp_row_id++);
     row["port"] = std::to_string(rule.port);
     row["status"] = "UNMANAGED";
@@ -169,7 +164,7 @@ osquery::TableRows PortBlacklistTable::generate(
     row["protocol"] =
         (rule.protocol == IFirewall::Protocol::TCP ? "TCP" : "UDP");
 
-    insertRow(results, row);
+    results.emplace_back(std::move(row));
   }
 
   return results;

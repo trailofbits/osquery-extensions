@@ -16,20 +16,15 @@
 
 #pragma once
 
-#include "Version.h"
-
-#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
-#include <osquery/sdk/sdk.h>
-#else
-#include <osquery/sdk.h>
-#endif
-
 extern "C" {
-  #include "iptc.h"
+#include "iptc.h"
 }
 
 #include <netdb.h>
 #include <sys/socket.h>
+
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 // Prepends a "!" to the given string if flag is present in the
 // given struct's invert flags.
@@ -60,11 +55,14 @@ class IptablesExtBase : public osquery::TablePlugin {
   virtual osquery::TableRows generate(osquery::QueryContext& context) = 0;
 
  protected:
-  void parseProtoMatch(const xt_entry_match* match, osquery::Row& row);
+  void parseProtoMatch(const xt_entry_match* match,
+                       osquery::DynamicTableRowHolder& row);
 
  private:
-  virtual void parseTcp(const xt_entry_match* match, osquery::Row& r) = 0;
-  virtual void parseUdp(const xt_entry_match* match, osquery::Row& r) = 0;
+  virtual void parseTcp(const xt_entry_match* match,
+                        osquery::DynamicTableRowHolder& r) = 0;
+  virtual void parseUdp(const xt_entry_match* match,
+                        osquery::DynamicTableRowHolder& r) = 0;
 };
 
 class IptablesPoliciesBase : public osquery::TablePlugin {

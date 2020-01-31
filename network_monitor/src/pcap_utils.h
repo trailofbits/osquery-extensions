@@ -16,12 +16,7 @@
 
 #pragma once
 
-#include "Version.h"
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-#include <osquery/status.h>
-#else
 #include <osquery/flags.h>
-#endif
 
 #include <memory>
 #include <vector>

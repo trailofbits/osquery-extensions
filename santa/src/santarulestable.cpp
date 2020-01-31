@@ -14,24 +14,16 @@
  * limitations under the License.
  */
 
+#include "santarulestable.h"
+
 #include <atomic>
 #include <mutex>
 
-#include "Version.h"
-
 #include <osquery/logger.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include "santa.h"
-#include "santarulestable.h"
 #include "utils.h"
-
-static inline void insertRow(osquery::TableRows &result, osquery::Row &row) {
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-  result.push_back(row);
-#else
-  result.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
-#endif
-}
 
 namespace {
 const std::string kSantactlPath = "/usr/local/bin/santactl";
@@ -154,8 +146,9 @@ osquery::TableRows SantaRulesTablePlugin::generate(
     auto status = updateRules();
     if (!status.ok()) {
       VLOG(1) << status.getMessage();
-      osquery::Row row = {{std::make_pair("status", "failure")}};
-      insertRow(result, row);
+      osquery::DynamicTableRowHolder row;
+      row["status"] = "failure";
+      result.emplace_back(row);
       return result;
     }
 
@@ -176,14 +169,14 @@ osquery::TableRows SantaRulesTablePlugin::generate(
 
     const auto& rule = rule_it->second;
 
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     row["rowid"] = std::to_string(rowid);
     row["shasum"] = rule.shasum;
     row["state"] = getRuleStateName(rule.state);
     row["type"] = getRuleTypeName(rule.type);
     row["custom_message"] = rule.custom_message;
 
-    insertRow(result, row);
+    result.emplace_back(row);
   }
 
   return result;

@@ -16,11 +16,11 @@
 
 #pragma once
 
-#include "basetable.h"
+#include <memory>
 
 #include <trailofbits/ifirewall.h>
 
-#include <memory>
+#include "basetable.h"
 
 namespace trailofbits {
 struct HostRule final {

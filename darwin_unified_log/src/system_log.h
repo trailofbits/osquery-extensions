@@ -16,27 +16,18 @@
 
 #pragma once
 
+#include <signal.h>
 
 #include <thread>
 #include <mutex>
 #include <vector>
 #include <deque>
+#include <iostream>
 
-
-#include <signal.h>
-
-#include "Version.h"
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include <boost/process.hpp>
-#include <boost/asio.hpp>
-
-#if OSQUERY_VERSION_NUMBER < SDK_VERSION(4, 0)
-#include <osquery/sdk.h>
-#else
-#include <osquery/sdk/sdk.h>
-#endif
-
-#include <iostream>
 
 namespace bp = boost::process;
 
@@ -48,7 +39,7 @@ class LogMonitor {
     void configure();
     void tearDown();
 
-    void getEntries(osquery::QueryData &);
+    void getEntries(osquery::TableRows &);
 
   private:
     osquery::Status start_monitoring();
@@ -58,7 +49,7 @@ class LogMonitor {
     bp::child log_process;
     bp::ipstream log_output;
     std::thread reading_thread;
-    std::deque<osquery::Row> entries;
+    std::deque<osquery::DynamicTableRowHolder> entries;
 
     std::string log_level;
     std::string log_predicate;

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "efigy.h"
+
 #include <iostream>
 #include <sstream>
 
@@ -21,8 +23,6 @@
 #include <boost/optional/optional.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
-
-#include "efigy.h"
 
 namespace trailofbits {
 namespace pt = boost::property_tree;

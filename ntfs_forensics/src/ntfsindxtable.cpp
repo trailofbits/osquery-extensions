@@ -14,20 +14,22 @@
  * limitations under the License.
  */
 
+#include "ntfsindxtable.h"
+
 #include <iomanip>
 #include <iostream>
 
 #include <osquery/tables.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include "constraints.h"
 #include "diskdevice.h"
 #include "diskpartition.h"
 #include "ntfsdirectoryindexentry.h"
-#include "ntfsindxtable.h"
 
 namespace trailofbits {
 namespace {
-void populateIndexRow(osquery::Row& r,
+void populateIndexRow(osquery::DynamicTableRowHolder& r,
                       NTFSDirectoryIndexEntry& entry,
                       const std::string& dev,
                       int partition,
@@ -68,9 +70,9 @@ void generateAndAppendRows(
     partition->getFileInfo(inode, fileInfo);
 
     for (auto& entry : entries) {
-      osquery::Row r = {};
+      osquery::DynamicTableRowHolder r;
       populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
-      insertRow(results, r);
+      results.emplace_back(r);
     }
   }
 }
@@ -95,9 +97,9 @@ void generateAndAppendRows(osquery::TableRows& results,
     }
 
     for (auto& entry : entries) {
-      osquery::Row r = {};
+      osquery::DynamicTableRowHolder r;
       populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
-      insertRow(results, r);
+      results.emplace_back(r);
     }
   }
 }

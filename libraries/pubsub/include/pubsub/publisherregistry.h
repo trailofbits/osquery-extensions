@@ -67,7 +67,7 @@ class PublisherRegistry final {
 };
 
 // clang-format off
-#define DECLARE_PUBLISHER(publisher_class) \
+#define TOB_DECLARE_PUBLISHER(publisher_class) \
   namespace { \
     static auto publisher_manager_helper_ ## publisher_class = \
       PublisherRegistry::declare(publisher_class::name(), publisher_class::create); \

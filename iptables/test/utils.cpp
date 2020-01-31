@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
-
 #include "utils.h"
+
+#include <gtest/gtest.h>
 
 namespace trailofbits {
 TEST(IptablesUtilsTests, TestGetTableNames) {

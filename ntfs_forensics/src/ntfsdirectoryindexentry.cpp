@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+#include "ntfsdirectoryindexentry.h"
+
 #include <iomanip>
 #include <sstream>
-
-#include "ntfsdirectoryindexentry.h"
 
 namespace trailofbits {
 std::string NTFSDirectoryIndexEntry::getStringRep() const {

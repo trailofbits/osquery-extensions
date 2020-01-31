@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "ntfsfileinfotable.h"
+
 #include <iomanip>
 #include <iostream>
 
@@ -23,7 +25,6 @@
 #include "diskdevice.h"
 #include "diskpartition.h"
 #include "ntfsfileinformation.h"
-#include "ntfsfileinfotable.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
@@ -64,7 +65,7 @@ struct query_context_t final {
   std::uint32_t partition;
 };
 
-void populateRow(osquery::Row& r,
+void populateRow(osquery::DynamicTableRowHolder& r,
                  NTFSFileInformation& info,
                  const std::string& dev,
                  int partition) {
@@ -112,9 +113,9 @@ void populateRow(osquery::Row& r,
 void callback(NTFSFileInformation& info, void* context) {
   query_context_t* qct = static_cast<query_context_t*>(context);
 
-  osquery::Row r;
+  osquery::DynamicTableRowHolder r;
   populateRow(r, info, qct->dev, qct->partition);
-  insertRow(qct->result, r);
+  qct->result.emplace_back(r);
 }
 
 osquery::TableRows NTFSFileInfoTablePlugin::generate(
@@ -206,9 +207,9 @@ osquery::TableRows NTFSFileInfoTablePlugin::generate(
             }
           }
 
-          osquery::Row r;
+          osquery::DynamicTableRowHolder r;
           populateRow(r, info, device_name, partition_number);
-          insertRow(results, r);
+          results.emplace_back(r);
         }
 
       } else if (!inode_constraints.empty()) {
@@ -219,9 +220,9 @@ osquery::TableRows NTFSFileInfoTablePlugin::generate(
             continue;
           }
 
-          osquery::Row r;
+          osquery::DynamicTableRowHolder r;
           populateRow(r, info, device_name, partition_number);
-          insertRow(results, r);
+          results.emplace_back(r);
         }
 
       } else if (!directory_constraints.empty()) {
