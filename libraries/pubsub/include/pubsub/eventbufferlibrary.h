@@ -29,7 +29,6 @@ namespace trailofbits {
 /// during the ::generate() table callback
 using EventBatch = std::vector<osquery::TableRowHolder>;
 
-
 /// This singleton is used to create or acquire existing event buffers
 class EventBufferLibrary final {
   struct PrivateData;

@@ -620,7 +620,7 @@ void processDirectoryIndexRootAttrib(const TSK_FS_ATTR* attrib,
   uintFromBuffer(data, 8, record_size);
   processDirIndexNodesAndEntries(data + 16, attrib->size - 16, entries);
 }
-}
+} // namespace
 
 void DiskPartition::collectINDX(TSK_FS_FILE* fsFile, DirEntryList& entries) {
   uint32_t record_size = 0;
@@ -643,4 +643,4 @@ void DiskPartition::collectINDX(TSK_FS_FILE* fsFile, DirEntryList& entries) {
     }
   }
 }
-}
+} // namespace trailofbits

@@ -19,7 +19,7 @@
 #include <osquery/sdk/sdk.h>
 
 extern "C" {
-  #include "iptc.h"
+#include "iptc.h"
 }
 
 #include "utils.h"

@@ -19,8 +19,8 @@
 #include <iomanip>
 #include <iostream>
 
-#include <osquery/tables.h>
 #include <osquery/sql/dynamic_table_row.h>
+#include <osquery/tables.h>
 
 #include "diskpartition.h"
 
@@ -53,4 +53,4 @@ osquery::TableRows NTFSPartInfoTablePlugin::generate(
 
   return result;
 }
-}
+} // namespace trailofbits

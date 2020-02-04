@@ -123,4 +123,4 @@ class DiskPartition final : private boost::noncopyable {
 
 /// Collects basic info for all partitions for all devices on the system.
 DiskPartitionInformationList getPartitionList();
-}
+} // namespace trailofbits

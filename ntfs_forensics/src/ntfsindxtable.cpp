@@ -19,8 +19,8 @@
 #include <iomanip>
 #include <iostream>
 
-#include <osquery/tables.h>
 #include <osquery/sql/dynamic_table_row.h>
+#include <osquery/tables.h>
 
 #include "constraints.h"
 #include "diskdevice.h"
@@ -103,7 +103,7 @@ void generateAndAppendRows(osquery::TableRows& results,
     }
   }
 }
-}
+} // namespace
 
 osquery::TableColumns NTFSINDXTablePugin::columns() const {
   // clang-format off
@@ -175,9 +175,9 @@ osquery::TableRows NTFSINDXTablePugin::generate(
           DiskPartition::create(disk_partition, disk_device, partition_number);
 
       if (!status.ok()) {
-        //error code 2 is explicitly the code for unable to open filesystem
-        //this is common if partition is not specified and there are
-        //multiple non-NTFS partitions
+        // error code 2 is explicitly the code for unable to open filesystem
+        // this is common if partition is not specified and there are
+        // multiple non-NTFS partitions
         if (status.getCode() != 2) {
           LOG(WARNING) << status.getMessage();
         }
@@ -203,4 +203,4 @@ osquery::TableRows NTFSINDXTablePugin::generate(
 
   return results;
 }
-}
+} // namespace trailofbits

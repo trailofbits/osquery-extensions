@@ -15,7 +15,7 @@
  */
 
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmacro-redefined" 
+#pragma clang diagnostic ignored "-Wmacro-redefined"
 #include <pubsub/publisherregistry.h>
 #pragma clang diagnostic pop
 

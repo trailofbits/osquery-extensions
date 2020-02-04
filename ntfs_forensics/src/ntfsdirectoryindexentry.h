@@ -44,4 +44,4 @@ struct NTFSDirectoryIndexEntry final {
 };
 
 using DirEntryList = std::list<NTFSDirectoryIndexEntry>;
-}
+} // namespace trailofbits

@@ -62,7 +62,7 @@ RowID GenerateRowID(bool ephemeral) {
 
   return static_cast<RowID>(new_id);
 }
-}
+} // namespace
 
 struct WindowsSyncObjectsTable::PrivateData final {
   std::mutex mutex;
@@ -147,7 +147,9 @@ osquery::TableRows WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
       }
 
       case ObjectDescriptor::EventData::Type::Unknown:
-      default: { row["field1_value"] = "Unknown"; }
+      default: {
+        row["field1_value"] = "Unknown";
+      }
       }
 
       row["field2_name"] = "Signaled";
@@ -333,7 +335,9 @@ osquery::QueryData WindowsSyncObjectsTable::delete_(
     break;
   }
 
-  default: { break; }
+  default: {
+    break;
+  }
   }
 
   if (!succeeded) {

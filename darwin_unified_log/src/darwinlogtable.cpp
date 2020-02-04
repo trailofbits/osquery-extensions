@@ -22,6 +22,7 @@
 #include "system_log.h"
 
 osquery::TableColumns UnifiedLogTablePlugin::columns() const {
+  // clang-format off
   return {
     std::make_tuple("category",
                     osquery::TEXT_TYPE,
@@ -95,9 +96,11 @@ osquery::TableColumns UnifiedLogTablePlugin::columns() const {
                     osquery::TEXT_TYPE,
                     osquery::ColumnOptions::DEFAULT)
   };
+  // clang-format on
 }
 
-osquery::TableRows UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
+osquery::TableRows UnifiedLogTablePlugin::generate(
+    osquery::QueryContext& request) {
   osquery::TableRows q;
   logMonitor.getEntries(q);
   return q;
@@ -114,4 +117,3 @@ void UnifiedLogTablePlugin::tearDown() {
 void UnifiedLogTablePlugin::configure() {
   logMonitor.configure();
 }
-

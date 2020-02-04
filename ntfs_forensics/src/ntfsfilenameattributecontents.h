@@ -31,4 +31,4 @@ struct NTFSFileNameAttributeContents final {
 
   bool valid() const;
 };
-}
+} // namespace trailofbits

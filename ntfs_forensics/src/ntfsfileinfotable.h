@@ -32,7 +32,7 @@ class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {
   /// Generates the partition list
   osquery::TableRows generate(osquery::QueryContext& request) override;
 };
-}
+} // namespace trailofbits
 
 // Export the class outside the namespace so that osquery can pick it up
 using NTFSFileInfoTablePlugin = trailofbits::NTFSFileInfoTablePlugin;

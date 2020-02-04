@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <osquery/sql/dynamic_table_row.h>
 #include "dnseventssubscriber.h"
+#include <osquery/sql/dynamic_table_row.h>
 
 namespace trailofbits {
 // clang-format off
@@ -229,7 +229,8 @@ osquery::Status DNSEventsSubscriber::callback(
         row["record_class"] = getDnsClass(question_item.record_class);
         row["record_name"] = question_item.record_name;
 
-        new_events.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+        new_events.push_back(osquery::TableRowHolder(
+            new osquery::DynamicTableRow(std::move(row))));
       }
 
     } else {
@@ -243,7 +244,8 @@ osquery::Status DNSEventsSubscriber::callback(
         row["ttl"] = std::to_string(answer_item.ttl);
         row["record_data"] = answer_item.record_data;
 
-        new_events.push_back(osquery::TableRowHolder(new osquery::DynamicTableRow(std::move(row))));
+        new_events.push_back(osquery::TableRowHolder(
+            new osquery::DynamicTableRow(std::move(row))));
       }
     }
   }

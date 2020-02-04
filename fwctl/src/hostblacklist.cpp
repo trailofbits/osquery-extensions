@@ -21,8 +21,8 @@
 #include <iostream>
 #include <mutex>
 
-#include <osquery/sql/dynamic_table_row.h>
 #include <osquery/logger.h>
+#include <osquery/sql/dynamic_table_row.h>
 #include <osquery/system.h>
 
 #include <boost/algorithm/string.hpp>

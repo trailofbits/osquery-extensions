@@ -18,11 +18,11 @@
 
 #include <signal.h>
 
-#include <thread>
-#include <mutex>
-#include <vector>
 #include <deque>
 #include <iostream>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 #include <osquery/sdk/sdk.h>
 #include <osquery/sql/dynamic_table_row.h>
@@ -32,32 +32,31 @@
 namespace bp = boost::process;
 
 class LogMonitor {
-  public:
-    LogMonitor();
-    ~LogMonitor();
-    osquery::Status setUp();
-    void configure();
-    void tearDown();
+ public:
+  LogMonitor();
+  ~LogMonitor();
+  osquery::Status setUp();
+  void configure();
+  void tearDown();
 
-    void getEntries(osquery::TableRows &);
+  void getEntries(osquery::TableRows&);
 
-  private:
-    osquery::Status start_monitoring();
-    void stop_monitoring();
-    void addEntries(std::vector<std::string> entries);
+ private:
+  osquery::Status start_monitoring();
+  void stop_monitoring();
+  void addEntries(std::vector<std::string> entries);
 
-    bp::child log_process;
-    bp::ipstream log_output;
-    std::thread reading_thread;
-    std::deque<osquery::DynamicTableRowHolder> entries;
+  bp::child log_process;
+  bp::ipstream log_output;
+  std::thread reading_thread;
+  std::deque<osquery::DynamicTableRowHolder> entries;
 
-    std::string log_level;
-    std::string log_predicate;
-    std::mutex entry_lock;
+  std::string log_level;
+  std::string log_predicate;
+  std::mutex entry_lock;
 
-    std::mutex process_management_lock;
-    std::atomic<bool> is_shutting_down;
+  std::mutex process_management_lock;
+  std::atomic<bool> is_shutting_down;
 
-    friend void process_log(LogMonitor *logMonitor);
-
+  friend void process_log(LogMonitor* logMonitor);
 };

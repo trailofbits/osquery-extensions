@@ -18,8 +18,8 @@
 
 #include <osquery/sql/dynamic_table_row.h>
 
-#include "efigy.h"
 #include "Extension.h"
+#include "efigy.h"
 #include "utils.h"
 
 #include <curl/curl.h>

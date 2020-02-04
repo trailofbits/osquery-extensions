@@ -53,4 +53,4 @@ class DiskDevice final : private boost::noncopyable {
   /// Returns the wrapped TSK object
   TSK_IMG_INFO* imageInfo();
 };
-}
+} // namespace trailofbits

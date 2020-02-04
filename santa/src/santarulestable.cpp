@@ -156,7 +156,6 @@ osquery::TableRows SantaRulesTablePlugin::generate(
     rule_list = d->rule_list;
   }
 
-
   for (const auto& rowid_pkey_pair : rowid_to_pkey) {
     const auto& rowid = rowid_pkey_pair.first;
     const auto& pkey = rowid_pkey_pair.second;

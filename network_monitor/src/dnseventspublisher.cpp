@@ -24,8 +24,8 @@
 
 #include <grp.h>
 #include <pwd.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 namespace trailofbits {
 namespace {

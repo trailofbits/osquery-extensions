@@ -35,7 +35,7 @@ struct DirectoryEntry final {
   std::wstring name;
   std::wstring type;
 };
-}
+} // namespace
 
 namespace trailofbits {
 std::string GetErrorMessage(ULONG error_code) {
@@ -420,4 +420,4 @@ bool DestroySemaphore(SemaphoreHandle handle) {
   auto semaphore = static_cast<HANDLE>(handle);
   return (CloseHandle(semaphore) != 0);
 }
-}
+} // namespace trailofbits

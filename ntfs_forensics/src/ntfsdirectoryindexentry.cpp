@@ -39,4 +39,4 @@ bool NTFSDirectoryIndexEntry::valid() const {
   return filename.valid() && entry_length >= 0x52 && entry_length < 4096 &&
          flags < 4 && child_vcn < 4096 && name_length < 4096;
 }
-}
+} // namespace trailofbits

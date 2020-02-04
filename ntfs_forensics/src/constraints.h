@@ -34,4 +34,4 @@ osquery::Status getParentInodeConstraints(
 /// according to the given constraints
 osquery::Status getDeviceAndPartitionConstraints(
     DiskDeviceMap& device_map, const osquery::QueryContext& request);
-}
+} // namespace trailofbits

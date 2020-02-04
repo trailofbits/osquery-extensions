@@ -85,4 +85,4 @@ std::string typeNameFromInt(int t) {
     return std::string("Unknown");
   }
 }
-}
+} // namespace trailofbits

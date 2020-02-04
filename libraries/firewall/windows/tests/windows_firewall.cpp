@@ -16,10 +16,10 @@
 
 #include "firewall.h"
 
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <set>
 
 #include <gtest/gtest.h>
 
@@ -95,70 +95,71 @@ TEST(WindowsFirewallTests, ParseFirewallStateBlockTest) {
 }
 
 TEST(WindowsFirewallTests, ParseFirewallStateTest) {
-	std::stringstream test_input_stream;
-	test_input_stream
-		<< "RuleName:                             testBlock34\n"
-		<< "-----------------------------------------------------------------\n"
-		<< "Enabled:                              Yes\n"
-		<< "Direction:                            In\n"
-		<< "Profiles:                             Domain, Private, Public\n"
-		<< "Grouping:                                                \n"
-		<< "LocalIP:                              Any\n"
-		<< "RemoteIP:                             Any\n"
-		<< "Protocol:                             TCP\n"
-		<< "LocalPort:                            44444\n"
-		<< "RemotePort:                           Any\n"
-		<< "Edge traversal:                       No\n"
-		<< "Action:                               Block\n"
-		<< "\n" 
-		<< "RuleName:                             blockipin\n"
-		<< "-----------------------------------------------------------------\n"
-		<< "Enabled:                              Yes\n"
-		<< "Direction:                            In\n"
-		<< "Profiles:                             Domain, Private, Public\n"
-		<< "Grouping:                                                \n"
-		<< "LocalIP:                              Any\n"
-		<< "RemoteIP:                             55.55.55.55\n"
-		<< "Protocol:                             TCP\n"
-		<< "LocalPort:                            Any\n"
-		<< "RemotePort:                           Any\n"
-		<< "Edge traversal:                       No\n"
-		<< "Action:                               Block\n"
-		<< "\n"
-		<< "RuleName:                             blockipout\n"
-		<< "-----------------------------------------------------------------\n"
-		<< "Enabled:                              Yes\n"
-		<< "Direction:                            Out\n"
-		<< "Profiles:                             Domain, Private, Public\n"
-		<< "Grouping:                                                \n"
-		<< "LocalIP:                              Any\n"
-		<< "RemoteIP:                             55.55.55.55\n"
-		<< "Protocol:                             TCP\n"
-		<< "LocalPort:                            Any\n"
-		<< "RemotePort:                           Any\n"
-		<< "Edge traversal:                       No\n"
-		<< "Action:                               Block\n"
-		<< "Ok.";
+  std::stringstream test_input_stream;
+  test_input_stream
+      << "RuleName:                             testBlock34\n"
+      << "-----------------------------------------------------------------\n"
+      << "Enabled:                              Yes\n"
+      << "Direction:                            In\n"
+      << "Profiles:                             Domain, Private, Public\n"
+      << "Grouping:                                                \n"
+      << "LocalIP:                              Any\n"
+      << "RemoteIP:                             Any\n"
+      << "Protocol:                             TCP\n"
+      << "LocalPort:                            44444\n"
+      << "RemotePort:                           Any\n"
+      << "Edge traversal:                       No\n"
+      << "Action:                               Block\n"
+      << "\n"
+      << "RuleName:                             blockipin\n"
+      << "-----------------------------------------------------------------\n"
+      << "Enabled:                              Yes\n"
+      << "Direction:                            In\n"
+      << "Profiles:                             Domain, Private, Public\n"
+      << "Grouping:                                                \n"
+      << "LocalIP:                              Any\n"
+      << "RemoteIP:                             55.55.55.55\n"
+      << "Protocol:                             TCP\n"
+      << "LocalPort:                            Any\n"
+      << "RemotePort:                           Any\n"
+      << "Edge traversal:                       No\n"
+      << "Action:                               Block\n"
+      << "\n"
+      << "RuleName:                             blockipout\n"
+      << "-----------------------------------------------------------------\n"
+      << "Enabled:                              Yes\n"
+      << "Direction:                            Out\n"
+      << "Profiles:                             Domain, Private, Public\n"
+      << "Grouping:                                                \n"
+      << "LocalIP:                              Any\n"
+      << "RemoteIP:                             55.55.55.55\n"
+      << "Protocol:                             TCP\n"
+      << "LocalPort:                            Any\n"
+      << "RemotePort:                           Any\n"
+      << "Edge traversal:                       No\n"
+      << "Action:                               Block\n"
+      << "Ok.";
 
-	const std::vector<std::string> expected_ports = {
-		"44444/tcp/inbound",
-	};
-	const std::vector<std::string> expected_ips = {
-		"55.55.55.55",
-	};
-	std::vector<Firewall::PortRule> port_rules;
-	std::set<std::string> blocked_hosts;
-	Firewall::ParseFirewallState(port_rules, blocked_hosts, test_input_stream.str());
+  const std::vector<std::string> expected_ports = {
+      "44444/tcp/inbound",
+  };
+  const std::vector<std::string> expected_ips = {
+      "55.55.55.55",
+  };
+  std::vector<Firewall::PortRule> port_rules;
+  std::set<std::string> blocked_hosts;
+  Firewall::ParseFirewallState(
+      port_rules, blocked_hosts, test_input_stream.str());
 
-	if (port_rules.size() == expected_ports.size()) {
-		for (auto i = 0U; i < port_rules.size(); ++i) {
-			EXPECT_EQ(GetPortRuleDescription(port_rules[i]), expected_ports[i]);
-		}
-	}
-	if (blocked_hosts.size() == expected_ips.size()) {
-		for (auto i = 0U; i < blocked_hosts.size(); ++i) {
-			EXPECT_NE(blocked_hosts.find(expected_ips[i]), blocked_hosts.end());
-		}
-	}
+  if (port_rules.size() == expected_ports.size()) {
+    for (auto i = 0U; i < port_rules.size(); ++i) {
+      EXPECT_EQ(GetPortRuleDescription(port_rules[i]), expected_ports[i]);
+    }
+  }
+  if (blocked_hosts.size() == expected_ips.size()) {
+    for (auto i = 0U; i < blocked_hosts.size(); ++i) {
+      EXPECT_NE(blocked_hosts.find(expected_ips[i]), blocked_hosts.end());
+    }
+  }
 }
 } // namespace trailofbits

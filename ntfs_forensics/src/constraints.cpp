@@ -135,4 +135,4 @@ osquery::Status getDeviceAndPartitionConstraints(
 
   return osquery::Status(0);
 }
-}
+} // namespace trailofbits

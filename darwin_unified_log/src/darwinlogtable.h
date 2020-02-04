@@ -21,14 +21,14 @@
 #include "system_log.h"
 
 class UnifiedLogTablePlugin final : public osquery::TablePlugin {
-  public:
-    osquery::Status setUp() override;
-    void tearDown() override;
-    void configure() override;
+ public:
+  osquery::Status setUp() override;
+  void tearDown() override;
+  void configure() override;
 
-  private:
-    osquery::TableColumns columns() const override;
+ private:
+  osquery::TableColumns columns() const override;
 
-    osquery::TableRows generate(osquery::QueryContext& request) override;
-    LogMonitor logMonitor;
+  osquery::TableRows generate(osquery::QueryContext& request) override;
+  LogMonitor logMonitor;
 };

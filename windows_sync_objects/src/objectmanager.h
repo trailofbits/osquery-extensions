@@ -82,4 +82,4 @@ osquery::Status GenerateSemaphore(SemaphoreHandle& handle,
                                   const std::string& name);
 
 bool DestroySemaphore(SemaphoreHandle handle);
-}
+} // namespace trailofbits

@@ -244,4 +244,4 @@ osquery::TableRows NTFSFileInfoTablePlugin::generate(
 
   return results;
 }
-}
+} // namespace trailofbits

@@ -16,13 +16,13 @@
 
 #include "system_log.h"
 
-#include <cstdlib>
 #include <chrono>
+#include <cstdlib>
 
 #include <osquery/logger.h>
 
-#include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 namespace pt = boost::property_tree;
 
@@ -52,7 +52,7 @@ const char* ENV_VAR_PREDICATE = "LOG_TABLE_PREDICATE";
 const char* ENV_VAR_MAX_ENTRIES = "LOG_TABLE_MAX_ENTRIES";
 const char* ENV_VAR_LOG_LEVEL = "LOG_TABLE_LEVEL";
 
-LogMonitor::LogMonitor() : is_shutting_down(false) { }
+LogMonitor::LogMonitor() : is_shutting_down(false) {}
 
 LogMonitor::~LogMonitor() {
   tearDown();
@@ -74,7 +74,6 @@ void LogMonitor::tearDown() {
   is_shutting_down = true;
   std::lock_guard<std::mutex> lock(process_management_lock);
   stop_monitoring();
-
 }
 
 void LogMonitor::configure() {
@@ -85,12 +84,12 @@ void LogMonitor::configure() {
       MAX_SIZE = std::stoul(max_entries_env);
       VLOG(1) << "new MAX_SIZE is now " << MAX_SIZE;
     } catch (std::invalid_argument) {
-      VLOG(1) << "invalid value for environment variable " << ENV_VAR_MAX_ENTRIES << ": " << max_entries_env;
+      VLOG(1) << "invalid value for environment variable "
+              << ENV_VAR_MAX_ENTRIES << ": " << max_entries_env;
     }
   } else {
     MAX_SIZE = DEFAULT_MAX_SIZE;
   }
-
 
   std::string old_log_predicate = log_predicate;
   auto predicate_env = std::getenv(ENV_VAR_PREDICATE);
@@ -107,14 +106,13 @@ void LogMonitor::configure() {
   } else {
     log_level = "";
   }
-
-
 }
 
-void process_log(LogMonitor *logMonitor) {
+void process_log(LogMonitor* logMonitor) {
   std::stringstream buffer;
   std::string line;
-  while (std::getline(logMonitor->log_output, line) && !logMonitor->is_shutting_down) {
+  while (std::getline(logMonitor->log_output, line) &&
+         !logMonitor->is_shutting_down) {
     if (line[0] == '[' || line[0] == '}') {
       if (buffer.str().size()) {
         buffer << "}";
@@ -128,7 +126,6 @@ void process_log(LogMonitor *logMonitor) {
   }
 }
 
-
 osquery::Status LogMonitor::setUp() {
   std::lock_guard<std::mutex> lock(process_management_lock);
   configure();
@@ -138,7 +135,8 @@ osquery::Status LogMonitor::setUp() {
 
 osquery::Status LogMonitor::start_monitoring() {
   if (log_process.running()) {
-    return osquery::Status(1, "setUp called but log monitoring process already running");
+    return osquery::Status(
+        1, "setUp called but log monitoring process already running");
   }
 
   try {
@@ -155,7 +153,7 @@ osquery::Status LogMonitor::start_monitoring() {
       VLOG(1) << "applying log_level of \"" << log_level << "\"";
     }
 
-    log_process = bp::child("/usr/bin/log", 
+    log_process = bp::child("/usr/bin/log",
                             bp::args(log_args),
                             bp::std_in.close(),
                             bp::std_out > log_output,
@@ -164,13 +162,13 @@ osquery::Status LogMonitor::start_monitoring() {
     reading_thread = std::thread(process_log, this);
 
     return osquery::Status(0, "OK");
-  } catch (std::exception &e) {
+  } catch (std::exception& e) {
     VLOG(1) << "Error starting log monitoring process: " << e.what();
   }
   return osquery::Status(1, "Error starting log monitoring process");
 }
 
-void LogMonitor::getEntries(osquery::TableRows &q) {
+void LogMonitor::getEntries(osquery::TableRows& q) {
   std::lock_guard<std::mutex> lock(entry_lock);
   for (auto& elem : entries) {
     q.emplace_back(elem);
@@ -190,13 +188,13 @@ void LogMonitor::addEntries(std::vector<std::string> entry_strings) {
         r[field] = t.get<std::string>(field, "");
       }
       new_entries.emplace_back(r);
-    } catch(std::exception &e) {
+    } catch (std::exception& e) {
       VLOG(1) << "error parsing entry: " << e.what();
     }
   }
 
   std::lock_guard<std::mutex> lock(entry_lock);
-  for(auto& entry : entries) {
+  for (auto& entry : entries) {
     entries.emplace_back(std::move(entry));
   }
 
@@ -204,4 +202,3 @@ void LogMonitor::addEntries(std::vector<std::string> entry_strings) {
     entries.pop_front();
   }
 }
-

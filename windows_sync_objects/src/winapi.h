@@ -194,4 +194,4 @@ NtCreateSemaphore(HANDLE* SemaphoreHandle,
                   OBJECT_ATTRIBUTES* ObjectAttributes,
                   ULONG InitialCount,
                   ULONG MaximumCount);
-}
+} // namespace
