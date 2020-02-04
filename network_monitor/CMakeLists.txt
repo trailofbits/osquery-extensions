@@ -45,10 +45,7 @@ function(networkMonitorMain)
   # Reference our pubsub framework and pcap++ libraries
   list(APPEND libraries pubsub)
   list(APPEND libraries Pcap++)
-
-  if(${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.0.0")
-    list(APPEND libraries osquery_extensions_implthrift)
-  endif()
+  list(APPEND libraries osquery_extensions_implthrift)
 
   target_link_libraries("${PROJECT_NAME}" PUBLIC
     ${libraries}

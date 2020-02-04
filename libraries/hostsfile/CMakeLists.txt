@@ -49,10 +49,7 @@ function(main)
   )
 
   target_link_libraries("${test_target_name}" PRIVATE
-	osquery_sdk_pluginsdk
-	osquery_extensions_implthrift
-	thirdparty_googletest
-	extutils
+	  extutils
   )
 
   # target_link_libraries("${test_target_name}" PRIVATE extutils)

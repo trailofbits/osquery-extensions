@@ -29,20 +29,6 @@ function(iptablesMain)
     extutils
   )
 
-  if(${OSQUERY_VERSION_INTERNAL} VERSION_LESS "4.0.1")
-    set(project_libraries_ipv4
-      ${project_libraries_ipv4}
-      iptc
-      ip4tc
-    )
-
-    set(project_libraries_ipv6
-      ${project_libraries_ipv6}
-      iptc
-      ip6tc
-    )
-  endif()
-
   set(project_common_include_dirs
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${TOB_EXTENSIONS_ROOT}"
@@ -91,25 +77,12 @@ function(iptablesMain)
 
   target_compile_definitions("${test_target_name}" PRIVATE "${configuration_root}")
 
-  if(${OSQUERY_VERSION_INTERNAL} VERSION_LESS "4.0.1")
-    target_link_libraries("${test_target_name}" PRIVATE
-      glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt rt
-      boost_context-mt extutils iptc
-    )
+  target_compile_options("${test_target_name}" PRIVATE ${cxx_settings})
 
-    target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
-
-  else()
-    target_compile_options("${test_target_name}" PRIVATE ${cxx_settings})
-
-    target_link_libraries("${test_target_name}" PRIVATE
-      osquery_sdk_pluginsdk
-      osquery_extensions_implthrift
-      thirdparty_googletest
-      thirdparty_libiptc
-      extutils
-    )
-  endif()
+  target_link_libraries("${test_target_name}" PRIVATE
+    thirdparty_libiptc
+    extutils
+  )
 endfunction()
 
 iptablesMain()

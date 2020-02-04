@@ -132,16 +132,6 @@ function(AddTest test_name out_executable_target_name)
   set(target_name "tobExtTests_${test_name}")
   add_executable("${target_name}" EXCLUDE_FROM_ALL ${ARGN})
 
-  # we have the guarantee that googletest is already present, thanks to osquery; link
-  # to it so that we automatically import the include directories
-
-  if(NOT DEFINED PLATFORM_LINUX)
-    if(NOT TARGET gtest)
-      message(FATAL_ERROR "Tests will not find gtest if you have built using the 'SKIP_TESTS=1' setting!")
-    endif() 
-    target_link_libraries("${target_name}" PRIVATE gtest)
-  endif()
-
   if(UNIX)
     if(APPLE)
       target_compile_definitions("${target_name}" PRIVATE APPLE)
@@ -158,6 +148,12 @@ function(AddTest test_name out_executable_target_name)
   )
 
   add_dependencies("${TOB_ROOT_TEST_TARGET}" "${target_name}_runner")
+
+  target_link_libraries("${target_name}" PRIVATE
+    osquery_sdk_pluginsdk
+    osquery_extensions_implthrift
+    thirdparty_googletest
+  )
 
   # Return the executable target name to the caller
   set("${out_executable_target_name}" "${target_name}" PARENT_SCOPE)

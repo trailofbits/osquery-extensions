@@ -13,11 +13,9 @@ function(json11Main)
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
 
-  if(${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.0.0")
-    target_link_libraries("${PROJECT_NAME}" PUBLIC
-      osquery_cxx_settings
-    )
-  endif()
+  target_link_libraries("${PROJECT_NAME}" PUBLIC
+    osquery_cxx_settings
+  )
 endfunction()
 
 json11Main()
