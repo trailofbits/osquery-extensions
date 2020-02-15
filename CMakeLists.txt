@@ -13,7 +13,7 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.10)
-project("traiofbits_extensions")
+project("trailofbits_extensions")
 
 set(TOB_ROOT_TEST_TARGET "trailofbits_extensions_tests")
 
