@@ -19,7 +19,7 @@ set(TOB_ROOT_TEST_TARGET "trailofbits_extensions_tests")
 
 set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" CACHE STRING "TOB extensions root directory")
 
-set(OSQUERY_EXTENSION_GROUP_NAME "trailofbits_osquery_extensions" CACHE STRING "Overrides osquery extension group version" FORCE)
+set(OSQUERY_EXTENSION_GROUP_NAME "trailofbits_osquery_extensions" CACHE STRING "Overrides osquery extension group name" FORCE)
 set(OSQUERY_EXTENSION_GROUP_VERSION "1.2" CACHE STRING "Overrides osquery extension group version" FORCE)
 
 function(trailofbitsExtensionsMain)
