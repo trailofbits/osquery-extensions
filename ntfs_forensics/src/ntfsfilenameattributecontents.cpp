@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#include <Windows.h>
-
 #include "ntfsfilenameattributecontents.h"
+
+#include <Windows.h>
 
 namespace trailofbits {
 
 bool NTFSFileNameAttributeContents::valid() const {
-  constexpr uint64_t one_year = 315569520000000ULL; //one year in hunded-nanoseconds
+  constexpr uint64_t one_year =
+      315569520000000ULL; // one year in hunded-nanoseconds
 
   // the filetime for 1990 is calculated by adding the magic value for
   // the number of hundred-nanoseconds between 1601 and 1970
@@ -46,4 +47,4 @@ bool NTFSFileNameAttributeContents::valid() const {
          (one_year_ahead.QuadPart > file_name_times.mtime) &&
          (file_name_times.mtime > _1990);
 }
-}
+} // namespace trailofbits

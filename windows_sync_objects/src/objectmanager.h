@@ -18,7 +18,7 @@
 
 #include <string>
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 namespace trailofbits {
 struct ObjectDescriptor final {
@@ -82,4 +82,4 @@ osquery::Status GenerateSemaphore(SemaphoreHandle& handle,
                                   const std::string& name);
 
 bool DestroySemaphore(SemaphoreHandle handle);
-}
+} // namespace trailofbits

@@ -21,7 +21,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include <rapidjson/document.h>
 
@@ -61,7 +62,7 @@ RowID GenerateRowID(bool ephemeral) {
 
   return static_cast<RowID>(new_id);
 }
-}
+} // namespace
 
 struct WindowsSyncObjectsTable::PrivateData final {
   std::mutex mutex;
@@ -90,13 +91,13 @@ osquery::TableColumns WindowsSyncObjectsTable::columns() const {
   // clang-format on
 }
 
-osquery::QueryData WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
+osquery::TableRows WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   struct CallbackData final {
     std::unordered_map<RowID, std::string>& rowid_to_path;
     const std::unordered_set<ObjectDescriptor::Type>& filter;
-    osquery::QueryData results;
+    osquery::TableRows results;
   };
 
   auto L_enumObObjectsCallback = [](const ObjectDescriptor& object_descriptor,
@@ -119,7 +120,7 @@ osquery::QueryData WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
     );
     // clang-format on
 
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     if (user_object_it == callback_data.rowid_to_path.end()) {
       row["rowid"] = std::to_string(GenerateRowID(true));
     } else {
@@ -146,7 +147,9 @@ osquery::QueryData WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
       }
 
       case ObjectDescriptor::EventData::Type::Unknown:
-      default: { row["field1_value"] = "Unknown"; }
+      default: {
+        row["field1_value"] = "Unknown";
+      }
       }
 
       row["field2_name"] = "Signaled";
@@ -200,7 +203,7 @@ osquery::QueryData WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
     }
     }
 
-    callback_data.results.push_back(row);
+    callback_data.results.emplace_back(row);
     return true;
   };
 
@@ -212,7 +215,7 @@ osquery::QueryData WindowsSyncObjectsTable::generate(osquery::QueryContext&) {
   CallbackData callback_data = {d->rowid_to_path, filter, {}};
   EnumObObjects(L_enumObObjectsCallback, &callback_data);
 
-  return callback_data.results;
+  return std::move(callback_data.results);
 }
 
 osquery::QueryData WindowsSyncObjectsTable::insert(
@@ -332,7 +335,9 @@ osquery::QueryData WindowsSyncObjectsTable::delete_(
     break;
   }
 
-  default: { break; }
+  default: {
+    break;
+  }
   }
 
   if (!succeeded) {

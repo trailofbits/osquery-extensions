@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
+#include "ntfsfileinformation.h"
+
 #include <iomanip>
 #include <sstream>
 
 #include <tsk/libtsk.h>
 
-#include "ntfsfileinformation.h"
+// We use an old sleuthkit which incorrectly define snprintf as _snprintf.
+// We should port thirdparty_sleuthkit to Windows and use that eventually.
+#undef snprintf
 
 namespace trailofbits {
 std::string NTFSFileInformation::getStringRep() const {
@@ -81,4 +85,4 @@ std::string typeNameFromInt(int t) {
     return std::string("Unknown");
   }
 }
-}
+} // namespace trailofbits

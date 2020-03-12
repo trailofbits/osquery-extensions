@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 
+#include "ip6tables_policies.h"
+
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
+
 #include <boost/algorithm/string/trim.hpp>
-#include <osquery/sdk.h>
 
 #include <trailofbits/extutils.h>
 
-#include "ip6tables_policies.h"
 #include "utils.h"
 
 using namespace osquery;
 
 namespace trailofbits {
-osquery::QueryData Ip6tablesPoliciesTable::generate(
+osquery::TableRows Ip6tablesPoliciesTable::generate(
     osquery::QueryContext& context) {
-  osquery::QueryData results;
+  osquery::TableRows results;
 
   for (const auto& table : getIp6tablesNames()) {
     genIptablesPolicy(table, results);
@@ -37,7 +40,7 @@ osquery::QueryData Ip6tablesPoliciesTable::generate(
 }
 
 void Ip6tablesPoliciesTable::genIptablesPolicy(const std::string& filter,
-                                               osquery::QueryData& results) {
+                                               osquery::TableRows& results) {
   // Initialize the access to iptc
   auto handle = ip6tc_init(filter.c_str());
   if (handle == nullptr) {
@@ -54,7 +57,7 @@ void Ip6tablesPoliciesTable::genIptablesPolicy(const std::string& filter,
       continue;
     }
 
-    Row r;
+    DynamicTableRowHolder r;
     ip6t_counters counters;
 
     auto policy = ip6tc_get_policy(chain, &counters, handle);
@@ -69,7 +72,7 @@ void Ip6tablesPoliciesTable::genIptablesPolicy(const std::string& filter,
     r["packets"] = BIGINT(counters.pcnt);
     r["bytes"] = BIGINT(counters.bcnt);
 
-    results.push_back(r);
+    results.emplace_back(r);
   }
 
   ip6tc_free(handle);

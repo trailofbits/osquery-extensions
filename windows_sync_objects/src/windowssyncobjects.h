@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 namespace trailofbits {
 class WindowsSyncObjectsTable final : public osquery::TablePlugin {
@@ -30,7 +30,7 @@ class WindowsSyncObjectsTable final : public osquery::TablePlugin {
   osquery::TableColumns columns() const;
 
   /// Generates the table rows
-  osquery::QueryData generate(osquery::QueryContext& context);
+  osquery::TableRows generate(osquery::QueryContext& context);
 
   /// Inserts a new synchronization object into the table
   osquery::QueryData insert(osquery::QueryContext& context,

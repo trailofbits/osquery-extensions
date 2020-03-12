@@ -19,7 +19,7 @@
 #include <ctime>
 #include <memory>
 
-#include <osquery/status.h>
+#include <osquery/extensions.h>
 
 #include <json11.hpp>
 

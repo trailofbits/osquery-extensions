@@ -48,4 +48,4 @@ struct NTFSFileInformationFlags final {
   bool unindexed{false};
   bool encrypted{false};
 };
-}
+} // namespace trailofbits

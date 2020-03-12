@@ -16,11 +16,11 @@
 
 #pragma once
 
-#include "basetable.h"
+#include <memory>
 
 #include <trailofbits/ifirewall.h>
 
-#include <memory>
+#include "basetable.h"
 
 namespace trailofbits {
 struct HostRule final {
@@ -38,7 +38,7 @@ class HostBlacklistTable final : public BaseTable {
 
   osquery::TableColumns columns() const;
 
-  osquery::QueryData generate(osquery::QueryContext& context);
+  osquery::TableRows generate(osquery::QueryContext& context);
 
   osquery::QueryData insert(osquery::QueryContext& context,
                             const osquery::PluginRequest& request);

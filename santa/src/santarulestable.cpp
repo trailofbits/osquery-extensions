@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
+#include "santarulestable.h"
+
 #include <atomic>
 #include <mutex>
 
-#include <osquery/core/conversions.h>
 #include <osquery/logger.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 #include "santa.h"
-#include "santarulestable.h"
 #include "utils.h"
 
 namespace {
@@ -133,10 +134,11 @@ osquery::TableColumns SantaRulesTablePlugin::columns() const {
   // clang-format on
 }
 
-osquery::QueryData SantaRulesTablePlugin::generate(
+osquery::TableRows SantaRulesTablePlugin::generate(
     osquery::QueryContext& request) {
   std::unordered_map<RowID, std::string> rowid_to_pkey;
   std::unordered_map<std::string, RuleEntry> rule_list;
+  osquery::TableRows result;
 
   {
     std::lock_guard<std::mutex> lock(d->mutex);
@@ -144,14 +146,15 @@ osquery::QueryData SantaRulesTablePlugin::generate(
     auto status = updateRules();
     if (!status.ok()) {
       VLOG(1) << status.getMessage();
-      return {{std::make_pair("status", "failure")}};
+      osquery::DynamicTableRowHolder row;
+      row["status"] = "failure";
+      result.emplace_back(row);
+      return result;
     }
 
     rowid_to_pkey = d->rowid_to_pkey;
     rule_list = d->rule_list;
   }
-
-  osquery::QueryData result;
 
   for (const auto& rowid_pkey_pair : rowid_to_pkey) {
     const auto& rowid = rowid_pkey_pair.first;
@@ -165,14 +168,14 @@ osquery::QueryData SantaRulesTablePlugin::generate(
 
     const auto& rule = rule_it->second;
 
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     row["rowid"] = std::to_string(rowid);
     row["shasum"] = rule.shasum;
     row["state"] = getRuleStateName(rule.state);
     row["type"] = getRuleTypeName(rule.type);
     row["custom_message"] = rule.custom_message;
 
-    result.push_back(std::move(row));
+    result.emplace_back(row);
   }
 
   return result;

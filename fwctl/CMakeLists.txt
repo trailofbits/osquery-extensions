@@ -15,41 +15,26 @@
 cmake_minimum_required(VERSION 3.10)
 project(fwctl)
 
-function(main)
+function(fwctlMain)
   set(project_libraries
     firewall
     hostsfile
   )
 
-  if(UNIX)
-    list(APPEND project_libraries
-      boost_system-mt
-      boost_serialization-mt
-      boost_regex-mt
-    )
-  else()
-    list(APPEND project_libraries
-      libboost_system-mt-s.lib
-      libboost_serialization-mt-s.lib
-      libboost_regex-mt-s.lib
-    )
-  endif()
-
   set(project_common_source_files
     src/globals.h
     src/globals.cpp
-
     src/basetable.h
   )
 
-  add_osquery_extension_ex("HostBlacklistTable" "table" "HostBlacklist"
+  addOsqueryExtensionEx("HostBlacklistTable" "table" "HostBlacklist"
     SOURCES ${project_common_source_files} src/hostblacklist.h src/hostblacklist.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
     MAININCLUDES hostblacklist.h
     LIBRARIES ${project_libraries}
   )
 
-  add_osquery_extension_ex("PortBlacklistTable" "table" "PortBlacklist"
+  addOsqueryExtensionEx("PortBlacklistTable" "table" "PortBlacklist"
     SOURCES ${project_common_source_files} src/portblacklist.h src/portblacklist.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
     MAININCLUDES portblacklist.h
@@ -76,18 +61,20 @@ function(main)
     )
 
     AddTest("tables" test_target_name ${project_test_files})
+
     target_include_directories("${test_target_name}" PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
+      "${TOB_EXTENSIONS_ROOT}"
     )
 
     target_compile_definitions("${test_target_name}" PRIVATE "${configuration_root}")
 
-    target_link_libraries("${test_target_name}" PRIVATE
-      glog gflags thrift boost_system-mt boost_thread-mt boost_filesystem-mt boost_context-mt
-      firewall hostsfile
-    )
+    target_compile_options("${test_target_name}" PRIVATE ${cxx_settings})
 
-    target_link_libraries("${test_target_name}" PRIVATE "${CMAKE_BINARY_DIR}/osquery/libosquery.a")
+    target_link_libraries("${test_target_name}" PRIVATE
+      firewall
+      hostsfile
+    )
 
     if(NOT APPLE)
       target_link_libraries("${test_target_name}" PRIVATE rt)
@@ -95,5 +82,4 @@ function(main)
   endif()
 endfunction()
 
-main()
-
+fwctlMain()

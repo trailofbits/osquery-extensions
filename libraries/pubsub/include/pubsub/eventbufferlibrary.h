@@ -18,13 +18,16 @@
 
 #include <memory>
 
-#include <osquery/sdk.h>
-#include <osquery/status.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#include <osquery/sdk/sdk.h>
+#pragma clang diagnostic pop
+#include <osquery/extensions.h>
 
 namespace trailofbits {
 /// An event batch is just a list of rows that will get returned to osquery
 /// during the ::generate() table callback
-using EventBatch = std::vector<osquery::Row>;
+using EventBatch = std::vector<osquery::TableRowHolder>;
 
 /// This singleton is used to create or acquire existing event buffers
 class EventBufferLibrary final {

@@ -13,21 +13,28 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.10)
-project("traiofbits_extensions")
+project("trailofbits_extensions")
 
-set(ROOT_TEST_TARGET "trailofbits_extensions_tests")
-add_custom_target("${ROOT_TEST_TARGET}")
+set(TOB_ROOT_TEST_TARGET "trailofbits_extensions_tests")
 
-set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+set(TOB_EXTENSIONS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" CACHE STRING "TOB extensions root directory")
 
-set(ENV{OSQUERY_EXTENSION_GROUP_NAME} "trailofbits_osquery_extensions")
-set(ENV{OSQUERY_EXTENSION_GROUP_VERSION} "1.2")
+set(OSQUERY_EXTENSION_GROUP_NAME "trailofbits_osquery_extensions" CACHE STRING "Overrides osquery extension group name" FORCE)
+set(OSQUERY_EXTENSION_GROUP_VERSION "1.2" CACHE STRING "Overrides osquery extension group version" FORCE)
 
 function(trailofbitsExtensionsMain)
   message(STATUS "================================")
   message(STATUS "Trail of Bits osquery extensions")
-  message(STATUS "Version: $ENV{OSQUERY_EXTENSION_GROUP_VERSION}")
+  message(STATUS "Version: ${OSQUERY_EXTENSION_GROUP_VERSION}")
   message(STATUS "================================")
+
+  if(NOT (${OSQUERY_VERSION_INTERNAL} VERSION_EQUAL "4.1.0" OR
+          ${OSQUERY_VERSION_INTERNAL} VERSION_GREATER "4.1.0"))
+    message(WARNING "Detected osquery version ${OSQUERY_VERSION_INTERNAL}: This version is unsupported, please use version 4.1.0 or greater")
+    return()
+  endif()
+
+  add_custom_target("${TOB_ROOT_TEST_TARGET}")
 
   ImportLibraries()
   ImportExtensions()
@@ -110,11 +117,11 @@ function(IsFolderEnabled relative_path)
   endif()
 
   file(READ "${platforms_file_path}" supported_platforms)
-  if(WINDOWS AND "${supported_platforms}" MATCHES "WINDOWS")
+  if(PLATFORM_WINDOWS AND "${supported_platforms}" MATCHES "WINDOWS")
     set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
-  elseif(APPLE AND "${supported_platforms}" MATCHES "APPLE")
+  elseif(PLATFORM_MACOS AND "${supported_platforms}" MATCHES "APPLE")
     set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
-  elseif(LINUX AND "${supported_platforms}" MATCHES "LINUX")
+  elseif(PLATFORM_LINUX AND "${supported_platforms}" MATCHES "LINUX")
     set(IsFolderEnabled_OUTPUT true PARENT_SCOPE)
   else()
     set(IsFolderEnabled_OUTPUT false PARENT_SCOPE)
@@ -125,21 +132,10 @@ function(AddTest test_name out_executable_target_name)
   set(target_name "tobExtTests_${test_name}")
   add_executable("${target_name}" EXCLUDE_FROM_ALL ${ARGN})
 
-  message("   ${target_name}")
-
-  # we have the guarantee that googletest is already present, thanks to osquery; link
-  # to it so that we automatically import the include directories
-  if(NOT TARGET gtest)
-    message(FATAL_ERROR "Tests will not find gtest if you have built using the 'SKIP_TESTS=1' setting!")
-  endif()
-
-  target_link_libraries("${target_name}" PRIVATE gtest)
-
   if(UNIX)
     if(APPLE)
       target_compile_definitions("${target_name}" PRIVATE APPLE)
     else()
-      set(command_prefix ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=/usr/local/osquery/lib)
       target_compile_definitions("${target_name}" PRIVATE LINUX)
     endif()
   else()
@@ -151,10 +147,20 @@ function(AddTest test_name out_executable_target_name)
     COMMENT "Running test: ${target_name}"
   )
 
-  add_dependencies("${ROOT_TEST_TARGET}" "${target_name}_runner")
+  add_dependencies("${TOB_ROOT_TEST_TARGET}" "${target_name}_runner")
+
+  target_link_libraries("${target_name}" PRIVATE
+    osquery_sdk_pluginsdk
+    osquery_extensions_implthrift
+    thirdparty_googletest
+  )
 
   # Return the executable target name to the caller
   set("${out_executable_target_name}" "${target_name}" PARENT_SCOPE)
 endfunction()
 
 trailofbitsExtensionsMain()
+
+# If the user has generated extensions using the new generate_osquery_extension_group
+# function, then this call will generate the bundle
+generateOsqueryExtensionGroup()

@@ -19,7 +19,7 @@
 #include "baseeventsubscriber.h"
 #include "ieventsubscriber.h"
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 namespace trailofbits {
 /// Event subscribers use this as a base class
@@ -34,7 +34,7 @@ class BaseEventSubscriber : public IEventSubscriber {
   /// This method is called by the publishers when there is new data to be
   /// processed
   virtual osquery::Status callback(
-      osquery::QueryData& new_events,
+      osquery::TableRows& new_events,
       typename EventPublisher::SubscriptionContextRef subscription_context,
       typename EventPublisher::EventContextRef event_context) = 0;
 };

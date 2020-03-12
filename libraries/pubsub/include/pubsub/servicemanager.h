@@ -20,8 +20,12 @@
 #include <memory>
 #include <thread>
 
-#include <osquery/sdk.h>
-#include <osquery/status.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#include <osquery/sdk/sdk.h>
+#pragma clang diagnostic pop
+
+#include <osquery/extensions.h>
 
 namespace trailofbits {
 class IService;

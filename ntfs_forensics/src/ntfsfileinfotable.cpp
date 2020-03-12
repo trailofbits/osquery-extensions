@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "ntfsfileinfotable.h"
+
 #include <iomanip>
 #include <iostream>
 
@@ -23,7 +25,6 @@
 #include "diskdevice.h"
 #include "diskpartition.h"
 #include "ntfsfileinformation.h"
-#include "ntfsfileinfotable.h"
 
 namespace trailofbits {
 osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
@@ -59,12 +60,12 @@ osquery::TableColumns NTFSFileInfoTablePlugin::columns() const {
 }
 
 struct query_context_t final {
-  osquery::QueryData& result;
+  osquery::TableRows& result;
   const std::string& dev;
   std::uint32_t partition;
 };
 
-void populateRow(osquery::Row& r,
+void populateRow(osquery::DynamicTableRowHolder& r,
                  NTFSFileInformation& info,
                  const std::string& dev,
                  int partition) {
@@ -112,12 +113,12 @@ void populateRow(osquery::Row& r,
 void callback(NTFSFileInformation& info, void* context) {
   query_context_t* qct = static_cast<query_context_t*>(context);
 
-  osquery::Row r;
+  osquery::DynamicTableRowHolder r;
   populateRow(r, info, qct->dev, qct->partition);
-  qct->result.push_back(r);
+  qct->result.emplace_back(r);
 }
 
-osquery::QueryData NTFSFileInfoTablePlugin::generate(
+osquery::TableRows NTFSFileInfoTablePlugin::generate(
     osquery::QueryContext& request) {
   // Get the statement constraints
   auto path_constraints = request.constraints["path"].getAll(osquery::EQUALS);
@@ -159,7 +160,7 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
   }
 
   // Iterate through all devices
-  osquery::QueryData results;
+  osquery::TableRows results;
 
   for (const auto& p : device_constraints) {
     const auto& device_name = p.first;
@@ -206,10 +207,9 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
             }
           }
 
-          osquery::Row r;
+          osquery::DynamicTableRowHolder r;
           populateRow(r, info, device_name, partition_number);
-
-          results.push_back(std::move(r));
+          results.emplace_back(r);
         }
 
       } else if (!inode_constraints.empty()) {
@@ -220,10 +220,9 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
             continue;
           }
 
-          osquery::Row r;
+          osquery::DynamicTableRowHolder r;
           populateRow(r, info, device_name, partition_number);
-
-          results.push_back(std::move(r));
+          results.emplace_back(r);
         }
 
       } else if (!directory_constraints.empty()) {
@@ -245,4 +244,4 @@ osquery::QueryData NTFSFileInfoTablePlugin::generate(
 
   return results;
 }
-}
+} // namespace trailofbits

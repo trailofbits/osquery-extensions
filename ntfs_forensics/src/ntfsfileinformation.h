@@ -53,4 +53,4 @@ struct NTFSFileInformation final {
 using NTFSFileInformationList = std::list<NTFSFileInformation>;
 
 std::string typeNameFromInt(int t);
-}
+} // namespace trailofbits

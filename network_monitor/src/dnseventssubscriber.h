@@ -45,7 +45,7 @@ class DNSEventsSubscriber final
       const json11::Json& configuration) noexcept override;
 
   virtual osquery::Status callback(
-      osquery::QueryData& new_events,
+      osquery::TableRows& new_events,
       DNSEventsPublisher::SubscriptionContextRef subscription_context,
       DNSEventsPublisher::EventContextRef event_context) override;
 };

@@ -28,16 +28,7 @@ function(main)
 
   list(APPEND project_include_folders
     ${CURL_INCLUDE_DIR}
-  )
-
-  set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")  
-  find_package(openssl REQUIRED)
-  list(APPEND project_libraries
-    ${OPENSSL_LIBRARIES}
-  )
-
-  list(APPEND project_include_folders
-    ${OPENSSL_INCLUDE_DIR}
+    ${TOB_EXTENSIONS_ROOT}
   )
 
   set(source_files
@@ -51,7 +42,7 @@ function(main)
     src/efigytable.cpp
   )
 
-  add_osquery_extension_ex("EFIgyTablePlugin" "table" "EFIgy"
+  addOsqueryExtensionEx("EFIgyTablePlugin" "table" "EFIgy"
     SOURCES ${source_files}
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src" ${project_include_folders}
     MAININCLUDES efigytable.h

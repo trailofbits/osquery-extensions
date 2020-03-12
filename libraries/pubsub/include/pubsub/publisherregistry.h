@@ -16,7 +16,10 @@
 
 #pragma once
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
 #include "baseeventpublisher.h"
+#pragma clang diagnostic pop
 
 #include <memory>
 #include <unordered_map>
@@ -64,7 +67,7 @@ class PublisherRegistry final {
 };
 
 // clang-format off
-#define DECLARE_PUBLISHER(publisher_class) \
+#define TOB_DECLARE_PUBLISHER(publisher_class) \
   namespace { \
     static auto publisher_manager_helper_ ## publisher_class = \
       PublisherRegistry::declare(publisher_class::name(), publisher_class::create); \

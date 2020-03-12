@@ -15,12 +15,9 @@
 cmake_minimum_required(VERSION 3.12)
 project(network_monitor)
 
-function(main)
-  #
+function(networkMonitorMain)
   # Source files
-  #
-
-  set(source_files
+  set(project_source_files
     src/main.cpp
 
     src/dnseventspublisher.h
@@ -36,21 +33,23 @@ function(main)
     src/pcapreaderservice.cpp
   )
 
-  add_osquery_extension("${PROJECT_NAME}" ${source_files})
+  addOsqueryExtension("${PROJECT_NAME}" ${project_source_files})
 
-  #
-  # Dependencies
-  #
-
-  # Reference our pubsub framework
+  # Reference our pubsub framework	
   list(APPEND libraries pubsub)
 
   # Import Pcap++
   ImportDependency("pcap")
   ImportDependency("Pcap++")
+  
+  # Reference our pubsub framework and pcap++ libraries
+  list(APPEND libraries pubsub)
   list(APPEND libraries Pcap++)
+  list(APPEND libraries osquery_extensions_implthrift)
 
-  target_link_libraries("${PROJECT_NAME}" ${libraries})
+  target_link_libraries("${PROJECT_NAME}" PUBLIC
+    ${libraries}
+  )
 endfunction()
 
-main()
+networkMonitorMain()

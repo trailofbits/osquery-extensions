@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 
+#include "iptables_policies.h"
+
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
+
 #include <boost/algorithm/string/trim.hpp>
-#include <osquery/sdk.h>
 
 #include <trailofbits/extutils.h>
 
-#include "iptables_policies.h"
 #include "utils.h"
 
 using namespace osquery;
 
 namespace trailofbits {
-osquery::QueryData IptablesPoliciesTable::generate(
+osquery::TableRows IptablesPoliciesTable::generate(
     osquery::QueryContext& context) {
-  osquery::QueryData results;
+  osquery::TableRows results;
 
   for (const auto& table : getIptablesNames()) {
     genIptablesPolicy(table, results);
@@ -37,7 +40,7 @@ osquery::QueryData IptablesPoliciesTable::generate(
 }
 
 void IptablesPoliciesTable::genIptablesPolicy(const std::string& filter,
-                                              osquery::QueryData& results) {
+                                              osquery::TableRows& results) {
   // Initialize the access to iptc
   auto handle = iptc_init(filter.c_str());
   if (handle == nullptr) {
@@ -54,7 +57,7 @@ void IptablesPoliciesTable::genIptablesPolicy(const std::string& filter,
       continue;
     }
 
-    Row r;
+    DynamicTableRowHolder r;
     ipt_counters counters;
 
     auto policy = iptc_get_policy(chain, &counters, handle);
@@ -69,7 +72,7 @@ void IptablesPoliciesTable::genIptablesPolicy(const std::string& filter,
     r["packets"] = BIGINT(counters.pcnt);
     r["bytes"] = BIGINT(counters.bcnt);
 
-    results.push_back(r);
+    results.emplace_back(r);
   }
 
   iptc_free(handle);

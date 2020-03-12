@@ -15,7 +15,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(windows_sync_objects)
 
-function(main)
+function(windows_sync_objects_main)
   set(project_common_source_files
     src/winapi.h
 
@@ -27,10 +27,11 @@ function(main)
   )
 
   set(project_include_dirs
+    "${TOB_EXTENSIONS_ROOT}"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
 
-  add_osquery_extension_ex("WindowsSyncObjectsTablePlugin" "table" "windows_sync_objects"
+  addOsqueryExtensionEx("WindowsSyncObjectsTablePlugin" "table" "windows_sync_objects"
     SOURCES ${project_common_source_files}
     INCLUDEDIRS ${project_include_dirs}
     MAININCLUDES windowssyncobjects.h
@@ -38,4 +39,4 @@ function(main)
   )
 endfunction()
 
-main()
+windows_sync_objects_main()

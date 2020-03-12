@@ -14,20 +14,22 @@
  * limitations under the License.
  */
 
+#include "ntfsindxtable.h"
+
 #include <iomanip>
 #include <iostream>
 
+#include <osquery/sql/dynamic_table_row.h>
 #include <osquery/tables.h>
 
 #include "constraints.h"
 #include "diskdevice.h"
 #include "diskpartition.h"
 #include "ntfsdirectoryindexentry.h"
-#include "ntfsindxtable.h"
 
 namespace trailofbits {
 namespace {
-void populateIndexRow(osquery::Row& r,
+void populateIndexRow(osquery::DynamicTableRowHolder& r,
                       NTFSDirectoryIndexEntry& entry,
                       const std::string& dev,
                       int partition,
@@ -55,7 +57,7 @@ void populateIndexRow(osquery::Row& r,
 }
 
 void generateAndAppendRows(
-    osquery::QueryData& results,
+    osquery::TableRows& results,
     const std::unordered_set<std::uint64_t>& inode_constraints,
     std::shared_ptr<DiskPartition> partition,
     const std::string& device_name,
@@ -68,15 +70,14 @@ void generateAndAppendRows(
     partition->getFileInfo(inode, fileInfo);
 
     for (auto& entry : entries) {
-      osquery::Row r = {};
+      osquery::DynamicTableRowHolder r;
       populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
-
-      results.push_back(std::move(r));
+      results.emplace_back(r);
     }
   }
 }
 
-void generateAndAppendRows(osquery::QueryData& results,
+void generateAndAppendRows(osquery::TableRows& results,
                            const std::set<std::string>& path_constraints,
                            std::shared_ptr<DiskPartition> partition,
                            const std::string& device_name,
@@ -96,14 +97,13 @@ void generateAndAppendRows(osquery::QueryData& results,
     }
 
     for (auto& entry : entries) {
-      osquery::Row r = {};
+      osquery::DynamicTableRowHolder r;
       populateIndexRow(r, entry, device_name, partition_number, fileInfo.path);
-
-      results.push_back(std::move(r));
+      results.emplace_back(r);
     }
   }
 }
-}
+} // namespace
 
 osquery::TableColumns NTFSINDXTablePugin::columns() const {
   // clang-format off
@@ -126,7 +126,7 @@ osquery::TableColumns NTFSINDXTablePugin::columns() const {
   // clang-format on
 }
 
-osquery::QueryData NTFSINDXTablePugin::generate(
+osquery::TableRows NTFSINDXTablePugin::generate(
     osquery::QueryContext& request) {
   // Get the statement constraints
   auto path_constraints =
@@ -155,7 +155,7 @@ osquery::QueryData NTFSINDXTablePugin::generate(
   }
 
   // Iterate through all devices
-  osquery::QueryData results;
+  osquery::TableRows results;
 
   for (const auto& p : device_constraints) {
     const auto& device_name = p.first;
@@ -175,9 +175,9 @@ osquery::QueryData NTFSINDXTablePugin::generate(
           DiskPartition::create(disk_partition, disk_device, partition_number);
 
       if (!status.ok()) {
-        //error code 2 is explicitly the code for unable to open filesystem
-        //this is common if partition is not specified and there are
-        //multiple non-NTFS partitions
+        // error code 2 is explicitly the code for unable to open filesystem
+        // this is common if partition is not specified and there are
+        // multiple non-NTFS partitions
         if (status.getCode() != 2) {
           LOG(WARNING) << status.getMessage();
         }
@@ -203,4 +203,4 @@ osquery::QueryData NTFSINDXTablePugin::generate(
 
   return results;
 }
-}
+} // namespace trailofbits

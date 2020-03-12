@@ -24,24 +24,26 @@
  *  You may select, at your option, one of the above-listed licenses.
  */
 
-#include <osquery/sdk.h>
+#include "iptables_ext.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sstream>
 
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
+
 #include <boost/algorithm/string/trim.hpp>
 
 #include <trailofbits/extutils.h>
 
-#include "iptables_ext.h"
 #include "utils.h"
 
 using namespace osquery;
 
 namespace trailofbits {
-osquery::QueryData IptablesExtTable::generate(osquery::QueryContext& context) {
-  osquery::QueryData results;
+osquery::TableRows IptablesExtTable::generate(osquery::QueryContext& context) {
+  osquery::TableRows results;
 
   MatchMap match_map;
   auto s = parseIptablesSave(match_map);
@@ -72,7 +74,7 @@ osquery::QueryData IptablesExtTable::generate(osquery::QueryContext& context) {
 osquery::Status IptablesExtTable::genIptablesRules(
     const std::string& filter,
     const MatchChain& matches,
-    osquery::QueryData& results) {
+    osquery::TableRows& results) {
   // Initialize the access to iptc
   auto handle = iptc_init(filter.c_str());
   if (handle == nullptr) {
@@ -98,7 +100,7 @@ osquery::Status IptablesExtTable::genIptablesRules(
     for (auto chain_rule = iptc_first_rule(chain, handle);
          chain_rule != nullptr;
          chain_rule = iptc_next_rule(chain_rule, handle)) {
-      osquery::Row r;
+      osquery::DynamicTableRowHolder r;
 
       r["table_name"] = TEXT(filter);
       r["chain"] = TEXT(chain);
@@ -138,7 +140,7 @@ osquery::Status IptablesExtTable::genIptablesRules(
 
       parseIpEntry(&chain_rule->ip, r);
 
-      results.push_back(r);
+      results.emplace_back(r);
       ruleno++;
     } // Rule iteration
   } // Chain iteration
@@ -148,7 +150,8 @@ osquery::Status IptablesExtTable::genIptablesRules(
   return osquery::Status(0);
 }
 
-void IptablesExtTable::parseTcp(const xt_entry_match* match, osquery::Row& r) {
+void IptablesExtTable::parseTcp(const xt_entry_match* match,
+                                osquery::DynamicTableRowHolder& r) {
   auto tcp = reinterpret_cast<const ipt_tcp*>(match->data);
 
   std::string src_port =
@@ -160,7 +163,8 @@ void IptablesExtTable::parseTcp(const xt_entry_match* match, osquery::Row& r) {
   r["dst_port"] = FLAGNEGATE(tcp, IPT_TCP_INV_DSTPT, dst_port);
 }
 
-void IptablesExtTable::parseUdp(const xt_entry_match* match, osquery::Row& r) {
+void IptablesExtTable::parseUdp(const xt_entry_match* match,
+                                osquery::DynamicTableRowHolder& r) {
   auto udp = reinterpret_cast<const ipt_udp*>(match->data);
 
   std::string src_port =
@@ -172,7 +176,8 @@ void IptablesExtTable::parseUdp(const xt_entry_match* match, osquery::Row& r) {
   r["dst_port"] = FLAGNEGATE(udp, IPT_UDP_INV_DSTPT, dst_port);
 }
 
-void IptablesExtTable::parseIpEntry(const ipt_ip* ip, osquery::Row& r) {
+void IptablesExtTable::parseIpEntry(const ipt_ip* ip,
+                                    osquery::DynamicTableRowHolder& r) {
   protoent* pent = getprotobynumber(ip->proto);
 
   std::string protocol;

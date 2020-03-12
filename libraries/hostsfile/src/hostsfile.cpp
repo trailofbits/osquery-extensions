@@ -16,22 +16,25 @@
 
 #include "hostsfile.h"
 
+#include <cctype>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <mutex>
 #include <sstream>
-#include <cctype>
 
 namespace trailofbits {
 
 #if defined(__linux__) || defined(__APPLE__)
-  const std::string hosts_file_path = "/etc/hosts";
-  const std::string temporary_hosts_file_path = "/etc/hosts.osquery-fwctl.tmp";
+const std::string hosts_file_path = "/etc/hosts";
+const std::string temporary_hosts_file_path = "/etc/hosts.osquery-fwctl.tmp";
 #elif defined(_WIN32)
-  const std::string hosts_file_path = "c:\\Windows\\System32\\Drivers\\etc\\hosts";
-  const std::string temporary_hosts_file_path = "C:\\Windows\\System32\\Drivers\\etc\\hosts.osquery-fwctl.tmp";
-  const std::string backup_hosts_file_path = "c:\\Windows\\System32\\Drivers\\etc\\hosts.backup";
+const std::string hosts_file_path =
+    "c:\\Windows\\System32\\Drivers\\etc\\hosts";
+const std::string temporary_hosts_file_path =
+    "C:\\Windows\\System32\\Drivers\\etc\\hosts.osquery-fwctl.tmp";
+const std::string backup_hosts_file_path =
+    "c:\\Windows\\System32\\Drivers\\etc\\hosts.backup";
 #endif
 
 struct HostsFile::PrivateData final {
@@ -61,7 +64,7 @@ HostsFile::Status HostsFile::addHost(const std::string& domain,
 
   HostsFileData data;
   if (!ReadHostsFile(data)) {
-	  return Status(false);
+    return Status(false);
   }
 
   for (const auto& pair : data) {
@@ -75,18 +78,18 @@ HostsFile::Status HostsFile::addHost(const std::string& domain,
   }
 
   if (!CopyFile_(hosts_file_path, temporary_hosts_file_path)) {
-	  return Status(false, Detail::IOError);
+    return Status(false, Detail::IOError);
   }
 
   std::fstream temp_file(temporary_hosts_file_path,
                          std::fstream::out | std::fstream::app);
   if (!temp_file) {
-	  return Status(false, Detail::IOError);
+    return Status(false, Detail::IOError);
   }
 
   temp_file << "\n" << address << "\t" << domain;
   if (!temp_file) {
-	  return Status(false, Detail::IOError);
+    return Status(false, Detail::IOError);
   }
 
   temp_file.close();
@@ -96,18 +99,19 @@ HostsFile::Status HostsFile::addHost(const std::string& domain,
   // so rename the original to a backup, move the new to the original
   // and delete the backup
   if (0 != std::rename(hosts_file_path.data(), backup_hosts_file_path.data())) {
-	  return Status(false, Detail::IOError);
+    return Status(false, Detail::IOError);
   }
-  if (0 != std::rename(temporary_hosts_file_path.data(), hosts_file_path.data())) {
-	  std::rename(backup_hosts_file_path.data(), hosts_file_path.data());
-	  return Status(false, Detail::IOError);
-  }
-  else {
-	  std::remove(backup_hosts_file_path.data());
+  if (0 !=
+      std::rename(temporary_hosts_file_path.data(), hosts_file_path.data())) {
+    std::rename(backup_hosts_file_path.data(), hosts_file_path.data());
+    return Status(false, Detail::IOError);
+  } else {
+    std::remove(backup_hosts_file_path.data());
   }
 #else
-  if (0 != std::rename(temporary_hosts_file_path.data(), hosts_file_path.data())) {
-	  return Status(false, Detail::IOError);
+  if (0 !=
+      std::rename(temporary_hosts_file_path.data(), hosts_file_path.data())) {
+    return Status(false, Detail::IOError);
   }
 #endif
   return Status(true);
@@ -177,18 +181,19 @@ HostsFile::Status HostsFile::removeHost(const std::string& domain) {
   // so rename the original to a backup, move the new to the original
   // and delete the backup
   if (0 != std::rename(hosts_file_path.data(), backup_hosts_file_path.data())) {
-	  return Status(false, Detail::IOError);
+    return Status(false, Detail::IOError);
   }
-  if (0 != std::rename(temporary_hosts_file_path.data(), hosts_file_path.data())) {
-	  std::rename(backup_hosts_file_path.data(), hosts_file_path.data());
-	  return Status(false, Detail::IOError);
-  }
-  else {
-	  std::remove(backup_hosts_file_path.data());
+  if (0 !=
+      std::rename(temporary_hosts_file_path.data(), hosts_file_path.data())) {
+    std::rename(backup_hosts_file_path.data(), hosts_file_path.data());
+    return Status(false, Detail::IOError);
+  } else {
+    std::remove(backup_hosts_file_path.data());
   }
 #else
-  if (0 != std::rename(temporary_hosts_file_path.data(), hosts_file_path.data())) {
-	  return Status(false, Detail::IOError);
+  if (0 !=
+      std::rename(temporary_hosts_file_path.data(), hosts_file_path.data())) {
+    return Status(false, Detail::IOError);
   }
 #endif
 

@@ -15,8 +15,11 @@
  */
 
 #include "efigytable.h"
+
+#include <osquery/sql/dynamic_table_row.h>
+
+#include "Extension.h"
 #include "efigy.h"
-#include "extension.h"
 #include "utils.h"
 
 #include <curl/curl.h>
@@ -52,25 +55,27 @@ osquery::TableColumns EFIgyTablePlugin::columns() const {
   // clang-format on
 }
 
-osquery::QueryData EFIgyTablePlugin::generate(osquery::QueryContext& request) {
+osquery::TableRows EFIgyTablePlugin::generate(osquery::QueryContext& request) {
   SystemInformation system_info;
   ServerResponse response;
+  osquery::TableRows result;
+
+  osquery::DynamicTableRowHolder r;
 
   try {
     getSystemInformation(system_info);
     queryEFIgy(response, system_info);
-
   } catch (const std::exception& e) {
     VLOG(1) << e.what();
 
-    osquery::Row r;
     r["efi_version_status"] = r["os_version_status"] =
         r["build_number_status"] = "error";
 
-    return {r};
+    osquery::TableRows result;
+    result.emplace_back(r);
+    return result;
   }
 
-  osquery::Row r;
   r["latest_efi_version"] = response.latest_efi_version;
   r["efi_version"] = system_info.rom_ver;
   if (system_info.rom_ver == response.latest_efi_version) {
@@ -95,7 +100,8 @@ osquery::QueryData EFIgyTablePlugin::generate(osquery::QueryContext& request) {
     r["build_number_status"] = "failure";
   }
 
-  return {r};
+  result.emplace_back(r);
+  return result;
 }
 
 EFIgyTablePlugin::EFIgyTablePlugin() {

@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-#include <osquery/logger.h>
-
-#include "system_log.h"
 #include "darwinlogtable.h"
 
+#include <osquery/logger.h>
+#include <osquery/sql/dynamic_table_row.h>
+
+#include "system_log.h"
+
 osquery::TableColumns UnifiedLogTablePlugin::columns() const {
+  // clang-format off
   return {
     std::make_tuple("category",
                     osquery::TEXT_TYPE,
@@ -93,14 +96,15 @@ osquery::TableColumns UnifiedLogTablePlugin::columns() const {
                     osquery::TEXT_TYPE,
                     osquery::ColumnOptions::DEFAULT)
   };
+  // clang-format on
 }
 
-osquery::QueryData UnifiedLogTablePlugin::generate(osquery::QueryContext& request) {
-  osquery::QueryData q;
+osquery::TableRows UnifiedLogTablePlugin::generate(
+    osquery::QueryContext& request) {
+  osquery::TableRows q;
   logMonitor.getEntries(q);
   return q;
 }
-
 
 osquery::Status UnifiedLogTablePlugin::setUp() {
   return logMonitor.setUp();
@@ -113,4 +117,3 @@ void UnifiedLogTablePlugin::tearDown() {
 void UnifiedLogTablePlugin::configure() {
   logMonitor.configure();
 }
-

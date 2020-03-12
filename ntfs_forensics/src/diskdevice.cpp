@@ -54,4 +54,4 @@ DiskDevice::~DiskDevice() {
 TSK_IMG_INFO* DiskDevice::imageInfo() {
   return img_info;
 }
-}
+} // namespace trailofbits

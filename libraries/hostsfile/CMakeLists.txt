@@ -48,7 +48,11 @@ function(main)
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
   )
 
-  target_link_libraries("${test_target_name}" PRIVATE extutils)
+  target_link_libraries("${test_target_name}" PRIVATE
+	  extutils
+  )
+
+  # target_link_libraries("${test_target_name}" PRIVATE extutils)
 endfunction()
 
 main()

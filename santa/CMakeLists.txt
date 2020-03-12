@@ -15,7 +15,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(santa)
 
-function(main)
+function(SantaMain)
   set(project_common_source_files
     src/santa.h
     src/santa.cpp
@@ -24,23 +24,25 @@ function(main)
     src/utils.cpp
   )
 
-  set(project_libraries boost_iostreams-mt)
-
-  add_osquery_extension_ex("SantaRulesTablePlugin" "table" "santa_rules"
+  if(DEFINED PLATFORM_MACOS)
+    set(project_libraries thirdparty_boost)
+  endif()
+ 
+  addOsqueryExtensionEx("SantaRulesTablePlugin" "table" "santa_rules"
     SOURCES ${project_common_source_files} src/santarulestable.h src/santarulestable.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
     MAININCLUDES santarulestable.h
     LIBRARIES ${project_libraries}
   )
 
-  add_osquery_extension_ex("SantaAllowedDecisionsTablePlugin" "table" "santa_allowed"
+  addOsqueryExtensionEx("SantaAllowedDecisionsTablePlugin" "table" "santa_allowed"
     SOURCES ${project_common_source_files} src/santadecisionstable.h src/santadecisionstable.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
     MAININCLUDES santadecisionstable.h
     LIBRARIES ${project_libraries}
   )
 
-  add_osquery_extension_ex("SantaDeniedDecisionsTablePlugin" "table" "santa_denied"
+  addOsqueryExtensionEx("SantaDeniedDecisionsTablePlugin" "table" "santa_denied"
     SOURCES ${project_common_source_files} src/santadecisionstable.h src/santadecisionstable.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
     MAININCLUDES santadecisionstable.h
@@ -48,4 +50,4 @@ function(main)
   )
 endfunction()
 
-main()
+SantaMain()

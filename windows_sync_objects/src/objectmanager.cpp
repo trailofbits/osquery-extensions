@@ -18,6 +18,11 @@
 #include "winapi.h" // Definitions for undocumented Windows APIs
 
 #include "osquery/core/windows/wmi.h" // We need this for wstringToString
+
+#if OSQUERY_VERSION_NUMBER >= SDK_VERSION(4, 0)
+#include <osquery/utils/conversions/windows/strings.h>
+#endif
+
 #include <osquery/logger.h>
 
 #include <array>
@@ -30,7 +35,7 @@ struct DirectoryEntry final {
   std::wstring name;
   std::wstring type;
 };
-}
+} // namespace
 
 namespace trailofbits {
 std::string GetErrorMessage(ULONG error_code) {
@@ -415,4 +420,4 @@ bool DestroySemaphore(SemaphoreHandle handle) {
   auto semaphore = static_cast<HANDLE>(handle);
   return (CloseHandle(semaphore) != 0);
 }
-}
+} // namespace trailofbits

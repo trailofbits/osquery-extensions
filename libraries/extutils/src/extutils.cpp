@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
+#include "trailofbits/extutils.h"
+
+#ifdef OSQUERY_WINDOWS
+// Note: osquery defines _WIN32_WINNT as _WIN32_WINNT_WIN7,
+// though Asio doesn't have that definition unless we include sdkddkver.h.
+// Not finding the correct version will disable IOCP and will fail to compile.
+#include <sdkddkver.h>
+#endif
 #include <boost/asio.hpp>
 #include <boost/process.hpp>
-
-#include <trailofbits/extutils.h>
 
 namespace trailofbits {
 namespace boostproc = boost::process;

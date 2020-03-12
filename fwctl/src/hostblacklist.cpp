@@ -17,15 +17,13 @@
 #include "hostblacklist.h"
 #include "globals.h"
 
-#include <trailofbits/ihostsfile.h>
-
-#include <osquery/core/conversions.h>
-#include <osquery/logger.h>
-#include <osquery/system.h>
-
 #include <algorithm>
 #include <iostream>
 #include <mutex>
+
+#include <osquery/logger.h>
+#include <osquery/sql/dynamic_table_row.h>
+#include <osquery/system.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -34,6 +32,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
 #include <boost/serialization/unordered_map.hpp>
+
+#include <trailofbits/ihostsfile.h>
 
 namespace b_asio = boost::asio;
 namespace b_ip = boost::asio::ip;
@@ -109,7 +109,7 @@ osquery::TableColumns HostBlacklistTable::columns() const {
   // clang-format on
 }
 
-osquery::QueryData HostBlacklistTable::generate(
+osquery::TableRows HostBlacklistTable::generate(
     osquery::QueryContext& context) {
   static_cast<void>(context);
 
@@ -158,7 +158,7 @@ osquery::QueryData HostBlacklistTable::generate(
     static_cast<void>(hosts_status);
   }
 
-  osquery::QueryData results;
+  osquery::TableRows results;
 
   // Add managed firewall and dns rules
   for (const auto& pair : table_row_id_to_pkey) {
@@ -166,7 +166,7 @@ osquery::QueryData HostBlacklistTable::generate(
     const auto& pkey = pair.second;
     const auto& rule = table_data.at(pkey);
 
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     row["rowid"] = std::to_string(row_id);
 
     // This is only used when inserting data; set as null
@@ -195,13 +195,13 @@ osquery::QueryData HostBlacklistTable::generate(
       row["dns_block"] = "ENABLED";
     }
 
-    results.push_back(row);
+    results.emplace_back(std::move(row));
   }
 
   // Add unmanaged firewall rules
   RowID temp_row_id = 0x80000000ULL;
   for (const auto& host : firewall_blacklist) {
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     row["rowid"] = std::to_string(temp_row_id);
     row["address_type"] =
         ""; // This is only used when inserting data; set as null
@@ -211,7 +211,7 @@ osquery::QueryData HostBlacklistTable::generate(
     row["firewall_block"] = "UNMANAGED";
     row["dns_block"] = "";
 
-    results.push_back(row);
+    results.emplace_back(std::move(row));
     temp_row_id++;
   }
 
@@ -220,7 +220,7 @@ osquery::QueryData HostBlacklistTable::generate(
     const auto& domain = pair.first;
     const auto& address = pair.second;
 
-    osquery::Row row;
+    osquery::DynamicTableRowHolder row;
     row["rowid"] = std::to_string(temp_row_id);
     row["address_type"] =
         ""; // This is only used when inserting data; set as null
@@ -230,7 +230,7 @@ osquery::QueryData HostBlacklistTable::generate(
     row["firewall_block"] = "";
     row["dns_block"] = "UNMANAGED";
 
-    results.push_back(row);
+    results.emplace_back(std::move(row));
     temp_row_id++;
   }
 

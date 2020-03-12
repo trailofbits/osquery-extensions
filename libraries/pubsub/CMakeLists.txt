@@ -16,9 +16,6 @@ cmake_minimum_required(VERSION 3.12)
 project(pubsub)
 
 function(pubsubMain)
-  #
-  # Source files
-  #
 
   set(public_include_folder "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -50,11 +47,11 @@ function(pubsubMain)
   )
 
   add_library("${PROJECT_NAME}" STATIC ${source_files} ${public_include_files})
-  target_include_directories("${PROJECT_NAME}" PUBLIC "${public_include_folder}")
-
-  #
-  # Compilation flags
-  #
+  
+  target_include_directories("${PROJECT_NAME}" PUBLIC 
+    "${public_include_folder}"
+    "${TOB_EXTENSIONS_ROOT}"
+  )
 
   set(compile_options
     -Werror -Wconversion -Wall -pedantic -Wunused
@@ -66,19 +63,17 @@ function(pubsubMain)
 
   target_compile_options("${PROJECT_NAME}" PRIVATE ${compile_options})
 
-  #
-  # Dependencies
-  #
-
-  list(APPEND libraries boost_thread-mt)
-
   find_package(Threads)
   list(APPEND libraries ${CMAKE_THREAD_LIBS_INIT})
 
   ImportDependency("json11")
   list(APPEND libraries json11)
 
-  target_link_libraries("${PROJECT_NAME}" PUBLIC ${libraries})
+  target_link_libraries("${PROJECT_NAME}" PUBLIC
+    ${libraries}
+    osquery_sdk_pluginsdk
+    thirdparty_boost
+  )
 endfunction()
 
 pubsubMain()

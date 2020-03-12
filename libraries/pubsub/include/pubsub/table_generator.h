@@ -2,7 +2,7 @@
 
 #include "eventbufferlibrary.h"
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 // clang-format off
 #define BEGIN_TABLE(name) \
@@ -11,7 +11,7 @@
     name ## TablePlugin() = default; \
     virtual ~name ## TablePlugin() override; \
     \
-    virtual osquery::QueryData generate(osquery::QueryContext&) override { \
+	virtual osquery::TableRows generate(osquery::QueryContext&) override { \
       return EventBufferLibrary::instance().getEvents(#name); \
     } \
     \

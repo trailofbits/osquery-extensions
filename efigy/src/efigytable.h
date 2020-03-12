@@ -16,13 +16,14 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 namespace trailofbits {
 class EFIgyTablePlugin final : public osquery::TablePlugin {
  private:
   osquery::TableColumns columns() const override;
-  osquery::QueryData generate(osquery::QueryContext& request) override;
+
+  osquery::TableRows generate(osquery::QueryContext& request) override;
 
  public:
   EFIgyTablePlugin();

@@ -14,25 +14,27 @@
  * limitations under the License.
  */
 
-#include <osquery/sdk.h>
+#include "ip6tables_ext.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sstream>
 
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
+
 #include <boost/algorithm/string/trim.hpp>
 
 #include <trailofbits/extutils.h>
 
-#include "ip6tables_ext.h"
 #include "utils.h"
 
 using namespace osquery;
 
 namespace trailofbits {
 
-osquery::QueryData Ip6tablesExtTable::generate(osquery::QueryContext& context) {
-  osquery::QueryData results;
+osquery::TableRows Ip6tablesExtTable::generate(osquery::QueryContext& context) {
+  osquery::TableRows results;
 
   MatchMap match_map;
   auto s = parseIp6tablesSave(match_map);
@@ -63,7 +65,7 @@ osquery::QueryData Ip6tablesExtTable::generate(osquery::QueryContext& context) {
 osquery::Status Ip6tablesExtTable::genIptablesRules(
     const std::string& filter,
     const MatchChain& matches,
-    osquery::QueryData& results) {
+    osquery::TableRows& results) {
   // Initialize the access to ip6tc
   auto handle = ip6tc_init(filter.c_str());
   if (handle == nullptr) {
@@ -89,7 +91,7 @@ osquery::Status Ip6tablesExtTable::genIptablesRules(
     for (auto chain_rule = ip6tc_first_rule(chain, handle);
          chain_rule != nullptr;
          chain_rule = ip6tc_next_rule(chain_rule, handle)) {
-      osquery::Row r;
+      osquery::DynamicTableRowHolder r;
 
       r["table_name"] = TEXT(filter);
       r["chain"] = TEXT(chain);
@@ -128,8 +130,7 @@ osquery::Status Ip6tablesExtTable::genIptablesRules(
       }
 
       parseIpEntry(&chain_rule->ipv6, r);
-
-      results.push_back(r);
+      results.emplace_back(r);
       ruleno++;
     } // Rule iteration
   } // Chain iteration
@@ -139,7 +140,8 @@ osquery::Status Ip6tablesExtTable::genIptablesRules(
   return osquery::Status(0);
 }
 
-void Ip6tablesExtTable::parseTcp(const xt_entry_match* match, osquery::Row& r) {
+void Ip6tablesExtTable::parseTcp(const xt_entry_match* match,
+                                 osquery::DynamicTableRowHolder& r) {
   auto tcp = reinterpret_cast<const ip6t_tcp*>(match->data);
 
   std::string src_port =
@@ -151,7 +153,8 @@ void Ip6tablesExtTable::parseTcp(const xt_entry_match* match, osquery::Row& r) {
   r["dst_port"] = FLAGNEGATE(tcp, IP6T_TCP_INV_DSTPT, dst_port);
 }
 
-void Ip6tablesExtTable::parseUdp(const xt_entry_match* match, osquery::Row& r) {
+void Ip6tablesExtTable::parseUdp(const xt_entry_match* match,
+                                 osquery::DynamicTableRowHolder& r) {
   auto udp = reinterpret_cast<const ip6t_udp*>(match->data);
 
   std::string src_port =
@@ -163,7 +166,8 @@ void Ip6tablesExtTable::parseUdp(const xt_entry_match* match, osquery::Row& r) {
   r["dst_port"] = FLAGNEGATE(udp, IP6T_UDP_INV_DSTPT, dst_port);
 }
 
-void Ip6tablesExtTable::parseIpEntry(const ip6t_ip6* ip, osquery::Row& r) {
+void Ip6tablesExtTable::parseIpEntry(const ip6t_ip6* ip,
+                                     osquery::DynamicTableRowHolder& r) {
   protoent* pent = getprotobynumber(ip->proto);
 
   std::string protocol;

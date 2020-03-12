@@ -26,8 +26,7 @@ namespace {
 /// This is the maximum amount of rows that will be saved in each buffer
 const std::size_t kCircularBufferSize = 4096U;
 
-/// The buffer used to store rows
-using CircularBuffer = boost::circular_buffer<osquery::Row>;
+using CircularBuffer = boost::circular_buffer<osquery::TableRowHolder>;
 
 /// An event buffer object
 struct EventBuffer final {

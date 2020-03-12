@@ -25,6 +25,10 @@
 
 #include <tsk/libtsk.h>
 
+// We use an old sleuthkit which incorrectly define snprintf as _snprintf.
+// We should port thirdparty_sleuthkit to Windows and use that eventually.
+#undef snprintf
+
 #include "diskdevice.h"
 #include "ntfs_types.h"
 #include "ntfsdirectoryindexentry.h"
@@ -119,4 +123,4 @@ class DiskPartition final : private boost::noncopyable {
 
 /// Collects basic info for all partitions for all devices on the system.
 DiskPartitionInformationList getPartitionList();
-}
+} // namespace trailofbits

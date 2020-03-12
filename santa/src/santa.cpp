@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "santa.h"
+
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -26,8 +28,6 @@
 #include <boost/iostreams/filtering_streambuf.hpp>
 
 #include <sqlite3.h>
-
-#include "santa.h"
 
 const std::string kSantaLogPath = "/var/db/santa/santa.log";
 const std::string kLogEntryPreface = "santad: ";

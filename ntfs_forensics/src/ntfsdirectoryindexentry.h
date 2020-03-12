@@ -21,6 +21,10 @@
 
 #include <tsk/libtsk.h>
 
+// We use an old sleuthkit which incorrectly define snprintf as _snprintf.
+// We should port thirdparty_sleuthkit to Windows and use that eventually.
+#undef snprintf
+
 #include "ntfs_types.h"
 #include "ntfsfilenameattributecontents.h"
 
@@ -40,4 +44,4 @@ struct NTFSDirectoryIndexEntry final {
 };
 
 using DirEntryList = std::list<NTFSDirectoryIndexEntry>;
-}
+} // namespace trailofbits

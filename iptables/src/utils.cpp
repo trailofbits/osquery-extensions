@@ -24,18 +24,19 @@
  *  You may select, at your option, one of the above-listed licenses.
  */
 
-#include <osquery/sdk.h>
+#include "utils.h"
 
 #include <net/if.h>
 #include <netdb.h>
 #include <string>
 #include <sys/socket.h>
 
+#include <osquery/filesystem/filesystem.h>
+#include <osquery/sdk/sdk.h>
+
 #include <boost/algorithm/string/trim.hpp>
 
 #include <trailofbits/extutils.h>
-
-#include "utils.h"
 
 using namespace osquery;
 
@@ -193,7 +194,8 @@ TableColumns IptablesExtBase::columns() const {
   };
 }
 
-void IptablesExtBase::parseProtoMatch(const xt_entry_match* match, Row& row) {
+void IptablesExtBase::parseProtoMatch(const xt_entry_match* match,
+                                      DynamicTableRowHolder& row) {
   std::string match_name(match->u.user.name);
 
   // NOTE(ww): ICMP can also appear here, but there's no point in handling

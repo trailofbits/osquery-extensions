@@ -16,18 +16,19 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 #include "system_log.h"
 
 class UnifiedLogTablePlugin final : public osquery::TablePlugin {
-  public:
-    osquery::Status setUp() override;
-    void tearDown() override;
-    void configure() override;
+ public:
+  osquery::Status setUp() override;
+  void tearDown() override;
+  void configure() override;
 
-  private:
-    osquery::TableColumns columns() const override;
-    osquery::QueryData generate(osquery::QueryContext& request) override;
-    LogMonitor logMonitor;
+ private:
+  osquery::TableColumns columns() const override;
+
+  osquery::TableRows generate(osquery::QueryContext& request) override;
+  LogMonitor logMonitor;
 };

@@ -19,7 +19,8 @@
 #include <map>
 #include <string>
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 namespace trailofbits {
 /// This is the table plugin for ntfs_file_data
@@ -29,9 +30,9 @@ class NTFSFileInfoTablePlugin final : public osquery::TablePlugin {
   osquery::TableColumns columns() const override;
 
   /// Generates the partition list
-  osquery::QueryData generate(osquery::QueryContext& request) override;
+  osquery::TableRows generate(osquery::QueryContext& request) override;
 };
-}
+} // namespace trailofbits
 
 // Export the class outside the namespace so that osquery can pick it up
 using NTFSFileInfoTablePlugin = trailofbits::NTFSFileInfoTablePlugin;

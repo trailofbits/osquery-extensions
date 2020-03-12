@@ -16,10 +16,11 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 extern "C" {
-#include <libiptc/libip6tc.h>
+#include "ip6tc.h"
 }
 
 #include "utils.h"
@@ -27,15 +28,16 @@ extern "C" {
 namespace trailofbits {
 class Ip6tablesExtTable : public IptablesExtBase {
  public:
-  osquery::QueryData generate(osquery::QueryContext& context);
+  osquery::TableRows generate(osquery::QueryContext& context);
 
  private:
   osquery::Status genIptablesRules(const std::string& filter,
                                    const MatchChain& matches,
-                                   osquery::QueryData& results);
-  void parseTcp(const xt_entry_match* match, osquery::Row& r);
-  void parseUdp(const xt_entry_match* match, osquery::Row& r);
-  void parseIpEntry(const ip6t_ip6* ip, osquery::Row& r);
+                                   osquery::TableRows& results);
+
+  void parseTcp(const xt_entry_match* match, osquery::DynamicTableRowHolder& r);
+  void parseUdp(const xt_entry_match* match, osquery::DynamicTableRowHolder& r);
+  void parseIpEntry(const ip6t_ip6* ip, osquery::DynamicTableRowHolder& r);
 };
 } // namespace trailofbits
 

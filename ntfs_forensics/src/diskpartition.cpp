@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
+#include "diskpartition.h"
+
 #include <iomanip>
 #include <sstream>
 #include <unordered_set>
 
-#include "diskpartition.h"
-
 #include <tsk/base/tsk_base_i.h>
+
+// We use an old sleuthkit which incorrectly define snprintf as _snprintf.
+// We should port thirdparty_sleuthkit to Windows and use that eventually.
+#undef snprintf
 
 namespace trailofbits {
 
@@ -616,7 +620,7 @@ void processDirectoryIndexRootAttrib(const TSK_FS_ATTR* attrib,
   uintFromBuffer(data, 8, record_size);
   processDirIndexNodesAndEntries(data + 16, attrib->size - 16, entries);
 }
-}
+} // namespace
 
 void DiskPartition::collectINDX(TSK_FS_FILE* fsFile, DirEntryList& entries) {
   uint32_t record_size = 0;
@@ -639,4 +643,4 @@ void DiskPartition::collectINDX(TSK_FS_FILE* fsFile, DirEntryList& entries) {
     }
   }
 }
-}
+} // namespace trailofbits

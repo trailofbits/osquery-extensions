@@ -19,11 +19,15 @@
 #include <memory>
 #include <string>
 
+#include <osquery/sdk/sdk.h>
+
 #include <boost/noncopyable.hpp>
 
 #include <tsk/libtsk.h>
 
-#include <osquery/sdk.h>
+// We use an old sleuthkit which incorrectly define snprintf as _snprintf.
+// We should port thirdparty_sleuthkit to Windows and use that eventually.
+#undef snprintf
 
 namespace trailofbits {
 class DiskDevice;
@@ -49,4 +53,4 @@ class DiskDevice final : private boost::noncopyable {
   /// Returns the wrapped TSK object
   TSK_IMG_INFO* imageInfo();
 };
-}
+} // namespace trailofbits

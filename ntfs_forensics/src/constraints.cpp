@@ -16,13 +16,14 @@
 
 #pragma once
 
+#include "constraints.h"
+
 #include <cstdint>
 #include <string>
 #include <unordered_set>
 
 #include <osquery/logger.h>
 
-#include "constraints.h"
 #include "diskpartition.h"
 
 namespace trailofbits {
@@ -134,4 +135,4 @@ osquery::Status getDeviceAndPartitionConstraints(
 
   return osquery::Status(0);
 }
-}
+} // namespace trailofbits

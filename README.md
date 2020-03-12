@@ -22,116 +22,49 @@ To learn more about osquery extensions development and why developing outside of
 Experimental extensions:
  * **network_monitor**: Provides an event-based table that lists DNS requests performed by the endpoint. Uses libpcap and Pcap++ to capture and parse network requests.
 
-## Build Dependencies
+## Building
 
 Note: the [releases](https://github.com/trailofbits/osquery-extensions/releases) page has download links for our extensions. The instructions below are only necessary for those interested in building from source.
 
-##### Boost library (all platforms)
-
-The full Boost library is required to build the Trail of Bits osquery extensions. Unfortunately, the version of Boost that osquery core builds against does not currently include all of the necessary Boost components.
-
-We've submitted a PR to osquery core, to fix the issue: https://github.com/facebook/osquery/pull/4339
-
-For the time being, you can include the entire Boost library in the osquery core build by applying the [commits from that branch](https://github.com/facebook/osquery/pull/4339/commits) to your local copy of the osquery repository.
-
-For Linux or macOS, you only need to apply the patch as follows, and nothing else is necessary to build the full Boost dependency for these operating systems:
-
-```bash
-# assuming you have checked out the osquery core code to './osquery'
-cd osquery
-curl https://patch-diff.githubusercontent.com/raw/facebook/osquery/pull/4339.patch | git am
-```
-
-Additional steps are required for Windows (see below).
-
-##### macOS
-
-You will additionally need to have:
-
-- Xcode (installed from the App Store)
-- [Homebrew](https://brew.sh)
-- openssl and curl (install from Homebrew: `brew install openssl curl`)
-- a user account with sudo (in order to run the script that installs the other osquery build dependencies)
-
-##### Windows
-
-For Windows only, you must also rebuild the Boost package from source (due to a bug in the binaries that were uploaded to the S3 repository). When doing this, you must work in a folder close to the root of the drive, like `C:\Projects\osquery`. This is because the Boost script will generate many nested folders, and often hits the path size limit and fails, a problem not very apparent to the Chocolatey package manager.
-
-After cloning the osquery repository and cherry-picking the full set of [commits from the PR mentioned above](https://github.com/facebook/osquery/pull/4339/commits), the remaining steps are:
-
-1. Run the following script once: `.\tools\make-win64-dev-env.bat`
-2. Uninstall the boost-msvc14 package that osquery's scripts just installed: `choco uninstall boost-msvc14`
-3. Build the Boost package from source (at a Powershell prompt): `.\tools\provision\chocolatey\boost-msvc14.ps1`
-4. Enter the folder where the package was created: `cd .\build\chocolatey\boost-msvc14\boost_1_66_0\osquery-choco`
-5. Run `choco install -s . .\boost-msvc14.1.66.0-r2.nupkg` to install the Boost package you just built.
-
-Remember, if you'd just rather have a binary package, you'll find one in the [releases](https://github.com/trailofbits/osquery-extensions/releases) page.
-
-## Building
-
 At a high-level, the steps are:
-1. Clone the osquery and osquery-extensions repositories
-2. Symlink the osquery-extensions folder into `osquery/external/extension_trailofbits`
-3. Run the osquery scripts to install dependencies and build osquery, which also builds the extensions
-
-Additionally, the osquery-extensions repository has git submodules that need to be pulled.
+1. Follow the osquery guide at https://osquery.readthedocs.io/en/latest/development/building/
+   to install pre-requisites and build but stop just before the configure step.
+2. Clone the osquery-extensions repo.
+3. Symlink the osquery-extensions folder into `osquery/external/extension_trailofbits`.
+4. Resume following the osquery build guide to build osquery and now the extensions too.
 
 Here are example steps for each platform:
 
-### macOS or Linux
 
-Note: Due to the current way `bison` is built, you may need to add some symlinks to your system. This is only necessary if you want to build the `network_monitor` extension, or are building all extensions.
-
-```
-/home/linuxbrew/.linuxbrew/Cellar -> /usr/local/osquery/Cellar
-/home/linuxbrew/.linuxbrew/opt -> /usr/local/osquery/opt
-```
-
-Then you can run the following commands.
+### Linux/macOS
 
 ```
-cd /src
-git clone https://github.com/facebook/osquery.git
-git clone https://github.com/trailofbits/osquery-extensions.git
+# Follow https://osquery.readthedocs.io/en/latest/development/building/
+# and stop before the configure step
+cd ../../
+git clone --recurse-submodules https://github.com/trailofbits/osquery-extensions.git
 
-cd /src/osquery-extensions
-git submodule init
-git submodule update --recursive
+cd osquery
+ln -s ../../osquery-extensions osquery/external/extension_trailofbits
 
-cd /src/osquery
-ln -s /src/osquery-extensions /src/osquery/external/extension_trailofbits
-
-make sysprep
-make deps
-
-# If using macOS, replace `nproc` with `sysctl -n hw.ncpu`
-make -j `nproc`
+cd build
+# Keep following the osquery guide
 ```
 
-### Windows
+### Windows 10
+
 ```
-cd \Projects
-git clone https://github.com/facebook/osquery.git
-git clone https://github.com/trailofbits/osquery-extensions.git
+# Follow https://osquery.readthedocs.io/en/latest/development/building/
+# and stop before the configure step
+cd ../../
+git clone --recurse-submodules https://github.com/trailofbits/osquery-extensions.git
 
-cd \Projects\osquery-extensions
-git submodule init
-git submodule update --recursive
+cd osquery
+mklink /D ../../osquery-extensions osquery/external/extension_trailofbits
 
-# Symbolically link the extensions repo into the osquery core repo:
-mklink /D "\Projects\osquery\external\extension_trailofbits" "\Projects\osquery-extensions"
-
-# From a shell with Administrator privileges:
-cd \Projects\osquery
-.\tools\make-win64-dev-env.bat
-.\tools\make-win64-binaries.bat
-
-# To additionally build the extensions, now:
-cd build\windows10
-cmake --build . --config Release --target trailofbits_osquery_extensions
+cd build
+# Keep following the osquery guide
 ```
-
-If you see the following warning, it can be ignored: `-- Cannot find Doxygen executable in path`
 
 ### Specifying the extensions to be built
 
@@ -145,13 +78,13 @@ $env:TRAILOFBITS_EXTENSIONS_TO_BUILD = "windows_sync_objects,fwctl"
 
 This is where the extension should be available once it has been built:
 
- * Linux: `osquery/build/linux/external/trailofbits_osquery_extensions.ext`
- * macOS: `osquery/build/darwin/external/trailofbits_osquery_extensions.ext`
- * Windows: `osquery/build/windows10/external/Release/trailofbits_osquery_extensions.ext.exe`
+ * Linux: `osquery/build/external/trailofbits_osquery_extensions.ext`
+ * macOS: `osquery/build/external/trailofbits_osquery_extensions.ext`
+ * Windows: `osquery/build/external/Release/trailofbits_osquery_extensions.ext.exe`
 
 ## Running the automated tests
 
-macOS or Linux: once osquery has been built with tests enabled (*i.e.*, *without* the `SKIP_TESTS` variable), enter the build/<platform_name> folder and run the following command: `make trailofbits_extensions_tests`.
+macOS or Linux: once osquery has been built with tests enabled (*i.e.*, *with* `-DOSQUERY_BUILD_TESTS=ON` CMake option), enter the build folder and run the following command: `cmake --build . --target trailofbits_extensions_tests`.
 
 Windows: tests are not yet supported on Windows.
 

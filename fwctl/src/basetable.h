@@ -19,11 +19,12 @@
 #include <cstdint>
 #include <unordered_map>
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 #include <rapidjson/document.h>
 
 namespace trailofbits {
+
 using PrimaryKey = std::string;
 using RowID = std::uint64_t;
 using RowIdToPrimaryKeyMap = std::unordered_map<RowID, PrimaryKey>;

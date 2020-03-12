@@ -22,7 +22,9 @@
 #include <osquery/database.h>
 #include <osquery/dispatcher.h>
 #include <osquery/events.h>
-#include <osquery/sdk.h>
+
+#include <osquery/sdk/sdk.h>
+#include <osquery/system.h>
 
 #include <iostream>
 

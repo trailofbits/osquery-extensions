@@ -16,14 +16,15 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
-
 extern "C" {
-#include <libiptc/libiptc.h>
+#include "iptc.h"
 }
 
 #include <netdb.h>
 #include <sys/socket.h>
+
+#include <osquery/sdk/sdk.h>
+#include <osquery/sql/dynamic_table_row.h>
 
 // Prepends a "!" to the given string if flag is present in the
 // given struct's invert flags.
@@ -51,24 +52,27 @@ using TableList = std::vector<std::string>;
 class IptablesExtBase : public osquery::TablePlugin {
  public:
   osquery::TableColumns columns() const;
-  virtual osquery::QueryData generate(osquery::QueryContext& context) = 0;
+  virtual osquery::TableRows generate(osquery::QueryContext& context) = 0;
 
  protected:
-  void parseProtoMatch(const xt_entry_match* match, osquery::Row& row);
+  void parseProtoMatch(const xt_entry_match* match,
+                       osquery::DynamicTableRowHolder& row);
 
  private:
-  virtual void parseTcp(const xt_entry_match* match, osquery::Row& r) = 0;
-  virtual void parseUdp(const xt_entry_match* match, osquery::Row& r) = 0;
+  virtual void parseTcp(const xt_entry_match* match,
+                        osquery::DynamicTableRowHolder& r) = 0;
+  virtual void parseUdp(const xt_entry_match* match,
+                        osquery::DynamicTableRowHolder& r) = 0;
 };
 
 class IptablesPoliciesBase : public osquery::TablePlugin {
  public:
   osquery::TableColumns columns() const;
-  virtual osquery::QueryData generate(osquery::QueryContext& context) = 0;
+  virtual osquery::TableRows generate(osquery::QueryContext& context) = 0;
 
  private:
   virtual void genIptablesPolicy(const std::string& filter,
-                                 osquery::QueryData& results) = 0;
+                                 osquery::TableRows& results) = 0;
 };
 
 /* Functions for parsing the output of an ip(6)tables-save command,

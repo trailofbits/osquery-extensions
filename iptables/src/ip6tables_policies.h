@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include <osquery/sdk.h>
+#include <osquery/sdk/sdk.h>
 
 extern "C" {
-#include <libiptc/libip6tc.h>
+#include "ip6tc.h"
 }
 
 #include "utils.h"
@@ -27,11 +27,11 @@ extern "C" {
 namespace trailofbits {
 class Ip6tablesPoliciesTable : public IptablesPoliciesBase {
  public:
-  osquery::QueryData generate(osquery::QueryContext& context);
+  osquery::TableRows generate(osquery::QueryContext& context);
 
  private:
   void genIptablesPolicy(const std::string& filter,
-                         osquery::QueryData& results);
+                         osquery::TableRows& results);
 };
 } // namespace trailofbits
 

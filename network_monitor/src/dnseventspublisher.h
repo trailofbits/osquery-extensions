@@ -148,5 +148,5 @@ class DNSEventsPublisher final
   DNSEventsPublisher& operator=(const DNSEventsPublisher& other) = delete;
 };
 
-DECLARE_PUBLISHER(DNSEventsPublisher);
+TOB_DECLARE_PUBLISHER(DNSEventsPublisher);
 } // namespace trailofbits

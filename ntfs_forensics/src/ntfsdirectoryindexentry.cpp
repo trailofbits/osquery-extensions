@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+#include "ntfsdirectoryindexentry.h"
+
 #include <iomanip>
 #include <sstream>
-
-#include "ntfsdirectoryindexentry.h"
 
 namespace trailofbits {
 std::string NTFSDirectoryIndexEntry::getStringRep() const {
@@ -39,4 +39,4 @@ bool NTFSDirectoryIndexEntry::valid() const {
   return filename.valid() && entry_length >= 0x52 && entry_length < 4096 &&
          flags < 4 && child_vcn < 4096 && name_length < 4096;
 }
-}
+} // namespace trailofbits
