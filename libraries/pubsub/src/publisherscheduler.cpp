@@ -26,7 +26,7 @@
 #include <thread>
 #include <unordered_map>
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 namespace trailofbits {
 namespace {

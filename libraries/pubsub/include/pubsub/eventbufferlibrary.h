@@ -22,7 +22,7 @@
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #include <osquery/sdk/sdk.h>
 #pragma clang diagnostic pop
-#include <osquery/extensions.h>
+#include <osquery/extensions/extensions.h>
 
 namespace trailofbits {
 /// An event batch is just a list of rows that will get returned to osquery

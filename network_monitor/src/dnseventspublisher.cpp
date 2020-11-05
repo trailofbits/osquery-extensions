@@ -17,7 +17,7 @@
 #include "dnseventspublisher.h"
 #include "pcapreaderservice.h"
 
-#include <osquery/sql.h>
+#include <osquery/sql/sql.h>
 
 #include <IPv4Layer.h>
 #include <IPv6Layer.h>

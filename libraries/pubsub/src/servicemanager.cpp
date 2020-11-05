@@ -16,7 +16,7 @@
 
 #include <pubsub/servicemanager.h>
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 #include <vector>
 

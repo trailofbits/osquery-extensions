@@ -19,7 +19,7 @@
 #include <iomanip>
 #include <iostream>
 
-#include <osquery/tables.h>
+#include <osquery/core/tables.h>
 
 #include "constraints.h"
 #include "diskdevice.h"

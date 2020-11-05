@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <osquery/tables.h>
+#include <osquery/core/tables.h>
 
 namespace trailofbits {
 /// A disk map, also containing the available partitions for each device

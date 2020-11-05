@@ -20,7 +20,7 @@
 #include <iostream>
 
 #include <osquery/sql/dynamic_table_row.h>
-#include <osquery/tables.h>
+#include <osquery/core/tables.h>
 
 #include "constraints.h"
 #include "diskdevice.h"

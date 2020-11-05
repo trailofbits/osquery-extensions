@@ -21,9 +21,9 @@
 #include <iostream>
 #include <mutex>
 
-#include <osquery/logger.h>
+#include <osquery/core/system.h>
+#include <osquery/logger/logger.h>
 #include <osquery/sql/dynamic_table_row.h>
-#include <osquery/system.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/archive/text_iarchive.hpp>

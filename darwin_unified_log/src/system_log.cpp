@@ -19,7 +19,7 @@
 #include <chrono>
 #include <cstdlib>
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>

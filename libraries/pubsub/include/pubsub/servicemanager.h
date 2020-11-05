@@ -25,7 +25,7 @@
 #include <osquery/sdk/sdk.h>
 #pragma clang diagnostic pop
 
-#include <osquery/extensions.h>
+#include <osquery/extensions/extensions.h>
 
 namespace trailofbits {
 class IService;

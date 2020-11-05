@@ -23,7 +23,7 @@
 #include <osquery/utils/conversions/windows/strings.h>
 #endif
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 #include <array>
 #include <cstdint>

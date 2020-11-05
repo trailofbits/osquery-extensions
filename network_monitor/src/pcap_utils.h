@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <osquery/flags.h>
+#include <osquery/core/flags.h>
 
 #include <memory>
 #include <vector>
