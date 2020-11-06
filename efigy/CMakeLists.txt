@@ -21,7 +21,7 @@ function(main)
     "-framework IOKit"
   )
 
-  find_package(curl REQUIRED)
+  find_package(CURL REQUIRED)
   list(APPEND project_libraries
     ${CURL_LIBRARIES}
   )
