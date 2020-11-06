@@ -60,7 +60,7 @@ cd ../../
 git clone --recurse-submodules https://github.com/trailofbits/osquery-extensions.git
 
 cd osquery
-mklink /D ../../osquery-extensions osquery/external/extension_trailofbits
+mklink /D ..\..\osquery-extensions osquery\external\extension_trailofbits
 
 cd build
 # Keep following the osquery guide
