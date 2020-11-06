@@ -56,7 +56,7 @@ cd build
 ```
 # Follow https://osquery.readthedocs.io/en/latest/development/building/
 # and stop before the configure step
-cd ../../
+cd ..\..\
 git clone --recurse-submodules https://github.com/trailofbits/osquery-extensions.git
 
 cd osquery
@@ -80,7 +80,7 @@ This is where the extension should be available once it has been built:
 
  * Linux: `osquery/build/external/trailofbits_osquery_extensions.ext`
  * macOS: `osquery/build/external/trailofbits_osquery_extensions.ext`
- * Windows: `osquery/build/external/Release/trailofbits_osquery_extensions.ext.exe`
+ * Windows: `osquery\build\external\Release\trailofbits_osquery_extensions.ext.exe`
 
 ## Running the automated tests
 
