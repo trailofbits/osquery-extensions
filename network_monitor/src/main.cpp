@@ -19,12 +19,12 @@
 #include <pubsub/servicemanager.h>
 #include <pubsub/subscriberregistry.h>
 
-#include <osquery/database.h>
-#include <osquery/dispatcher.h>
-#include <osquery/events.h>
+#include <osquery/database/database.h>
+#include <osquery/dispatcher/dispatcher.h>
+#include <osquery/events/events.h>
 
+#include <osquery/core/system.h>
 #include <osquery/sdk/sdk.h>
-#include <osquery/system.h>
 
 #include <iostream>
 
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
   osquery::Dispatcher::joinServices();
   osquery::EventFactory::end(true);
   GFLAGS_NAMESPACE::ShutDownCommandLineFlags();
-  osquery::DatabasePlugin::shutdown();
+  osquery::shutdownDatabase();
 
   scheduler->stop();
   scheduler.reset();

@@ -16,7 +16,7 @@
 
 #include "pcap_utils.h"
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 #include <arpa/inet.h>
 #include <poll.h>

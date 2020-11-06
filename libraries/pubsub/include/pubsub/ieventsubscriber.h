@@ -18,7 +18,7 @@
 
 #include "configurationfile.h"
 
-#include <osquery/extensions.h>
+#include <osquery/extensions/extensions.h>
 
 #include <memory>
 

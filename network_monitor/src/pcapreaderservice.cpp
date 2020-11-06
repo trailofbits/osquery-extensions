@@ -22,7 +22,7 @@
 #include <IPv6Layer.h>
 #include <TcpLayer.h>
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 namespace trailofbits {
 namespace {

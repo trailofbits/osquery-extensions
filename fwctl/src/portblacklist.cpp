@@ -17,8 +17,8 @@
 #include "portblacklist.h"
 #include "globals.h"
 
+#include <osquery/core/system.h>
 #include <osquery/sql/dynamic_table_row.h>
-#include <osquery/system.h>
 
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>

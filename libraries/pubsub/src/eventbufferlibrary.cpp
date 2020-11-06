@@ -16,7 +16,7 @@
 
 #include <pubsub/eventbufferlibrary.h>
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 #include <boost/circular_buffer.hpp>
 #include <boost/thread/shared_mutex.hpp>

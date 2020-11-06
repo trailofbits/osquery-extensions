@@ -16,7 +16,7 @@
 
 #include "darwinlogtable.h"
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 #include <osquery/sql/dynamic_table_row.h>
 
 #include "system_log.h"

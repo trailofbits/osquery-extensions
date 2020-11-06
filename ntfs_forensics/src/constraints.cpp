@@ -22,7 +22,7 @@
 #include <string>
 #include <unordered_set>
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 #include "diskpartition.h"
 

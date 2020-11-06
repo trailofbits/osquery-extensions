@@ -22,7 +22,7 @@
 #include <sstream>
 #include <string>
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
