@@ -38,39 +38,39 @@ Here are example steps for each platform:
 
 ### Linux/macOS
 
-```
+```shell
 # Follow https://osquery.readthedocs.io/en/latest/development/building/
 # and stop before the configure step
 cd ../../
 git clone --recurse-submodules https://github.com/trailofbits/osquery-extensions.git
 
 cd osquery
-ln -s ../../osquery-extensions osquery/external/extension_trailofbits
+ln -s ../../osquery-extensions external/extension_trailofbits  # note: the link's target path is relative to the link, not cwd
 
 cd build
-# Keep following the osquery guide
+# Resume following the osquery build guide
 ```
 
 ### Windows 10
 
-```
+```powershell
 # Follow https://osquery.readthedocs.io/en/latest/development/building/
 # and stop before the configure step
 cd ..\..\
 git clone --recurse-submodules https://github.com/trailofbits/osquery-extensions.git
 
 cd osquery
-mklink /D ..\..\osquery-extensions osquery\external\extension_trailofbits
+New-Item -ItemType SymbolicLink -Name external\extension_trailofbits -Target C:\osquery-extensions
 
 cd build
-# Keep following the osquery guide
+# Resume following the osquery build guide
 ```
 
 ### Specifying the extensions to be built
 
 By default, all of the extensions in our repository are built into one executable. It's also possible to select which extensions to build, using the `TRAILOFBITS_EXTENSIONS_TO_BUILD` environment variable and specifying a comma separated list of extension names. For example, if you wish to build both the `windows_sync_objects` and `fwctl` extensions on Windows, you can set it to:
 
-```
+```shell
 $env:TRAILOFBITS_EXTENSIONS_TO_BUILD = "windows_sync_objects,fwctl"
 ```
 
@@ -90,13 +90,11 @@ Windows: tests are not yet supported on Windows.
 
 ## Usage
 
-To quickly test an extension, you can either start it from the osqueryi shell, or launch it manually and wait for it to connect to the running osquery instance.
+To quickly test an extension, you can either start it from the `osqueryi` shell, or launch it manually and wait for it to connect to the running osquery instance. An example of the former: `> osqueryi --extension /path/to/trailofbits_osquery_extensions.ext`
 
-By default, osquery does not want to load extensions not owned by root. You can either change the ownership of `trailofbits_osquery_extensions.ext` to root, or run osquery with the `--allow_unsafe` flag.
+By default, osquery does not want to load extensions that are not owned by root. You can either change the ownership of the `trailofbits_osquery_extensions.ext` file to root, or run osquery with the `--allow_unsafe` flag.
 
-> osqueryi --extension /path/to/trailofbits_osquery_extensions.ext
-
-```
+```shell
 $ sudo osqueryi --extension osquery/build/darwin/external/trailofbits_osquery_extensions.ext
 Using a virtual database. Need help, type '.help'
 osquery> SELECT * FROM efigy;
@@ -116,9 +114,9 @@ Do you have an idea for an osquery extension? Please [file an issue](https://git
 
 ## Troubleshooting
 
-When troubleshooting, ensure you are running osqueryd/osqueryi with the `--verbose` flag.
+When troubleshooting, ensure you are running `osqueryd`/`osqueryi` with the `--verbose` flag.
 
-* As mentioned, if you encounter the following error, you need change the owner of `trailofbits_osquery_extensions.ext` to be the root account, or else run osquery with the `--allow_unsafe` flag: `watcher.cpp:535] [Ref #1382] Extension binary has unsafe permissions:1`
+As mentioned above, if you encounter the following error, you need change the owner of the `trailofbits_osquery_extensions.ext` file to be the root account, or else run osquery with the `--allow_unsafe` flag: `watcher.cpp:535] [Ref #1382] Extension binary has unsafe permissions:1`
 
 ## License
 
