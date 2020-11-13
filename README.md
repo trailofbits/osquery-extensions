@@ -8,6 +8,8 @@ In extensions, we can add capabilities that go beyond what would be possible in 
 
 To learn more about osquery extensions development and why developing outside of 'core' is encouraged for demonstrating new use cases or novel functionality, view our talk ([slides](https://github.com/trailofbits/presentations/tree/master/Osquery%20Extensions), [video](https://www.youtube.com/watch?v=g46rjoP18EE)) from QueryCon 2018.
 
+## Extensions
+
 | Extension            | Description | Supported Endpoints |
 |          :-:         |    :-:      |         :-:         |
 | efigy                | Integrates osquery with the Duo Labs EFIgy API to determine if the EFI firmware on your Mac fleet is up-to-date. | macOS |
@@ -19,8 +21,12 @@ To learn more about osquery extensions development and why developing outside of
 | iptables             | Provides a superset of the information supplied by the default `iptables` table | Linux |
 | (more to come)       | ...  | ...   |
 
-Experimental extensions:
- * **network_monitor**: Provides an event-based table that lists DNS requests performed by the endpoint. Uses libpcap and Pcap++ to capture and parse network requests.
+## Experimental extensions
+
+| Extension            | Description | Supported Endpoints |
+|          :-:         |    :-:      |         :-:         |
+| network_monitor      | Provides an event-based table that lists DNS requests performed by the endpoint. Uses libpcap and Pcap++ to capture and parse network requests.  | Linux   |
+
 
 ## Building
 
