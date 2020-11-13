@@ -41,7 +41,6 @@ At a high-level, the steps are:
 
 Here are example steps for each platform:
 
-
 ### Linux/macOS
 
 ```shell
@@ -74,21 +73,23 @@ cd build
 
 ### Specifying the extensions to be built
 
-By default, all of the extensions in our repository are built into one executable. It's also possible to select which extensions to build, using the `TRAILOFBITS_EXTENSIONS_TO_BUILD` environment variable and specifying a comma separated list of extension names. For example, if you wish to build both the `windows_sync_objects` and `fwctl` extensions on Windows, you can set it to:
+By default, all of our extensions for a given OS are built into one executable. It's also possible to select which extensions to build, using the `TRAILOFBITS_EXTENSIONS_TO_BUILD` environment variable and specifying a comma separated list of extension names. For example, if you wish to build both the `windows_sync_objects` and `fwctl` extensions on Windows, you can set it to:
 
 ```shell
 $env:TRAILOFBITS_EXTENSIONS_TO_BUILD = "windows_sync_objects,fwctl"
 ```
 
+**Note:** The `network_monitor` extension stands alone as a separate executable, because it's a network listener that drops its own privileges at runtime.
+
 ### Finding the executable binary
 
 This is where the extension should be available once it has been built:
 
- * Linux: `osquery/build/external/trailofbits_osquery_extensions.ext`
- * macOS: `osquery/build/external/trailofbits_osquery_extensions.ext`
+ * Linux: `osquery/build/external/extension_trailofbits/trailofbits_osquery_extensions.ext` (except `network_monitor`, which is in `osquery/build/external/extension_trailofbits/extensions/network_monitor/network_monitor.ext`)
+ * macOS: `osquery/build/external/extension_trailofbits/trailofbits_osquery_extensions.ext`
  * Windows: `osquery\build\external\Release\trailofbits_osquery_extensions.ext.exe`
 
-## Running the automated tests
+### Running the automated tests
 
 macOS or Linux: once osquery has been built with tests enabled (*i.e.*, *with* `-DOSQUERY_BUILD_TESTS=ON` CMake option), enter the build folder and run the following command: `cmake --build . --target trailofbits_extensions_tests`.
 
@@ -96,12 +97,14 @@ Windows: tests are not yet supported on Windows.
 
 ## Usage
 
-To quickly test an extension, you can either start it from the `osqueryi` shell, or launch it manually and wait for it to connect to the running osquery instance. An example of the former: `> osqueryi --extension /path/to/trailofbits_osquery_extensions.ext`
+To quickly test an extension, you can either start it from the `osqueryi` shell, or launch it manually and wait for it to connect to the running osquery instance. An example of the former: `> osqueryi --extension build/external/extension_trailofbits/trailofbits_osquery_extensions.ext`
 
-By default, osquery does not want to load extensions that are not owned by root. You can either change the ownership of the `trailofbits_osquery_extensions.ext` file to root, or run osquery with the `--allow_unsafe` flag.
+Note that the `network_monitor` extension, because it drops its privileges at runtime, is not compatible with being bundled together in the single extension with the others. It must be loaded separately from its own extension file in `build/external/extension_trailofbits/extensions/network_monitor/network_monitor.ext`.
+
+By default, osquery does not want to load extensions that are not owned by root. You can either change the ownership of the `.ext` file to root, or run osquery with the `--allow_unsafe` flag.
 
 ```shell
-$ sudo osqueryi --extension osquery/build/darwin/external/trailofbits_osquery_extensions.ext
+$ sudo osqueryi --extension osquery/build/external/extension_trailofbits/trailofbits_osquery_extensions.ext
 Using a virtual database. Need help, type '.help'
 osquery> SELECT * FROM efigy;
 +--------------------+-----------------+--------------------+-------------------+------------+---------------------+
