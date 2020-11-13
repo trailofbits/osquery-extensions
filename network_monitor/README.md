@@ -1,7 +1,11 @@
 # Introduction
 This is an experimental extension that provides a `dns_events` table that lists the DNS requests and answers happening on the endpoint.
 
-# Configuration options
+# Usage
+
+Note that the `network_monitor` extension, because it drops its privileges at runtime, is not compatible with being bundled together in the single extension with others. It is built and loaded separately from its own extension file, `network_monitor.ext`.
+
+## Configuration options
 The configuration file is located at the following path: `/var/osquery/extensions/com/trailofbits/network_monitor.json`
 
 ``` json
@@ -25,6 +29,7 @@ The configuration file is located at the following path: `/var/osquery/extension
 **max_tcp_conversation_idle_time**: TCP conversations that have been idle for this amount of seconds will be ignored.  
 
 # Dropping privileges
+
 During startup, the extension will perform the following tasks:
 
 1. Read the configuration file
