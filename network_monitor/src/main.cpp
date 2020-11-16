@@ -75,11 +75,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  // We can't use the runner.waitForShutdown() method because it calls exit()
-  osquery::Dispatcher::joinServices();
-  osquery::EventFactory::end(true);
-  GFLAGS_NAMESPACE::ShutDownCommandLineFlags();
-  osquery::shutdownDatabase();
+  runner.waitForShutdown();
 
   scheduler->stop();
   scheduler.reset();
