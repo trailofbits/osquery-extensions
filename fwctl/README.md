@@ -39,10 +39,12 @@ No special requirements needed.
 To configure extensions on production environments, refer to the [official documentation](https://osquery.readthedocs.io/en/latest/deployment/extensions/). To perform a quick test, you can use the following command: 
 
 ```bash
-$ osqueryi --allow_unsafe --disable_extensions=false --extension=/path/to/osquery/build/<platform_name>/extension_path.ext
+$ osqueryi --allow_unsafe --disable_extensions=false --extensions_default_index=false --extension=/path/to/osquery/build/<platform_name>/extension_path.ext
 ```
 
 All errors and messages are logged to the osquery status log (you can pass the `--verbose` option when using `osqueryi`). Inserting the same data more than once does not cause errors, and the rules will not be duplicated.
+
+In more modern versions of osquery, you must pass the `--extensions_default_index=false` option (or set the appropriate option in a configuration file. Otherwise all `INSERT` and `UPDATE` statements will fail with `Error: datatype mismatch` errors.
 
 ### Testing the extension
 
