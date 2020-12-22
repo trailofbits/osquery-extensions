@@ -31,10 +31,10 @@ struct HostRule final {
 
 using HostRuleMap = std::unordered_map<PrimaryKey, HostRule>;
 
-class HostBlacklistTable final : public BaseTable {
+class HostDenylistTable final : public BaseTable {
  public:
-  HostBlacklistTable();
-  virtual ~HostBlacklistTable();
+  HostDenylistTable();
+  virtual ~HostDenylistTable();
 
   osquery::TableColumns columns() const;
 
@@ -75,4 +75,4 @@ class HostBlacklistTable final : public BaseTable {
 } // namespace trailofbits
 
 // Export the class outside the namespace so that osquery can pick it up
-using HostBlacklistTable = trailofbits::HostBlacklistTable;
+using HostDenylistTable = trailofbits::HostDenylistTable;

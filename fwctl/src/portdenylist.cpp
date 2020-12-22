@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "portblacklist.h"
+#include "portdenylist.h"
 #include "globals.h"
 
 #include <osquery/core/system.h>
@@ -48,7 +48,7 @@ void serialize(Archive& archive,
 } // namespace boost
 
 namespace trailofbits {
-struct PortBlacklistTable::PrivateData final {
+struct PortDenylistTable::PrivateData final {
   std::mutex mutex;
 
   PortRuleMap data;
@@ -57,16 +57,16 @@ struct PortBlacklistTable::PrivateData final {
   b_fs::path configuration_file_path;
 };
 
-PortBlacklistTable::PortBlacklistTable() : d(new PrivateData) {
+PortDenylistTable::PortDenylistTable() : d(new PrivateData) {
   d->configuration_file_path = CONFIGURATION_ROOT;
-  d->configuration_file_path /= "portblacklist.cfg";
+  d->configuration_file_path /= "portdenylist.cfg";
 
   loadConfiguration();
 }
 
-PortBlacklistTable::~PortBlacklistTable() {}
+PortDenylistTable::~PortDenylistTable() {}
 
-osquery::TableColumns PortBlacklistTable::columns() const {
+osquery::TableColumns PortDenylistTable::columns() const {
   // clang-format off
   return {
     std::make_tuple("port", osquery::INTEGER_TYPE, osquery::ColumnOptions::DEFAULT),
@@ -77,7 +77,7 @@ osquery::TableColumns PortBlacklistTable::columns() const {
   // clang-format on
 }
 
-osquery::TableRows PortBlacklistTable::generate(
+osquery::TableRows PortDenylistTable::generate(
     osquery::QueryContext& context) {
   static_cast<void>(context);
 
@@ -93,7 +93,7 @@ osquery::TableRows PortBlacklistTable::generate(
     table_row_id_to_pkey = d->row_id_to_pkey;
 
     // clang-format off
-    auto fw_status = GetFirewall().enumerateBlacklistedPorts(
+    auto fw_status = GetFirewall().enumerateDenylistedPorts(
       [](std::uint16_t port, IFirewall::TrafficDirection direction,
          IFirewall::Protocol protocol, void* user_defined) -> bool {
 
@@ -170,7 +170,7 @@ osquery::TableRows PortBlacklistTable::generate(
   return results;
 }
 
-osquery::QueryData PortBlacklistTable::insert(
+osquery::QueryData PortDenylistTable::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   static_cast<void>(context);
 
@@ -232,7 +232,7 @@ osquery::QueryData PortBlacklistTable::insert(
   d->data.insert({primary_key, rule});
   d->row_id_to_pkey.insert({row_id, primary_key});
 
-  auto fw_status = GetFirewall().addPortToBlacklist(
+  auto fw_status = GetFirewall().addPortToDenylist(
       rule.port, rule.direction, rule.protocol);
   if (!fw_status.success()) {
     VLOG(1) << "Failed to enable the port rule";
@@ -246,7 +246,7 @@ osquery::QueryData PortBlacklistTable::insert(
   return {result};
 }
 
-osquery::QueryData PortBlacklistTable::delete_(
+osquery::QueryData PortDenylistTable::delete_(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   static_cast<void>(context);
 
@@ -279,7 +279,7 @@ osquery::QueryData PortBlacklistTable::delete_(
   d->data.erase(rule_it);
   saveConfiguration();
 
-  auto fw_status = GetFirewall().removePortFromBlacklist(
+  auto fw_status = GetFirewall().removePortFromDenylist(
       rule.port, rule.direction, rule.protocol);
   if (!fw_status.success()) {
     VLOG(1) << "Failed to remove the port rule";
@@ -288,7 +288,7 @@ osquery::QueryData PortBlacklistTable::delete_(
   return {{std::make_pair("status", "success")}};
 }
 
-osquery::QueryData PortBlacklistTable::update(
+osquery::QueryData PortDenylistTable::update(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   static_cast<void>(context);
 
@@ -354,7 +354,7 @@ osquery::QueryData PortBlacklistTable::update(
   d->row_id_to_pkey.erase(row_id_to_pkey_it);
   d->data.erase(original_rule_it);
 
-  auto fw_status = GetFirewall().removePortFromBlacklist(
+  auto fw_status = GetFirewall().removePortFromDenylist(
       original_rule.port, original_rule.direction, original_rule.protocol);
   if (!fw_status.success()) {
     VLOG(1) << "Failed to remove the port rule";
@@ -384,7 +384,7 @@ osquery::QueryData PortBlacklistTable::update(
   d->row_id_to_pkey.insert({new_row_id, new_primary_key});
   saveConfiguration();
 
-  fw_status = GetFirewall().addPortToBlacklist(
+  fw_status = GetFirewall().addPortToDenylist(
       new_rule.port, new_rule.direction, new_rule.protocol);
   if (!fw_status.success()) {
     VLOG(1) << "Failed to add the port rule";
@@ -393,7 +393,7 @@ osquery::QueryData PortBlacklistTable::update(
   return {{std::make_pair("status", "success")}};
 }
 
-osquery::Status PortBlacklistTable::GetRowData(
+osquery::Status PortDenylistTable::GetRowData(
     osquery::Row& row, const std::string& json_value_array) {
   row.clear();
 
@@ -416,7 +416,7 @@ osquery::Status PortBlacklistTable::GetRowData(
   return osquery::Status(0, "OK");
 }
 
-void PortBlacklistTable::PreprocessInsertData(osquery::Row& row) {
+void PortDenylistTable::PreprocessInsertData(osquery::Row& row) {
   auto L_convertStringToUppercase = [](std::string& str) -> void {
     auto L_toUpper = [](char c) -> char {
       return static_cast<char>(::toupper(c));
@@ -430,7 +430,7 @@ void PortBlacklistTable::PreprocessInsertData(osquery::Row& row) {
   }
 }
 
-bool PortBlacklistTable::IsInsertDataValid(const osquery::Row& row) {
+bool PortDenylistTable::IsInsertDataValid(const osquery::Row& row) {
   // Make sure we have a valid port value
   auto value_it = row.find("port");
   if (value_it == row.end()) {
@@ -490,7 +490,7 @@ bool PortBlacklistTable::IsInsertDataValid(const osquery::Row& row) {
   return true;
 }
 
-void PortBlacklistTable::SetDefaultValuesInInsertData(osquery::Row& valid_row) {
+void PortDenylistTable::SetDefaultValuesInInsertData(osquery::Row& valid_row) {
   if (valid_row["direction"].empty()) {
     valid_row["direction"] = "INBOUND";
   }
@@ -500,7 +500,7 @@ void PortBlacklistTable::SetDefaultValuesInInsertData(osquery::Row& valid_row) {
   }
 }
 
-void PortBlacklistTable::ParseInsertData(std::uint16_t& port,
+void PortDenylistTable::ParseInsertData(std::uint16_t& port,
                                          IFirewall::TrafficDirection& direction,
                                          IFirewall::Protocol& protocol,
                                          const osquery::Row& valid_row) {
@@ -521,7 +521,7 @@ void PortBlacklistTable::ParseInsertData(std::uint16_t& port,
   }
 }
 
-std::string PortBlacklistTable::GeneratePrimaryKey(const PortRule& rule) {
+std::string PortDenylistTable::GeneratePrimaryKey(const PortRule& rule) {
   std::stringstream primary_key;
 
   primary_key << rule.port;
@@ -541,14 +541,14 @@ std::string PortBlacklistTable::GeneratePrimaryKey(const PortRule& rule) {
   return primary_key.str();
 }
 
-RowID PortBlacklistTable::GenerateRowID() {
+RowID PortDenylistTable::GenerateRowID() {
   static std::uint32_t generator = 0U;
 
   generator = (generator + 1) & 0x7FFFFFFFU;
   return generator;
 }
 
-void PortBlacklistTable::loadConfiguration() {
+void PortDenylistTable::loadConfiguration() {
   try {
     // Load the configuration file
     if (!b_fs::exists(d->configuration_file_path)) {
@@ -574,7 +574,7 @@ void PortBlacklistTable::loadConfiguration() {
     for (const auto& pair : d->data) {
       const auto& rule = pair.second;
 
-      auto fw_status = GetFirewall().addPortToBlacklist(
+      auto fw_status = GetFirewall().addPortToDenylist(
           rule.port, rule.direction, rule.protocol);
 
       if (!fw_status.success() &&
@@ -603,7 +603,7 @@ void PortBlacklistTable::loadConfiguration() {
   }
 }
 
-void PortBlacklistTable::saveConfiguration() {
+void PortDenylistTable::saveConfiguration() {
   try {
     b_fs::ofstream configuration_file(d->configuration_file_path);
     if (!configuration_file) {

@@ -31,10 +31,10 @@ struct PortRule final {
 
 using PortRuleMap = std::unordered_map<PrimaryKey, PortRule>;
 
-class PortBlacklistTable final : public BaseTable {
+class PortDenylistTable final : public BaseTable {
  public:
-  PortBlacklistTable();
-  virtual ~PortBlacklistTable();
+  PortDenylistTable();
+  virtual ~PortDenylistTable();
 
   osquery::TableColumns columns() const;
 
@@ -74,4 +74,4 @@ class PortBlacklistTable final : public BaseTable {
 } // namespace trailofbits
 
 // Export the class outside the namespace so that osquery can pick it up
-using PortBlacklistTable = trailofbits::PortBlacklistTable;
+using PortDenylistTable = trailofbits::PortDenylistTable;

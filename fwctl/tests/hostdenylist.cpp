@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "hostblacklist.h"
+#include "hostdenylist.h"
 
 #include <sstream>
 
@@ -29,10 +29,10 @@ const std::string ipv6_localhost = "localhost";
 const std::string ipv6_localhost = "localhost";
 #endif
 
-TEST(HostBlacklistTests, DomainResolution) {
+TEST(HostDenylistTests, DomainResolution) {
   std::string ipv4_address;
   auto status =
-      HostBlacklistTable::DomainToAddress(ipv4_address, "localhost", true);
+      HostDenylistTable::DomainToAddress(ipv4_address, "localhost", true);
 
   EXPECT_TRUE(status.ok());
   if (status.ok()) {
@@ -42,22 +42,22 @@ TEST(HostBlacklistTests, DomainResolution) {
   // ipv6 may not be available here
   std::string ipv6_address;
   status =
-      HostBlacklistTable::DomainToAddress(ipv6_address, "localhost", false);
+      HostDenylistTable::DomainToAddress(ipv6_address, "localhost", false);
   if (status.ok()) {
     EXPECT_EQ(ipv6_address, "::1");
   }
 }
 
-TEST(HostBlacklistTests, ReverseLookup) {
+TEST(HostDenylistTests, ReverseLookup) {
   std::string domain;
-  auto status = HostBlacklistTable::AddressToDomain(domain, "127.0.0.1");
+  auto status = HostDenylistTable::AddressToDomain(domain, "127.0.0.1");
 
   EXPECT_TRUE(status.ok());
   if (status.ok()) {
     EXPECT_EQ(domain, "localhost");
   }
 
-  status = HostBlacklistTable::AddressToDomain(domain, "::1");
+  status = HostDenylistTable::AddressToDomain(domain, "::1");
 
   EXPECT_TRUE(status.ok());
   if (status.ok()) {

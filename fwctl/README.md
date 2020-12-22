@@ -36,7 +36,7 @@ No special requirements needed.
 
 ## Running the extension
 
-To configure extensions on production environments, refer to the [official documentation](https://osquery.readthedocs.io/en/latest/deployment/extensions/). To perform a quick test, you can use the following command: 
+To install osquery extensions for use in a production environment, refer to the [official documentation](https://osquery.readthedocs.io/en/latest/deployment/extensions/). To perform a quick test, you can use the following command: 
 
 ```bash
 $ osqueryi --allow_unsafe --disable_extensions=false --extensions_default_index=false --extension=/path/to/osquery/build/<platform_name>/extension_path.ext
@@ -44,7 +44,7 @@ $ osqueryi --allow_unsafe --disable_extensions=false --extensions_default_index=
 
 All errors and messages are logged to the osquery status log (you can pass the `--verbose` option when using `osqueryi`). Inserting the same data more than once does not cause errors, and the rules will not be duplicated.
 
-In more modern versions of osquery, you must pass the `--extensions_default_index=false` option (or set the appropriate option in a configuration file. Otherwise all `INSERT` and `UPDATE` statements will fail with `Error: datatype mismatch` errors.
+**Note**: with more recent versions of osquery, you must pass the `--extensions_default_index=false` option (or set the appropriate option in a configuration file. Otherwise all `INSERT` and `UPDATE` statements will fail with `Error: datatype mismatch` errors.
 
 ### Testing the extension
 
@@ -53,6 +53,7 @@ To test that the extension works as intended, we'll first verify that some ports
 #### Verify access
 
 Open a web browser of your choice and verify that you can load:
+
 * two websites that provide secure access, in this case https://www.yahoo.com and https://www.google.com
 * a website that does not provide a secure connection, e.g., http://neverssl.com
 
@@ -60,24 +61,25 @@ Additionally, we need to verify that you're not running a web server locally. At
 
 #### Block ports and domains
 
-Follow the directions above to install the extension, then start up osqueryi with the extension running. At the prompt, issue the following commands:
+Install the extension with [appropriate permissions on the executable](https://osquery.readthedocs.io/en/latest/deployment/extensions/), then start up osqueryi with the extension running. At the prompt, issue the following commands:
 
 ``` sql
-INSERT INTO HostBlacklist (domain, sinkhole, address_type) VALUES ("www.yahoo.com", "127.0.0.1", "ipv4");
+INSERT INTO HostDenylist (domain, sinkhole, address_type) VALUES ("www.yahoo.com", "127.0.0.1", "ipv4");
 
-INSERT INTO PortBlacklist (port, direction, protocol) VALUES (80, "OUTBOUND", "tcp");
+INSERT INTO PortDenylist (port, direction, protocol) VALUES (80, "OUTBOUND", "tcp");
 ```
 
 Verify that these rules got created by running the following queries and checking their output against the output listed:
+
 ``` sql
-SELECT domain, sinkhole, firewall_block, dns_block FROM HostBlacklist WHERE domain = "www.yahoo.com";
+SELECT domain, sinkhole, firewall_block, dns_block FROM HostDenylist WHERE domain = "www.yahoo.com";
 +---------------+-----------+----------------+-----------+
 | domain        | sinkhole  | firewall_block | dns_block |
 +---------------+-----------+----------------+-----------+
 | www.yahoo.com | 127.0.0.1 | ENABLED        | ENABLED   |
 +---------------+-----------+----------------+-----------+
 
-SELECT * FROM PortBlacklist WHERE port = 80;
+SELECT * FROM PortDenylist WHERE port = 80;
 +------+-----------+----------+---------+
 | port | direction | protocol | status  |
 +------+-----------+----------+---------+
@@ -87,7 +89,7 @@ SELECT * FROM PortBlacklist WHERE port = 80;
 
 #### Verify lack of access
 
-Open up a web browser, clear its cache, and attempt to load https://www.yahoo.com. You should get some sort of error page that the server is not responing, indicating that the host blocking is successful. If you're running a web server locally, you may see its page instead of yahoo's page. This also is an indicator that host blocking is successful.
+Open up a web browser, clear its cache, and attempt to load https://www.yahoo.com. You should get some sort of error page that the server is not responing, indicating that the host blocking is successful. If you're running a web server locally, you may see its page instead of Yahoo's page. This also is an indicator that host blocking is successful.
 
 Attempt to load https://www.google.com. This should be successful, indicating that secure connections to websites still work.
 
@@ -98,15 +100,15 @@ Now try to load http://neverssl.com. You should again get an error message, indi
 Back in the osquery shell, run the following queries to delete the rules:
 
 ``` sql
-DELETE FROM HostBlacklist WHERE domain = "www.yahoo.com";
-DELETE FROM PortBlacklist WHERE port = 80;
+DELETE FROM HostDenylist WHERE domain = "www.yahoo.com";
+DELETE FROM PortDenylist WHERE port = 80;
 ```
 
 Now attempt to load https://www.yahoo.com and http://neverssl.com again. They should all be successful, indicating that the rules were successfully deleted.
 
 ## Schema
 
-### HostBlacklist
+### HostDenylist
 
 | Column         | Type | Description                                              |
 |----------------|------|----------------------------------------------------------|
@@ -117,9 +119,9 @@ Now attempt to load https://www.yahoo.com and http://neverssl.com again. They sh
 | dns_block      | TEXT | DNS block status (domain present in the hosts file)      |
 | address_type   | TEXT | Address type (either ipv4 or ipv6). Only used on INSERTs |
 
-When inserting data into the table, you can omit the `address` column to use the auto-resolver. The `address_type` (hidden) column can be used to decide whether to use IPv4 or IPv6. When omitting the `domain` column, a reverse lookup will be performed. Note that in this case the operation will fail if the entered domain is contained inside the hosts file. This is a precaution, in order to prevent users from blacklisting their own sinkholes by mistake.
+When inserting data into the table, you can omit the `address` column to use the auto-resolver. The `address_type` (hidden) column can be used to decide whether to use IPv4 or IPv6. When omitting the `domain` column, a reverse lookup will be performed. Note that in this case the operation will fail if the entered domain is contained inside the hosts file. This is a precaution, in order to prevent users from denylisting their own sinkholes by mistake.
 
-This table has been enhanced to make use of the firewall to blacklist hosts; this is to make sure that once the domain has been entered into the hosts file, no further communication is allowed to those addresses (even for applications that resolved the IP address before the DNS block was enabled).
+This table has been enhanced to make use of the firewall to denylist hosts; this is to make sure that once the domain has been entered into the hosts file, no further communication is allowed to those addresses (even for applications that resolved the IP address before the DNS block was enabled).
 
 #### Special columns
 
@@ -136,7 +138,7 @@ The **dns_block** and **firewall_block** columns return the state of the rule:
 Blocking a domain, specifying the address to add to the firewall:
 
 ``` sql
-INSERT INTO HostBlacklist
+INSERT INTO HostDenylist
   (domain, sinkhole, address)
 
 VALUES
@@ -146,7 +148,7 @@ VALUES
 Blocking a domain, resolving the ip address automatically:
 
 ``` sql
-INSERT INTO HostBlacklist
+INSERT INTO HostDenylist
   (domain, sinkhole, address_type)
 
 VALUES
@@ -156,7 +158,7 @@ VALUES
 Checking the result of blocking a domain:
 
 ``` sql
-SELECT * FROM HostBlacklist
+SELECT * FROM HostDenylist
 WHERE domain = "www.msdn.com";
 
 +-------------+--------------+-----------+----------------+-----------+
@@ -169,13 +171,13 @@ WHERE domain = "www.msdn.com";
 Unblocking a domain:
 
 ``` sql
-DELETE FROM HostBlacklist
+DELETE FROM HostDenylist
 WHERE domain = "www.msdn.com";
 ```
 
-Please note that a domain may be reachable with several ip addresses that may not even be listed at all when performing a reverse lookup; it is best to always specify the address manually to make sure that the right one is selected.
+Please note that a domain may be reachable with several IP addresses that may not even be listed at all when performing a reverse lookup; it is best to always specify the address manually to make sure that the right one is selected.
 
-### PortBlacklist
+### PortDenylist
 
 | Column         | Type | Description                                    |
 |----------------|------|------------------------------------------------|
@@ -189,7 +191,7 @@ Please note that a domain may be reachable with several ip addresses that may no
 Block (inbound) SSH access to the machine:
 
 ``` sql
-INSERT INTO PortBlacklist
+INSERT INTO PortDenylist
   (port, direction, protocol)
 
 VALUES
@@ -199,7 +201,7 @@ VALUES
 Block (outbound) access to HTTP websites:
 
 ``` sql
-INSERT INTO PortBlacklist
+INSERT INTO PortDenylist
   (port, direction, protocol)
 
 VALUES
@@ -209,7 +211,7 @@ VALUES
 Checking the result of blocking a port:
 
 ``` sql
-SELECT * FROM PortBlacklist
+SELECT * FROM PortDenylist
 WHERE port = 80;
 
 +------+-----------+----------+---------+
@@ -222,7 +224,7 @@ WHERE port = 80;
 Unblocking a port:
 
 ``` sql
-DELETE FROM PortBlacklist
+DELETE FROM PortDenylist
 WHERE port = 80;
 ```
 
@@ -232,7 +234,7 @@ The **status** column return the state of the rule:
 
 1. **ENABLED**: The rule has been applied correctly.
 2. **DISABLED**: The rule is not applied either due to an error or because it may have been manually removed by the local administrator.
-3. **UNMANAGED**: This (read only) rule was found on the system but was not added by osquery. The PF firewall supports private configuration namespaces, so this state does not apply on macOS.
+3. **UNMANAGED**: This (read-only) rule was found on the system but was not added by osquery. The PF firewall supports private configuration namespaces, so this state does not apply on macOS.
 
 ## Additional notes
 

@@ -45,25 +45,25 @@ class IFirewall : private boost::noncopyable {
 
   virtual ~IFirewall() = default;
 
-  virtual Status addPortToBlacklist(std::uint16_t port,
+  virtual Status addPortToDenylist(std::uint16_t port,
                                     TrafficDirection direction,
                                     Protocol protocol) = 0;
 
-  virtual Status removePortFromBlacklist(std::uint16_t port,
+  virtual Status removePortFromDenylist(std::uint16_t port,
                                          TrafficDirection direction,
                                          Protocol protocol) = 0;
 
-  virtual Status enumerateBlacklistedPorts(
+  virtual Status enumerateDenylistedPorts(
       bool (*callback)(std::uint16_t port,
                        TrafficDirection direction,
                        Protocol protocol,
                        void* user_defined),
       void* user_defined) = 0;
 
-  virtual Status addHostToBlacklist(const std::string& host) = 0;
-  virtual Status removeHostFromBlacklist(const std::string& host) = 0;
+  virtual Status addHostToDenylist(const std::string& host) = 0;
+  virtual Status removeHostFromDenylist(const std::string& host) = 0;
 
-  virtual Status enumerateBlacklistedHosts(
+  virtual Status enumerateDenylistedHosts(
       bool (*callback)(const std::string& host, void* user_defined),
       void* user_defined) = 0;
 };

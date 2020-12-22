@@ -58,7 +58,7 @@ Firewall::~Firewall() {
   static_cast<void>(status);
 }
 
-Firewall::Status Firewall::addPortToBlacklist(
+Firewall::Status Firewall::addPortToDenylist(
     std::uint16_t port,
     Firewall::TrafficDirection direction,
     Firewall::Protocol protocol) {
@@ -98,7 +98,7 @@ Firewall::Status Firewall::addPortToBlacklist(
   return applyNewFirewallRules(port_rules, host_rules);
 }
 
-Firewall::Status Firewall::removePortFromBlacklist(
+Firewall::Status Firewall::removePortFromDenylist(
     std::uint16_t port,
     Firewall::TrafficDirection direction,
     Firewall::Protocol protocol) {
@@ -137,7 +137,7 @@ Firewall::Status Firewall::removePortFromBlacklist(
   return applyNewFirewallRules(port_rules, host_rules);
 }
 
-Firewall::Status Firewall::enumerateBlacklistedPorts(
+Firewall::Status Firewall::enumerateDenylistedPorts(
     bool (*callback)(std::uint16_t port,
                      Firewall::TrafficDirection direction,
                      Firewall::Protocol protocol,
@@ -167,7 +167,7 @@ Firewall::Status Firewall::enumerateBlacklistedPorts(
   return Status(true);
 }
 
-Firewall::Status Firewall::addHostToBlacklist(const std::string &host) {
+Firewall::Status Firewall::addHostToDenylist(const std::string &host) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   std::vector<PortRule> port_rules;
@@ -186,7 +186,7 @@ Firewall::Status Firewall::addHostToBlacklist(const std::string &host) {
   return applyNewFirewallRules(port_rules, host_rules);
 }
 
-Firewall::Status Firewall::removeHostFromBlacklist(const std::string &host) {
+Firewall::Status Firewall::removeHostFromDenylist(const std::string &host) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   std::vector<PortRule> port_rules;
@@ -207,7 +207,7 @@ Firewall::Status Firewall::removeHostFromBlacklist(const std::string &host) {
   return applyNewFirewallRules(port_rules, host_rules);
 }
 
-Firewall::Status Firewall::enumerateBlacklistedHosts(
+Firewall::Status Firewall::enumerateDenylistedHosts(
       bool (*callback)(const std::string& host, void* user_defined),
       void* user_defined) {
   std::vector<PortRule> port_rules;
@@ -256,16 +256,16 @@ Firewall::Status Firewall::readFirewallState(std::vector<PortRule> &port_rules, 
 
   ParsePortRulesFromAnchor(anchor_rules, port_rules);
 
-  if (IsHostBlacklistTableActive(anchor_rules, blocked_hosts_table)) {
-    std::string blacklist_table_contents;
+  if (IsHostDenylistTableActive(anchor_rules, blocked_hosts_table)) {
+    std::string denylist_table_contents;
     status =
-        ReadTable(blacklist_table_contents, primary_anchor, blocked_hosts_table);
+        ReadTable(denylist_table_contents, primary_anchor, blocked_hosts_table);
 
     if (!status.success()) {
       return status;
     }
 
-    ParseTable(blacklist_table_contents, host_rules);
+    ParseTable(denylist_table_contents, host_rules);
   }
 
   return Status(true);
@@ -512,7 +512,7 @@ void Firewall::ParsePortRulesFromAnchor(
   }
 }
 
-bool Firewall::IsHostBlacklistTableActive(const std::string& contents,
+bool Firewall::IsHostDenylistTableActive(const std::string& contents,
                                           const std::string& table) {
   /*
     Host rules - using tables

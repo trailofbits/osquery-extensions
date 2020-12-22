@@ -27,17 +27,17 @@ function(fwctlMain)
     src/basetable.h
   )
 
-  addOsqueryExtensionEx("HostBlacklistTable" "table" "HostBlacklist"
-    SOURCES ${project_common_source_files} src/hostblacklist.h src/hostblacklist.cpp
+  addOsqueryExtensionEx("HostDenylistTable" "table" "HostDenylist"
+    SOURCES ${project_common_source_files} src/hostdenylist.h src/hostdenylist.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    MAININCLUDES hostblacklist.h
+    MAININCLUDES hostdenylist.h
     LIBRARIES ${project_libraries}
   )
 
-  addOsqueryExtensionEx("PortBlacklistTable" "table" "PortBlacklist"
-    SOURCES ${project_common_source_files} src/portblacklist.h src/portblacklist.cpp
+  addOsqueryExtensionEx("PortDenylistTable" "table" "PortDenylist"
+    SOURCES ${project_common_source_files} src/portdenylist.h src/portdenylist.cpp
     INCLUDEDIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    MAININCLUDES portblacklist.h
+    MAININCLUDES portdenylist.h
     LIBRARIES ${project_libraries}
   )
 
@@ -46,18 +46,18 @@ function(fwctlMain)
     set(project_test_files
 
       tests/main.cpp
-      tests/hostblacklist.cpp
+      tests/hostdenylist.cpp
 
       src/globals.h
       src/globals.cpp
 
       src/basetable.h
 
-      src/hostblacklist.h
-      src/hostblacklist.cpp
+      src/hostdenylist.h
+      src/hostdenylist.cpp
 
-      src/portblacklist.h
-      src/portblacklist.cpp
+      src/portdenylist.h
+      src/portdenylist.cpp
     )
 
     AddTest("tables" test_target_name ${project_test_files})
