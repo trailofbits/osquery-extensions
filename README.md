@@ -18,6 +18,7 @@ To learn more about osquery extensions development and why developing outside of
 | ntfs_forensics       | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
 | windows_sync_objects | Provides osquery with the ability of listing and locking Windows synchronization objects (mutants, events, semaphores). | Windows |
 | darwin_unified_log   | Provides an event driven table that contains entries from the unified system log on MacOS. | macOS |
+| mdm_enrollment       | Provides a table that reports MDM enrollment status.                                       | macOS |
 | iptables             | Provides a superset of the information supplied by the default `iptables` table | Linux |
 | (more to come)       | ...  | ...   |
 
