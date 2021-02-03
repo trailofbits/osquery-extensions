@@ -17,7 +17,6 @@ To learn more about osquery extensions development and why developing outside of
 | fwctl                | Provides osquery with the ability to view and manage the OS-native firewall rules and `/etc/hosts` file (port and host blocking). | macOS, Linux, Windows |
 | ntfs_forensics       | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
 | windows_sync_objects | Provides osquery with the ability of listing and locking Windows synchronization objects (mutants, events, semaphores). | Windows |
-| darwin_unified_log   | Provides an event driven table that contains entries from the unified system log on MacOS. | macOS |
 | iptables             | Provides a superset of the information supplied by the default `iptables` table | Linux |
 | (more to come)       | ...  | ...   |
 
@@ -27,6 +26,12 @@ To learn more about osquery extensions development and why developing outside of
 |          :-:         |    :-:      |         :-:         |
 | network_monitor      | Provides an event-based table that lists DNS requests performed by the endpoint. Uses libpcap and Pcap++ to capture and parse network requests.  | Linux   |
 
+
+## Retired extensions
+
+| Extension            | Description | Supported Endpoints | Notes |
+|          :-:         |    :-:      |         :-:         |  :-:  |
+| darwin_unified_log   | Provided an event driven table that contains entries from the unified system log on MacOS. | macOS | API updates on macOS 10.15 permit moving this functionality into core osquery. |
 
 ## Building
 
