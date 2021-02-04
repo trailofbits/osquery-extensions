@@ -27,25 +27,25 @@ class Firewall final : public IFirewall {
   static Status create(std::unique_ptr<IFirewall>& obj);
   virtual ~Firewall();
 
-  virtual Status addPortToBlacklist(std::uint16_t port,
+  virtual Status addPortToDenylist(std::uint16_t port,
                                     TrafficDirection direction,
                                     Protocol protocol) override;
 
-  virtual Status removePortFromBlacklist(std::uint16_t port,
+  virtual Status removePortFromDenylist(std::uint16_t port,
                                          TrafficDirection direction,
                                          Protocol protocol) override;
 
-  virtual Status enumerateBlacklistedPorts(
+  virtual Status enumerateDenylistedPorts(
       bool (*callback)(std::uint16_t port,
                        TrafficDirection direction,
                        Protocol protocol,
                        void* user_defined),
       void* user_defined) override;
 
-  virtual Status addHostToBlacklist(const std::string& host) override;
-  virtual Status removeHostFromBlacklist(const std::string& host) override;
+  virtual Status addHostToDenylist(const std::string& host) override;
+  virtual Status removeHostFromDenylist(const std::string& host) override;
 
-  virtual Status enumerateBlacklistedHosts(
+  virtual Status enumerateDenylistedHosts(
       bool (*callback)(const std::string& host, void* user_defined),
       void* user_defined) override;
 
@@ -92,7 +92,7 @@ class Firewall final : public IFirewall {
                           const std::string& anchor,
                           const std::string& table);
 
-  static bool IsHostBlacklistTableActive(const std::string& contents,
+  static bool IsHostDenylistTableActive(const std::string& contents,
                                          const std::string& table);
 
  private:

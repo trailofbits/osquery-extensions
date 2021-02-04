@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "hostblacklist.h"
+#include "hostdenylist.h"
 #include "globals.h"
 
 #include <algorithm>
@@ -65,7 +65,7 @@ bool ValidateIPAddress(const std::string& ip_address) {
 } // namespace
 
 namespace trailofbits {
-struct HostBlacklistTable::PrivateData final {
+struct HostDenylistTable::PrivateData final {
   std::mutex mutex;
 
   std::unique_ptr<IHostsFile> hosts_file;
@@ -76,7 +76,7 @@ struct HostBlacklistTable::PrivateData final {
   b_fs::path configuration_file_path;
 };
 
-HostBlacklistTable::HostBlacklistTable() : d(new PrivateData) {
+HostDenylistTable::HostDenylistTable() : d(new PrivateData) {
   try {
     auto status = CreateHostsFileObject(d->hosts_file);
     if (!status.success()) {
@@ -84,7 +84,7 @@ HostBlacklistTable::HostBlacklistTable() : d(new PrivateData) {
     }
 
     d->configuration_file_path = CONFIGURATION_ROOT;
-    d->configuration_file_path /= "hostblacklist.cfg";
+    d->configuration_file_path /= "hostdenylist.cfg";
 
     loadConfiguration();
 
@@ -93,9 +93,9 @@ HostBlacklistTable::HostBlacklistTable() : d(new PrivateData) {
   }
 }
 
-HostBlacklistTable::~HostBlacklistTable() {}
+HostDenylistTable::~HostDenylistTable() {}
 
-osquery::TableColumns HostBlacklistTable::columns() const {
+osquery::TableColumns HostDenylistTable::columns() const {
   // clang-format off
   return {
     std::make_tuple("address", osquery::TEXT_TYPE, osquery::ColumnOptions::DEFAULT),
@@ -109,14 +109,14 @@ osquery::TableColumns HostBlacklistTable::columns() const {
   // clang-format on
 }
 
-osquery::TableRows HostBlacklistTable::generate(
+osquery::TableRows HostDenylistTable::generate(
     osquery::QueryContext& context) {
   static_cast<void>(context);
 
   HostRuleMap table_data;
   RowIdToPrimaryKeyMap table_row_id_to_pkey;
 
-  std::set<std::string> firewall_blacklist;
+  std::set<std::string> firewall_denylist;
   std::unordered_map<std::string, std::string> hosts_file;
 
   {
@@ -126,18 +126,18 @@ osquery::TableRows HostBlacklistTable::generate(
     table_row_id_to_pkey = d->row_id_to_pkey;
 
     // clang-format off
-    auto fw_status = GetFirewall().enumerateBlacklistedHosts(
+    auto fw_status = GetFirewall().enumerateDenylistedHosts(
       [](const std::string &host, void* user_defined) -> bool {
 
-        auto &blacklist =
+        auto &denylist =
           *static_cast<std::set<std::string>*>(user_defined);
 
-        blacklist.insert(host);
+        denylist.insert(host);
 
         return true;
       },
 
-      &firewall_blacklist
+      &firewall_denylist
     );
 
     auto hosts_status = d->hosts_file->enumerateHosts(
@@ -176,9 +176,9 @@ osquery::TableRows HostBlacklistTable::generate(
     row["domain"] = rule.domain;
     row["sinkhole"] = rule.sinkhole;
 
-    auto fw_blacklist_it = firewall_blacklist.find(rule.address);
-    if (fw_blacklist_it != firewall_blacklist.end()) {
-      firewall_blacklist.erase(fw_blacklist_it);
+    auto fw_denylist_it = firewall_denylist.find(rule.address);
+    if (fw_denylist_it != firewall_denylist.end()) {
+      firewall_denylist.erase(fw_denylist_it);
       row["firewall_block"] = "ENABLED";
     } else {
       row["firewall_block"] = "DISABLED";
@@ -200,7 +200,7 @@ osquery::TableRows HostBlacklistTable::generate(
 
   // Add unmanaged firewall rules
   RowID temp_row_id = 0x80000000ULL;
-  for (const auto& host : firewall_blacklist) {
+  for (const auto& host : firewall_denylist) {
     osquery::DynamicTableRowHolder row;
     row["rowid"] = std::to_string(temp_row_id);
     row["address_type"] =
@@ -237,7 +237,7 @@ osquery::TableRows HostBlacklistTable::generate(
   return results;
 }
 
-osquery::QueryData HostBlacklistTable::insert(
+osquery::QueryData HostDenylistTable::insert(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   static_cast<void>(context);
 
@@ -351,7 +351,7 @@ osquery::QueryData HostBlacklistTable::insert(
   d->row_id_to_pkey.insert({row_id, primary_key});
 
   // Multiple domains may point to the same address
-  auto fw_status = GetFirewall().addHostToBlacklist(rule.address);
+  auto fw_status = GetFirewall().addHostToDenylist(rule.address);
   if (!fw_status.success() &&
       fw_status.detail() != IFirewall::Detail::AlreadyExists) {
     VLOG(1) << "Failed to enable the firewall host rule";
@@ -371,7 +371,7 @@ osquery::QueryData HostBlacklistTable::insert(
   return {result};
 }
 
-osquery::QueryData HostBlacklistTable::delete_(
+osquery::QueryData HostDenylistTable::delete_(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   static_cast<void>(context);
 
@@ -404,7 +404,7 @@ osquery::QueryData HostBlacklistTable::delete_(
   d->data.erase(rule_it);
   saveConfiguration();
 
-  auto fw_status = GetFirewall().removeHostFromBlacklist(rule.address);
+  auto fw_status = GetFirewall().removeHostFromDenylist(rule.address);
   if (!fw_status.success() &&
       fw_status.detail() != IFirewall::Detail::NotFound) {
     VLOG(1) << "Failed to remove the firewall host rule";
@@ -419,7 +419,7 @@ osquery::QueryData HostBlacklistTable::delete_(
   return {{std::make_pair("status", "success")}};
 }
 
-osquery::QueryData HostBlacklistTable::update(
+osquery::QueryData HostDenylistTable::update(
     osquery::QueryContext& context, const osquery::PluginRequest& request) {
   static_cast<void>(context);
 
@@ -490,7 +490,7 @@ osquery::QueryData HostBlacklistTable::update(
   d->row_id_to_pkey.erase(row_id_to_pkey_it);
   d->data.erase(original_rule_it);
 
-  auto fw_status = GetFirewall().removeHostFromBlacklist(original_rule.address);
+  auto fw_status = GetFirewall().removeHostFromDenylist(original_rule.address);
   if (!fw_status.success()) {
     VLOG(1) << "Failed to remove the firewall host rule";
   }
@@ -525,7 +525,7 @@ osquery::QueryData HostBlacklistTable::update(
   d->row_id_to_pkey.insert({new_row_id, new_primary_key});
   saveConfiguration();
 
-  fw_status = GetFirewall().addHostToBlacklist(new_rule.address);
+  fw_status = GetFirewall().addHostToDenylist(new_rule.address);
   if (!fw_status.success()) {
     VLOG(1) << "Failed to add the firewall host rule";
   }
@@ -539,7 +539,7 @@ osquery::QueryData HostBlacklistTable::update(
   return {{std::make_pair("status", "success")}};
 }
 
-osquery::Status HostBlacklistTable::GetRowData(
+osquery::Status HostDenylistTable::GetRowData(
     osquery::Row& row, const std::string& json_value_array) {
   row.clear();
 
@@ -569,7 +569,7 @@ osquery::Status HostBlacklistTable::GetRowData(
   return osquery::Status(0, "OK");
 }
 
-osquery::Status HostBlacklistTable::PrepareInsertData(osquery::Row& row) {
+osquery::Status HostDenylistTable::PrepareInsertData(osquery::Row& row) {
   bool use_ipv4 = (row["address_type"] == "ipv4");
 
   // Get the address from the domain
@@ -592,7 +592,7 @@ osquery::Status HostBlacklistTable::PrepareInsertData(osquery::Row& row) {
   return osquery::Status(0, "OK");
 }
 
-bool HostBlacklistTable::IsInsertDataValid(const osquery::Row& row) {
+bool HostDenylistTable::IsInsertDataValid(const osquery::Row& row) {
   auto value_it = row.find("address");
   if (value_it == row.end()) {
     return false;
@@ -626,18 +626,18 @@ bool HostBlacklistTable::IsInsertDataValid(const osquery::Row& row) {
   return true;
 }
 
-std::string HostBlacklistTable::GeneratePrimaryKey(const HostRule& rule) {
+std::string HostDenylistTable::GeneratePrimaryKey(const HostRule& rule) {
   return rule.domain;
 }
 
-RowID HostBlacklistTable::GenerateRowID() {
+RowID HostDenylistTable::GenerateRowID() {
   static std::uint32_t generator = 0U;
 
   generator = (generator + 1) & 0x7FFFFFFFU;
   return generator;
 }
 
-void HostBlacklistTable::loadConfiguration() {
+void HostDenylistTable::loadConfiguration() {
   try {
     // Load the configuration file
     if (!b_fs::exists(d->configuration_file_path)) {
@@ -688,7 +688,7 @@ void HostBlacklistTable::loadConfiguration() {
         continue;
       }
 
-      auto fw_status = GetFirewall().addHostToBlacklist(rule.address);
+      auto fw_status = GetFirewall().addHostToDenylist(rule.address);
       auto hosts_status = d->hosts_file->addHost(rule.domain, rule.sinkhole);
 
       if ((!fw_status.success() &&
@@ -705,7 +705,7 @@ void HostBlacklistTable::loadConfiguration() {
   }
 }
 
-void HostBlacklistTable::saveConfiguration() {
+void HostDenylistTable::saveConfiguration() {
   try {
     b_fs::ofstream configuration_file(d->configuration_file_path);
     if (!configuration_file) {
@@ -720,7 +720,7 @@ void HostBlacklistTable::saveConfiguration() {
   }
 }
 
-osquery::Status HostBlacklistTable::DomainToAddress(std::string& address,
+osquery::Status HostDenylistTable::DomainToAddress(std::string& address,
                                                     const std::string& domain,
                                                     bool use_ipv4) {
   address.clear();
@@ -761,7 +761,7 @@ osquery::Status HostBlacklistTable::DomainToAddress(std::string& address,
   }
 }
 
-osquery::Status HostBlacklistTable::AddressToDomain(
+osquery::Status HostDenylistTable::AddressToDomain(
     std::string& domain, const std::string& address) {
   domain.clear();
 

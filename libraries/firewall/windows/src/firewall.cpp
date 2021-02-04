@@ -59,7 +59,7 @@ Firewall::Status Firewall::create(std::unique_ptr<IFirewall>& obj) {
 
 Firewall::~Firewall() {}
 
-Firewall::Status Firewall::addPortToBlacklist(
+Firewall::Status Firewall::addPortToDenylist(
     std::uint16_t port,
     Firewall::TrafficDirection direction,
     Firewall::Protocol protocol) {
@@ -126,7 +126,7 @@ Firewall::Status Firewall::addPortToBlacklist(
   return Status(true);
 }
 
-Firewall::Status Firewall::removePortFromBlacklist(
+Firewall::Status Firewall::removePortFromDenylist(
     std::uint16_t port,
     Firewall::TrafficDirection direction,
     Firewall::Protocol protocol) {
@@ -208,7 +208,7 @@ void Firewall::getHostBlockRuleNames(const std::string& state,
   }
 }
 
-Firewall::Status Firewall::removeHostFromBlacklist(const std::string& host) {
+Firewall::Status Firewall::removeHostFromDenylist(const std::string& host) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   std::string firewall_state;
@@ -243,7 +243,7 @@ Firewall::Status Firewall::removeHostFromBlacklist(const std::string& host) {
   return Status(true);
 }
 
-Firewall::Status Firewall::enumerateBlacklistedHosts(
+Firewall::Status Firewall::enumerateDenylistedHosts(
     bool (*callback)(const std::string& host, void* user_defined),
     void* user_defined) {
   std::vector<PortRule> port_rules;
@@ -356,7 +356,7 @@ void Firewall::ParseFirewallState(std::vector<PortRule>& port_rules,
   }
 }
 
-Firewall::Status Firewall::enumerateBlacklistedPorts(
+Firewall::Status Firewall::enumerateDenylistedPorts(
     bool (*callback)(std::uint16_t port,
                      Firewall::TrafficDirection direction,
                      Firewall::Protocol protocol,
@@ -386,7 +386,7 @@ Firewall::Status Firewall::enumerateBlacklistedPorts(
   return Status(true);
 }
 
-Firewall::Status Firewall::addHostToBlacklist(const std::string& host) {
+Firewall::Status Firewall::addHostToDenylist(const std::string& host) {
   std::lock_guard<std::mutex> lock(d->mutex);
 
   std::string firewall_state;
