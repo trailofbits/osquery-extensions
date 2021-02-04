@@ -17,6 +17,7 @@ To learn more about osquery extensions development and why developing outside of
 | fwctl                | Provides osquery with the ability to view and manage the OS-native firewall rules and `/etc/hosts` file (port and host blocking). | macOS, Linux, Windows |
 | ntfs_forensics       | Provides osquery with NTFS-specific forensic information for incident responders. | Windows |
 | windows_sync_objects | Provides osquery with the ability of listing and locking Windows synchronization objects (mutants, events, semaphores). | Windows |
+| mdm_enrollment       | Provides a table that reports MDM enrollment status.                                       | macOS |
 | iptables             | Provides a superset of the information supplied by the default `iptables` table | Linux |
 | (more to come)       | ...  | ...   |
 
