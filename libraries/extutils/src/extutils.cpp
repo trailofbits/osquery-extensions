@@ -107,6 +107,10 @@ bool ExecuteProcess(ProcessOutput& output,
 
     io_service.run();
 
+    // wait for the child process to get correct exit code
+    // https://www.boost.org/doc/libs/1_71_0/doc/html/boost/process/child.html#idm45477675646672-bb
+    process.wait();
+
     output.std_output = process_stdout.get();
     output.std_error = process_stderr.get();
     output.exit_code = process.exit_code();
