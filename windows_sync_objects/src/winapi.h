@@ -24,7 +24,7 @@
 
 #include <cstdint>
 
-#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) < 0x80000000)
 
 namespace {
 const std::uint32_t OBJ_CASE_INSENSITIVE = 0x00000040L;
