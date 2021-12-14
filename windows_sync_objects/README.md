@@ -2,6 +2,8 @@
 
 This extension provides a list of all mutants, semaphores and events on the system. Additionally, the user is able to create and destroy his own objects using INSERT and DELETE queries.
 
+**Note**: with more recent versions of osquery, you must pass the `--extensions_default_index=false` option (or set the appropriate option in a configuration file. Otherwise all `INSERT` and `UPDATE` statements will fail with `Error: datatype mismatch` errors.
+
 ## Schema
 
 | Column         | Type | Description                                    |

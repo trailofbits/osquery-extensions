@@ -9,6 +9,8 @@ to connect to the running osquery instance.
 
 `osqueryi --extension /path/to/trailofbits_osquery_extensions.ext.exe`
 
+The extension must be run as an Administrator account to have the proper privileges to interact with the system's physical devices.
+
 Example:
 
 ```
@@ -22,8 +24,12 @@ osquery> .schema ntfs_indx_data
 CREATE TABLE ntfs_indx_data(`device` TEXT, `partition` TEXT, `parent_inode` TEXT, `parent_path` TEXT, `filename` TEXT, `inode` TEXT, `allocated_size` TEXT, `real_size` TEXT, `btime` TEXT, `mtime` TEXT, `ctime` TEXT, `atime` TEXT, `flags` TEXT, `slack` TEXT);
 ```
 
-See the [osquery documentation on extensions](https://osquery.readthedocs.io/en/stable/deployment/extensions) for further 
-information.
+## Additional Resources
+
+- The [Collect NTFS forensic information with osquery](https://blog.trailofbits.com/2018/05/28/collect-ntfs-forensic-information-with-osquery/) blog post for information and examples.
+- The [example.txt](example.txt) file showing how to use the extension.
+- The [osquery documentation on extensions](https://osquery.readthedocs.io/en/stable/deployment/extensions) for further 
+information on extensions.
 
 ## License
 
