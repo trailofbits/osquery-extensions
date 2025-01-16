@@ -57,6 +57,8 @@ bool ExecuteProcess(ProcessOutput& output,
 
     output.std_output = process_stdout.get();
     output.std_error = process_stderr.get();
+
+    process.wait();
     output.exit_code = process.exit_code();
 
 #ifdef _WIN32
